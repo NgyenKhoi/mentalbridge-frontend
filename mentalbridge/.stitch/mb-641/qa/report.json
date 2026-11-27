@@ -1,0 +1,47 @@
+{
+  "results": [
+    {
+      "name": "Five viewport full-frame shell parity, loaded fonts, no overflow and 44px controls",
+      "status": "passed"
+    },
+    {
+      "name": "Canonical form retains exact origin; saving does not complete activity; explicit return restores focus",
+      "status": "passed"
+    },
+    {
+      "name": "Pending is local; authoritative completion persists; repeat and reload preserve time/version",
+      "status": "passed"
+    },
+    {
+      "name": "Deletion and source absence never erase accepted history; unavailable never becomes missing/success",
+      "status": "passed"
+    },
+    {
+      "name": "Missing/deleted not accepted; wrong zone and preactivation fact cannot become completion",
+      "status": "passed"
+    },
+    {
+      "name": "Check-in save failure retains choices and retry; delete dialog Escape focus then explicit deletion",
+      "status": "passed"
+    },
+    {
+      "name": "Explicit native draft activation and keyboard tabs preserve route ownership; factual partial recovery",
+      "status": "passed"
+    },
+    {
+      "name": "Malformed origin cannot mutate nearby activity; reduced motion removes commit animation",
+      "status": "passed"
+    },
+    {
+      "name": "Canonical dashboard full frames at desktop/mobile preserve shell and form with origin strip",
+      "status": "passed"
+    },
+    {
+      "name": "No external/business API calls or JavaScript errors",
+      "status": "passed"
+    }
+  ],
+  "errors": [],
+  "external": [],
+  "nativeExecution": "NOT_RUN — MB-666; browser prototype is not native runtime"
+}

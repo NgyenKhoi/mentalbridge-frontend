@@ -2,11 +2,11 @@
 
 ## Context
 
-This is a Next.js 16.3 / React 19 / TypeScript project.  
-Font stack: **Fraunces** (serif display) + **Be Vietnam Pro** (sans body).  
+This is a Next.js 16.3 / React 19 / TypeScript project.
+Font stack: **Fraunces** (serif display) + **Be Vietnam Pro** (sans body).
 Design palette CSS variables: `--teal-deep #1E4A43`, `--teal #3D7A6E`, `--amber #E1A651`,
-`--terracotta #C77B5C`, `--lavender #9A8CAE`, `--bg #F1F4EB`, `--ink #1B2A22`.  
-`framer-motion ^13.1.0` is already in `package.json` (used zero times on landing page — do not remove it).  
+`--terracotta #C77B5C`, `--lavender #9A8CAE`, `--bg #F1F4EB`, `--ink #1B2A22`.
+`framer-motion ^13.1.0` is already in `package.json` (used zero times on landing page — do not remove it).
 **GSAP is not yet installed.** You must install it first.
 
 ---
@@ -36,7 +36,7 @@ Replace the current CSS-class-based `ScrollReveal` system with a full
 
 ### 1. `components/ScrollReveal.tsx` — REPLACE entirely
 
-This component currently uses `IntersectionObserver` + CSS class toggle.  
+This component currently uses `IntersectionObserver` + CSS class toggle.
 **Replace** the whole file with a GSAP ScrollTrigger version:
 
 ```tsx
@@ -276,7 +276,7 @@ export default function ScrollReveal() {
 
 ### 2. `app/globals.css` — remove `.reveal` CSS transitions
 
-The CSS class-based fade is now replaced by GSAP.  
+The CSS class-based fade is now replaced by GSAP.
 **Find and DELETE** this block (lines ~69–82 in globals.css):
 
 ```css
@@ -304,7 +304,7 @@ The CSS class-based fade is now replaced by GSAP.
 
 ### 3. `components/Hero.tsx` — upgrade mouse parallax with GSAP `quickTo`
 
-The current hero uses `el.style.transform` directly in `mousemove`.  
+The current hero uses `el.style.transform` directly in `mousemove`.
 **Replace** the second `useEffect` (the parallax one) with a GSAP `quickTo` version for buttery smooth tracking:
 
 ```tsx

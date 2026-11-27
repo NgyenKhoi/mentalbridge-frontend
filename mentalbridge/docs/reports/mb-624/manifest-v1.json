@@ -1,0 +1,69 @@
+{
+  "reportVersion": 4,
+  "generatedAt": "2026-10-16",
+  "exactScenarioRegistry": "uc-specific-evidence-v4.json",
+  "catalogue": {
+    "repository": "NgyenKhoi/mentalbridge-backend",
+    "path": "Report3_Project Tracking.xlsx",
+    "blob": "3e88f90877d5453b82bef8cbf3e0dcb314c549c1",
+    "sha256": "c3352511cc4d307cc8ed1832d36f3af00faa758d15073003ea1b17fe36d1c6b9",
+    "atomicRows": 162,
+    "aggregateRows": 7
+  },
+  "snapshots": {
+    "backendDev": "a1ddbfc6c33521a06fb277b0782a8205825752e5",
+    "frontendDev": "c4dfb6f88759576611896865c72b6182020ce5b0",
+    "jira": "2026-10-16"
+  },
+  "evidenceClassifications": [
+    "fixture",
+    "fixture-browser",
+    "service-integration",
+    "sandbox",
+    "live-cross-stack",
+    "none"
+  ],
+  "note": "Code delivery closure is separate from channel staging verification. Every client readiness claim carries source-verifiable operation assertions; repeated scenarios require distinct per-UC observations. No row claims STAGING_VERIFIED.",
+  "codeDelivery": {
+    "denominator": 162,
+    "numerator": 76,
+    "closurePercent": 46.91,
+    "counts": {
+      "CLOSED": 76,
+      "GAP": 15,
+      "PARTIAL": 42,
+      "SCOPE_RESOLVED": 29
+    },
+    "meaning": "Pinned contract and executable code evidence closure; not deployed-staging verification."
+  },
+  "channelVerificationStates": [
+    "NONE",
+    "CODE_READY",
+    "E2E_AUTHORED_NOT_RUN",
+    "STAGING_VERIFIED",
+    "NOT_APPLICABLE"
+  ],
+  "channelVerification": {
+    "web": {
+      "applicableDenominator": 133,
+      "counts": {
+        "CODE_READY": 95,
+        "NOT_APPLICABLE": 29,
+        "NONE": 38
+      },
+      "stagingVerifiedNumerator": 0,
+      "stagingVerifiedPercent": 0
+    },
+    "mobile": {
+      "applicableDenominator": 83,
+      "counts": {
+        "CODE_READY": 24,
+        "NOT_APPLICABLE": 79,
+        "E2E_AUTHORED_NOT_RUN": 35,
+        "NONE": 24
+      },
+      "stagingVerifiedNumerator": 0,
+      "stagingVerifiedPercent": 0
+    }
+  }
+}

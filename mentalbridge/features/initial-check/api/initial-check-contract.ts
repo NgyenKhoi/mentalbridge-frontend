@@ -1,5 +1,6 @@
 import type {
   Assessment,
+  CombinedScreeningMeaning,
   SupportEvaluation,
 } from '@/features/assessment/api/care-contract'
 
@@ -18,4 +19,5 @@ export type InitialCheckState =
       phq9: Assessment
       gad7: Assessment
       evaluation: SupportEvaluation
+      combinedMeaning: CombinedScreeningMeaning
     }>

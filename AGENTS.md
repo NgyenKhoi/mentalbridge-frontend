@@ -8,11 +8,33 @@ These rules apply to the whole frontend repository. The more specific
 Before changing application code, read:
 
 1. This file.
-2. `mentalbridge/AGENTS.md`.
-3. `mentalbridge/docs/README.md` and the task-relevant documents it links.
-4. The relevant installed Next.js 16 guide under
+2. `.codex/skills/lean-task-delivery/SKILL.md`.
+3. `mentalbridge/AGENTS.md`.
+4. `mentalbridge/docs/README.md` and the task-relevant documents it links.
+5. The relevant installed Next.js 16 guide under
    `mentalbridge/node_modules/next/dist/docs/`.
-5. The backend OpenAPI contract for every API boundary being changed.
+6. The backend OpenAPI contract for every API boundary being changed.
+
+For web and Expo UI work, choose the design-evidence track before coding:
+
+- **Existing-UI fallback (approved default, including large changes):** Work
+  directly from the current MentalBridge route/components, shared design system
+  and authoritative contracts. Stitch access, generated screens, HTML, render
+  QA and a separate Stitch prototype are **not required**. Do not stop to ask
+  the Product Owner to reapprove this fallback, including for Jira tickets
+  explicitly granted the no-Stitch path (MB-664 and the current assigned
+  frontend work). Read the UI implementation playbook, write a short UX/state
+  matrix, keep a verified full-frame existing artifact or real-route capture,
+  and validate responsive, accessible interactions in repository-native tests.
+- **Approved Stitch-fidelity track:** When a Jira story or explicit owner
+  direction requires an approved Stitch design, follow
+  `.codex/skills/mentalbridge-stitch-ui/SKILL.md` and its prototype gates.
+  MB-667's owner-provided reference remains authoritative for its scope.
+
+Both tracks preserve existing shell/navigation unless the story expressly
+authorizes changing them. A component crop alone does not authorize a shell
+or page-composition change. Code-only refactors and tiny copy fixes need
+neither a new visual baseline nor a Stitch step.
 
 Do not rely on remembered Next.js behavior when the installed documentation is
 available. If dependencies are not installed, state that the local guide could
@@ -70,11 +92,32 @@ The approved Identity integration is documented in
 ## Verification and delivery
 
 - Run the smallest relevant checks while developing and the story's complete
-  quality gate before handoff. At minimum, documentation-only changes require
-  link/content review plus `npm run lint` and a non-emitting TypeScript check.
+  `dev` quality gate before handoff. Browser E2E execution belongs to the
+  staging release gate unless the task explicitly requires an earlier run. At
+  minimum, documentation-only changes require link/content review plus
+  `npm run lint` and a non-emitting TypeScript check.
+- When a change materially alters an existing browser journey, update the
+  relevant Playwright test so it remains compatible with the new behavior,
+  even when Browser E2E is not run during normal `dev` delivery.
 - Do not claim a check passed unless it was run in the current worktree. Report
   skipped or blocked checks with the reason.
 - Review the final diff for secrets, unrelated files, generated output,
   accessibility regressions, contract drift, and accidental browser exposure.
 - A handoff must name the Jira story, summarize changed behavior/files, list
   verification results, and identify remaining risks or follow-up stories.
+
+## Code Review Rules
+
+These rules drive the automatic Codex review on GitHub pull requests. Review logic, BFF and API boundaries, contracts, security and privacy, state handling, and tests. Do not review UI/UX, visual design, layout, styling, animation or copy tone; the UI author owns that review. Do not report formatting, naming or speculative refactors; CI runs format, lint, type and contract checks.
+
+Every finding names `path:line`, the concrete input or state that fails, and the fix.
+
+- **P0:** a token, refresh token, service URL or secret reachable from the browser (`NEXT_PUBLIC_*`, client props, browser storage, logs, error bodies); a BFF route handler or server call for a protected operation without authentication or role authorization (login, registration and anonymous-session creation are public by design); fields sent to or read from a backend that are not in its OpenAPI (browser-facing BFF envelopes may reshape them); a hand-edited `*.generated.ts` or synced OpenAPI copy; private health data (journal or chat text, assessment answers) written to logs, analytics or URLs; or a change that makes a required gate fail.
+- **P1:** a BFF route that does not validate input or map backend problem responses; a missing loading, empty, error, unauthorized, forbidden or dependency-down state in a changed data flow; a silent catch, `any` or unchecked type assertion on backend data; a stale optimistic update or a lost `If-Match`/`Idempotency-Key` on a mutation; or a risky path without a test.
+
+### Checks
+
+- Apply "Ownership and boundaries" and "Next.js and code rules" above, and the review gates in `mentalbridge/docs/review-and-testing.md` except their visual and journey items.
+- Server and client boundary: `"use client"` stays on the smallest interactive boundary; modules with secrets or privileged calls are server-only.
+- Contracts: the backend OpenAPI is the source of truth; generated contracts change only through `npm run contracts:sync`.
+- Mobile (`mobile/`) PRs get the same logic, contract and security review; their release checks are deferred and are not required on `dev`.

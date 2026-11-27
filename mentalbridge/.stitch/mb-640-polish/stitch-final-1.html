@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>MentalBridge - Kế hoạch hỗ trợ</title>
+<!-- Google Fonts: Fraunces & Be Vietnam Pro -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&amp;family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,400&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            brand: "#1b2a22",
+            rootBg: "#e9efe3",
+            accent: "#2a685d",
+            primaryDark: "#01332d",
+            pinkBox: "#fdeeed",
+            pinkBorder: "rgba(220,100,100,0.15)"
+          },
+          fontFamily: {
+            serif: ["Fraunces", "serif"],
+            sans: ["Be Vietnam Pro", "sans-serif"]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    .touch-target {
+      min-width: 44px;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="bg-[#e9efe3] text-[#1b2a22] font-sans antialiased min-h-screen selection:bg-[#b0efe0] selection:text-[#01332d]">
+<!-- Mobile Viewport Container: 375px native, resilient 320-430px -->
+<div class="w-full max-w-[430px] mx-auto min-h-screen bg-[#e9efe3] flex flex-col relative overflow-x-hidden border-x border-[#1b2a22]/10">
+<!-- Slide-in Navigation Drawer & Backdrop -->
+<div class="fixed inset-0 bg-black/40 z-50 transition-opacity duration-300 opacity-0 pointer-events-none" id="drawer-backdrop" onclick="toggleDrawer(false)"></div>
+<aside class="fixed top-0 left-0 bottom-0 w-[290px] bg-white z-50 transform -translate-x-full transition-transform duration-300 flex flex-col shadow-2xl p-5" id="nav-drawer">
+<div class="flex items-center justify-between pb-4 border-b border-gray-100">
+<div class="flex items-center space-x-2">
+<span class="material-symbols-outlined text-[#01332d] text-[24px]" style="font-variation-settings: 'FILL' 1;">psychology_alt</span>
+<span class="font-serif text-lg font-bold text-[#01332d]">MentalBridge</span>
+</div>
+<button class="touch-target text-gray-500 hover:text-[#1b2a22]" onclick="toggleDrawer(false)">
+<span class="material-symbols-outlined text-[22px]">close</span>
+</button>
+</div>
+<nav class="mt-4 space-y-1 flex-1">
+<p class="text-xs font-semibold uppercase text-gray-400 tracking-wider px-3 py-1.5">Lộ trình</p>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-gray-700 hover:bg-[#e9efe3]/50" href="#hom-nay" onclick="toggleDrawer(false)">
+<span class="material-symbols-outlined text-[20px]">wb_sunny</span>
+<span>Hôm nay</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-gray-700 hover:bg-[#e9efe3]/50" href="#ke-hoach" onclick="toggleDrawer(false)">
+<span class="material-symbols-outlined text-[20px]">calendar_today</span>
+<span>Kế hoạch</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-gray-700 hover:bg-[#e9efe3]/50" href="#tien-trien" onclick="toggleDrawer(false)">
+<span class="material-symbols-outlined text-[20px]">trending_up</span>
+<span>Tiến triển</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-[#01332d] bg-[#e9efe3]/70" href="#dieu-chinh" onclick="toggleDrawer(false)">
+<span class="material-symbols-outlined text-[20px] text-[#01332d]">tune</span>
+<span>Điều chỉnh</span>
+</a>
+<div class="pt-4 mt-2 border-t border-gray-100">
+<p class="text-xs font-semibold uppercase text-gray-400 tracking-wider px-3 py-1.5">Kết nối</p>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-gray-700 hover:bg-[#e9efe3]/50" href="#cong-dong" onclick="toggleDrawer(false)">
+<span class="material-symbols-outlined text-[20px]">group</span>
+<span>Cộng đồng</span>
+</a>
+</div>
+</nav>
+<div class="pt-4 border-t border-gray-100 flex items-center space-x-3">
+<div class="w-9 h-9 rounded-full bg-[#01332d] text-white flex items-center justify-center font-bold text-xs">
+          DD
+        </div>
+<div>
+<p class="text-sm font-semibold text-[#1b2a22]">Duy Đỗ</p>
+<p class="text-xs text-gray-500">Tài khoản hỗ trợ</p>
+</div>
+</div>
+</aside>
+<!-- 2. TOPBAR AT 0 (Height 56-60px) -->
+<header class="w-full bg-white sticky top-0 z-40 px-3 h-14 flex items-center justify-between border-b border-[#1b2a22]/10 shadow-xs">
+<!-- Menu Hamburger Button -->
+<button aria-label="Mở trình đơn chính" class="touch-target rounded-xl text-[#1b2a22] hover:bg-gray-50 transition-colors" onclick="toggleDrawer(true)" type="button">
+<span class="material-symbols-outlined text-[22px]">menu</span>
+</button>
+<!-- Search Input (min-width 0, can shrink) -->
+<div class="flex-1 min-w-0 mx-2">
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-2.5 text-gray-400 text-[18px]">search</span>
+<input class="w-full h-9 pl-8 pr-2.5 bg-[#f5f8f2] border-0 rounded-full text-xs text-[#1b2a22] placeholder:text-gray-400 focus:ring-1 focus:ring-[#01332d]" placeholder="Tìm..." type="text"/>
+</div>
+</div>
+<!-- Compact labeled 'Cộng đồng' link + people icon -->
+<a class="flex items-center space-x-1 px-2 py-1.5 rounded-lg text-gray-700 hover:bg-[#e9efe3] transition-colors shrink-0" href="#cong-dong">
+<span class="material-symbols-outlined text-[19px]">group</span>
+<span class="text-xs font-medium">Cộng đồng</span>
+</a>
+<!-- User avatar 'DD' -->
+<div class="w-8 h-8 rounded-full bg-[#01332d] text-white flex items-center justify-center text-xs font-bold ml-1.5 shrink-0 ring-1 ring-black/5">
+        DD
+      </div>
+</header>
+<!-- Main Content Flow -->
+<main class="flex-1 px-4 pt-3.5 pb-20 space-y-4">
+<!-- 3. WORKSPACE HEADER -->
+<section class="space-y-2.5">
+<!-- Eyebrow: '● KẾ HOẠCH HỖ TRỢ' -->
+<div class="text-[11px] font-bold tracking-wide text-[#2a685d] flex items-center gap-1.5">
+<span class="text-[8px]">●</span>
+<span>KẾ HOẠCH HỖ TRỢ</span>
+</div>
+<!-- Heading H1: Fraunces 32px wrapping cleanly as 'Hôm nay, mình / đi một bước nhỏ' -->
+<h1 class="font-serif text-[32px] leading-[38px] text-[#1b2a22] font-normal">
+          Hôm nay, mình<br/>đi một bước nhỏ
+        </h1>
+<!-- Lead text -->
+<p class="text-[14px] leading-relaxed text-[#1b2a22]/80">
+          Kế hoạch này gom những việc hữu ích vào đúng lúc, để bạn không phải tự nhớ mọi thứ.
+        </p>
+<!-- Date container: white pill full-width on next row 'Thứ Ba, 13 tháng 10' -->
+<div class="w-full bg-white rounded-full py-2.5 px-4 text-center text-xs font-semibold text-[#1b2a22] border border-[#1b2a22]/10 shadow-2xs">
+          Thứ Ba, 13 tháng 10
+        </div>
+<!-- Secondary button: outlined full-width on next row 'Điều chỉnh kế hoạch' -->
+<button class="touch-target w-full rounded-full border border-[#1b2a22]/30 bg-transparent text-[#1b2a22] text-xs font-semibold py-2.5 hover:bg-white/60 active:scale-98 transition-all" type="button">
+          Điều chỉnh kế hoạch
+        </button>
+</section>
+<!-- 4. FOUR ROUTE TABS (Scrollable, 'Điều chỉnh' selected with raised white pill & dot) -->
+<nav aria-label="Phân hệ kế hoạch" class="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-1">
+<a class="px-3.5 py-1.5 rounded-full text-xs font-medium text-[#1b2a22]/70 hover:text-[#1b2a22] whitespace-nowrap" href="#hom-nay">
+          Hôm nay
+        </a>
+<a class="px-3.5 py-1.5 rounded-full text-xs font-medium text-[#1b2a22]/70 hover:text-[#1b2a22] whitespace-nowrap" href="#ke-hoach">
+          Kế hoạch
+        </a>
+<a class="px-3.5 py-1.5 rounded-full text-xs font-medium text-[#1b2a22]/70 hover:text-[#1b2a22] whitespace-nowrap" href="#tien-trien">
+          Tiến triển
+        </a>
+<!-- Active Tab: Điều chỉnh (white raised tab, active indicator dot) -->
+<a aria-current="page" class="px-3.5 py-1.5 rounded-full text-xs font-bold text-[#1b2a22] bg-white shadow-xs border border-[#1b2a22]/10 flex items-center space-x-1.5 whitespace-nowrap" href="#dieu-chinh">
+<span class="w-1.5 h-1.5 rounded-full bg-[#01332d]"></span>
+<span>Điều chỉnh</span>
+</a>
+</nav>
+<!-- 5. CONDITIONAL PERSONALIZATION BOX (EXACT desktop parity: pale pink #fdeeed, no icon, Fraunces 32px heading) -->
+<section class="bg-[#fdeeed] rounded-[16px] p-4 border border-[rgba(220,100,100,0.15)] space-y-3">
+<!-- Heading: Fraunces 32px wrapping into 2 lines -->
+<h2 class="font-serif text-[32px] leading-[36px] text-[#1b2a22] font-normal">
+          Điều gì giúp kế hoạch<br/>dễ thực hiện hơn?
+        </h2>
+<!-- Paragraph under -->
+<p class="text-[13px] leading-relaxed text-[#1b2a22]/85">
+          Chưa thể lưu lựa chọn lúc này. Những gì bạn vừa chọn vẫn đang được giữ trên màn hình.
+        </p>
+<!-- Button below on LEFT side -->
+<div class="pt-0.5">
+<button class="px-4 py-2 bg-white text-xs font-semibold text-[#1b2a22] rounded-full border border-[#1b2a22]/20 hover:bg-[#fff9f9] shadow-2xs active:scale-98 transition-all" type="button">
+            Thử tải lại
+          </button>
+</div>
+</section>
+<!-- 6. CADENCE SECTION -->
+<section class="space-y-3 pt-1">
+<h2 class="font-serif text-[22px] leading-tight text-[#1b2a22] font-medium">
+          Nhịp hoạt động phù hợp với bạn
+        </h2>
+<!-- Action 1: Đi bộ nhẹ (Expanded Editor) -->
+<article class="bg-white rounded-2xl p-4 border border-[#1b2a22]/15 shadow-sm space-y-3.5">
+<div class="flex items-start justify-between">
+<div>
+<span class="bg-[#e9efe3] text-[#2a685d] text-[11px] font-semibold px-2.5 py-0.5 rounded-full">Vận động nhẹ</span>
+<h3 class="font-serif text-[20px] text-[#1b2a22] font-medium mt-1">Đi bộ nhẹ</h3>
+</div>
+<span class="material-symbols-outlined text-gray-400 text-[20px]">directions_walk</span>
+</div>
+<!-- Configuration Form -->
+<div class="space-y-3.5 pt-2 border-t border-gray-100">
+<!-- Recurrence: Theo tuần / Mỗi ngày / Một lần -->
+<div>
+<label class="block text-xs font-semibold text-[#1b2a22] mb-1.5">Tần suất lặp lại</label>
+<div class="grid grid-cols-3 gap-1.5">
+<button class="touch-target py-2 px-2 rounded-xl text-xs font-bold bg-[#01332d] text-white shadow-2xs" type="button">
+                  Theo tuần
+                </button>
+<button class="touch-target py-2 px-2 rounded-xl text-xs font-medium bg-[#f5f8f2] text-gray-700 hover:bg-gray-100" type="button">
+                  Mỗi ngày
+                </button>
+<button class="touch-target py-2 px-2 rounded-xl text-xs font-medium bg-[#f5f8f2] text-gray-700 hover:bg-gray-100" type="button">
+                  Một lần
+                </button>
+</div>
+</div>
+<!-- Wrapping 44px Weekday Chips -->
+<div>
+<label class="block text-xs font-semibold text-[#1b2a22] mb-1.5">Ngày thực hiện</label>
+<div class="flex flex-wrap gap-1.5">
+<button class="touch-target w-11 h-11 rounded-xl text-xs font-bold bg-[#01332d] text-white" type="button">T2</button>
+<button class="touch-target w-11 h-11 rounded-xl text-xs font-medium bg-[#f5f8f2] text-gray-700 hover:bg-gray-100" type="button">T3</button>
+<button class="touch-target w-11 h-11 rounded-xl text-xs font-bold bg-[#01332d] text-white" type="button">T4</button>
+<button class="touch-target w-11 h-11 rounded-xl text-xs font-medium bg-[#f5f8f2] text-gray-700 hover:bg-gray-100" type="button">T5</button>
+<button class="touch-target w-11 h-11 rounded-xl text-xs font-bold bg-[#01332d] text-white" type="button">T6</button>
+<button class="touch-target w-11 h-11 rounded-xl text-xs font-medium bg-[#f5f8f2] text-gray-700 hover:bg-gray-100" type="button">T7</button>
+<button class="touch-target w-11 h-11 rounded-xl text-xs font-medium bg-[#f5f8f2] text-gray-700 hover:bg-gray-100" type="button">CN</button>
+</div>
+</div>
+<!-- Timing Mode Switch -->
+<div>
+<label class="block text-xs font-semibold text-[#1b2a22] mb-1.5">Cách hẹn giờ</label>
+<div class="flex p-1 bg-[#f5f8f2] rounded-xl border border-black/5">
+<button class="touch-target flex-1 rounded-lg text-xs font-medium text-gray-600" type="button">Theo buổi</button>
+<button class="touch-target flex-1 rounded-lg bg-white text-xs font-bold text-[#01332d] shadow-2xs" type="button">Giờ cụ thể</button>
+</div>
+</div>
+<!-- Specific Time and Duration -->
+<div class="grid grid-cols-2 gap-2">
+<div>
+<label class="block text-xs font-semibold text-[#1b2a22] mb-1">Thời gian</label>
+<div class="relative">
+<input class="w-full h-11 bg-[#f9faf7] border border-gray-200 rounded-xl px-3 text-xs font-semibold text-[#1b2a22]" type="text" value="19:00"/>
+<span class="material-symbols-outlined absolute right-2.5 top-3 text-[18px] text-gray-400">schedule</span>
+</div>
+</div>
+<div>
+<label class="block text-xs font-semibold text-[#1b2a22] mb-1">Thời lượng</label>
+<div class="relative">
+<input class="w-full h-11 bg-[#f9faf7] border border-gray-200 rounded-xl px-3 text-xs font-semibold text-[#1b2a22]" type="text" value="10 phút"/>
+<span class="material-symbols-outlined absolute right-2.5 top-3 text-[18px] text-gray-400">timer</span>
+</div>
+</div>
+</div>
+<!-- Effective Date and Timezone -->
+<div>
+<label class="block text-xs font-semibold text-[#1b2a22] mb-1">Bắt đầu áp dụng</label>
+<div class="relative">
+<input class="w-full h-11 bg-[#f9faf7] border border-gray-200 rounded-xl px-3 text-xs font-medium text-[#1b2a22]" type="text" value="14/10/2026"/>
+<span class="material-symbols-outlined absolute right-2.5 top-3 text-[18px] text-gray-400">calendar_today</span>
+</div>
+<p class="text-[11px] text-gray-500 mt-1">Múi giờ: Asia/Ho_Chi_Minh (GMT+7)</p>
+</div>
+<!-- Inline Reminder Checkbox -->
+<div class="flex items-center space-x-2 pt-1">
+<input checked="" class="w-4 h-4 rounded text-[#01332d] focus:ring-[#01332d] border-gray-300" id="reminder-walk" type="checkbox"/>
+<label class="text-xs text-[#1b2a22] select-none" for="reminder-walk">Nhắc nhở nhẹ nhàng trước 15 phút</label>
+</div>
+<!-- Save & Revert Buttons -->
+<div class="pt-2 flex items-center space-x-2">
+<button class="touch-target flex-1 bg-[#01332d] text-white rounded-xl text-xs font-semibold shadow-xs hover:bg-[#163732] active:scale-98 transition-all" type="button">
+                Lưu lịch
+              </button>
+<button class="touch-target px-4 bg-[#f5f8f2] text-[#1b2a22] border border-gray-200 rounded-xl text-xs font-medium hover:bg-gray-100 active:scale-98 transition-all" type="button">
+                Hoàn tác
+              </button>
+</div>
+</div>
+</article>
+<!-- Action 2: Chuẩn bị một nhịp ngủ dễ chịu hơn (Clean copy, no health claims) -->
+<article class="bg-white rounded-2xl p-4 border border-[#1b2a22]/15 shadow-sm space-y-2">
+<div class="flex items-start justify-between">
+<span class="bg-[#e9efe3] text-[#2a685d] text-[11px] font-semibold px-2.5 py-0.5 rounded-full">Buổi tối · 10 phút</span>
+<span class="material-symbols-outlined text-gray-400 text-[20px]">bedtime</span>
+</div>
+<h3 class="font-serif text-[18px] text-[#1b2a22] font-medium pt-0.5">Chuẩn bị một nhịp ngủ dễ chịu hơn</h3>
+<p class="text-xs text-gray-600 leading-relaxed">
+            Dành một khoảng lặng ngắn vào cuối ngày để cơ thể và tâm trí dần chậm lại theo nhịp sinh hoạt quen thuộc.
+          </p>
+<div class="flex items-center space-x-2 pt-1">
+<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#f5f8f2] text-xs font-semibold text-[#01332d]">
+<span class="material-symbols-outlined text-[15px]">schedule</span>
+              19:15 · 10 phút
+            </span>
+</div>
+</article>
+</section>
+<!-- 7. LIFECYCLE MANAGEMENT -->
+<section class="bg-[#dce6d6] rounded-2xl p-4 border border-[#1b2a22]/15 space-y-3">
+<h3 class="text-xs font-bold uppercase tracking-wider text-[#01332d]">Quản lý trạng thái kế hoạch</h3>
+<!-- Exact lifecycle copy -->
+<p class="text-xs text-[#1b2a22]/90 leading-relaxed">
+          Tạm dừng sẽ hủy các lịch tương lai; tiếp tục chỉ khôi phục các mục vẫn còn ở tương lai. Kết thúc không mang ý nghĩa phục hồi.
+        </p>
+<div class="pt-1 flex flex-col gap-2">
+<!-- Neutral button -->
+<button class="touch-target w-full rounded-xl bg-white border border-[#1b2a22]/20 text-xs font-semibold text-[#1b2a22] hover:bg-gray-50 active:scale-98 transition-all" type="button">
+            Tạm dừng kế hoạch
+          </button>
+<!-- Quiet destructive button -->
+<button class="touch-target w-full rounded-xl bg-transparent border border-red-300 text-xs font-medium text-red-800 hover:bg-red-50/50 active:scale-98 transition-all" type="button">
+            Kết thúc kế hoạch
+          </button>
+</div>
+</section>
+</main>
+<!-- 8. FLOATING SAFETY ACTION: Small 48px round amber/orange icon-only safety button fixed at bottom-right 16px (NO bottom nav) -->
+<aside class="fixed bottom-4 right-4 z-50">
+<button aria-label="Hỗ trợ an toàn khẩn cấp" class="w-12 h-12 rounded-full bg-[#e0a550] text-[#412800] shadow-lg flex items-center justify-center hover:bg-[#d49740] active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-[#e0a550]/50" type="button">
+<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">shield</span>
+</button>
+</aside>
+</div>
+<script>
+    function toggleDrawer(open) {
+      const drawer = document.getElementById('nav-drawer');
+      const backdrop = document.getElementById('drawer-backdrop');
+      if (!drawer || !backdrop) return;
+
+      if (open) {
+        drawer.classList.remove('-translate-x-full');
+        backdrop.classList.remove('opacity-0', 'pointer-events-none');
+      } else {
+        drawer.classList.add('-translate-x-full');
+        backdrop.classList.add('opacity-0', 'pointer-events-none');
+      }
+    }
+  </script>
+</body></html>

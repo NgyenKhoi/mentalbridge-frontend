@@ -1,0 +1,43 @@
+/* The base .community-avatar look lives in the community route group's stylesheet; account surfaces outside it need the same circle. */
+.root {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+}
+.root :global(.community-avatar) {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  border-radius: inherit;
+  overflow: hidden;
+  background: #dcebe2;
+  color: var(--teal-deep);
+  font-size: inherit;
+  font-weight: 700;
+}
+.root :global(.community-avatar img) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.root :global(.community-avatar svg) {
+  width: 56%;
+  height: 56%;
+}
+.root :global(.community-avatar.is-sunrise) {
+  background: #f8e8bc;
+  color: #9b631b;
+}
+.root :global(.community-avatar.is-wave),
+.root :global(.community-avatar.is-cloud) {
+  background: #dcecf2;
+  color: #35667b;
+}
+.root :global(.community-avatar.is-lotus) {
+  background: #f5dfe7;
+  color: #8d4963;
+}

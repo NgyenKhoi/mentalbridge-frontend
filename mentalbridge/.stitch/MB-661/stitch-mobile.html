@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Bộ sưu tập hành trình | MentalBridge</title>
+<!-- Google Fonts: Newsreader & Be Vietnam Pro -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              moss: '#1e4a43',
+              mossLight: '#2c675d',
+              leaf: '#3b7a69',
+              bg: '#f5fbf1',
+              card: '#ffffff',
+              border: '#d7e8d5',
+              subtle: '#eaf4e7',
+              pill: '#dcfce7',
+              pillText: '#166534',
+              sand: '#fcfaf6',
+              amberSubtle: '#fef3c7',
+              amberText: '#92400e',
+              muted: '#52665a'
+            }
+          },
+          fontFamily: {
+            serif: ['Newsreader', 'Georgia', 'serif'],
+            sans: ['"Be Vietnam Pro"', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="base-styling">
+    body {
+      background-color: #f5fbf1;
+      font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      color: #1a2e26;
+      line-height: 1.55;
+    }
+
+    /* Subtle touch active states */
+    .tap-target {
+      min-height: 44px;
+      min-width: 44px;
+      transition: all 0.15s ease-in-out;
+    }
+    .tap-target:active {
+      transform: scale(0.98);
+    }
+  </style>
+<style data-purpose="custom-elements">
+    /* Custom Toggle Switch for Clinical UI */
+    .switch-toggle input:checked + .slider {
+      background-color: #1e4a43;
+    }
+    .switch-toggle input:checked + .slider:before {
+      transform: translateX(20px);
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #cbd5e1;
+      transition: .25s ease;
+      border-radius: 9999px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .25s ease;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body class="bg-[#f5fbf1] text-[#1a2e26] selection:bg-[#d7e8d5]">
+<!-- Mobile Viewport Shell (Constraint to 390px width for iOS mobile parity) -->
+<div class="w-full max-w-[390px] mx-auto min-h-screen bg-[#f5fbf1] flex flex-col relative overflow-x-hidden border-x border-[#e3ede0] shadow-sm pb-28">
+<!-- BEGIN: MobileHeader -->
+<header class="sticky top-0 z-40 bg-[#f5fbf1]/95 backdrop-blur-md px-4 py-3 border-b border-[#e1ece0] flex items-center justify-between" data-purpose="top-navigation-bar">
+<!-- MentalBridge Logo Brand Area -->
+<div class="flex items-center gap-2.5">
+<div aria-label="MentalBridge Logo" class="w-9 h-9 rounded-full bg-[#1e4a43] flex items-center justify-center text-white shadow-sm flex-shrink-0">
+<svg class="w-5 h-5 text-emerald-100" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+<path d="M12 8v4"></path>
+<path d="M12 16h.01"></path>
+</svg>
+</div>
+<div>
+<h2 class="text-[15px] font-bold text-[#1e4a43] leading-none tracking-tight">MentalBridge</h2>
+<p class="text-[11px] text-[#556b60] font-normal mt-0.5">Chăm sóc tâm lý cá nhân</p>
+</div>
+</div>
+<!-- Action items: Notifications & Participant Badge -->
+<div class="flex items-center gap-2">
+<button aria-label="Thông báo" class="w-10 h-10 rounded-full flex items-center justify-center text-[#2c4e43] hover:bg-[#e4efe0] relative tap-target" type="button">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="absolute top-2.5 right-2.5 w-2 h-2 bg-emerald-600 rounded-full"></span>
+</button>
+<div class="w-10 h-10 rounded-full bg-[#1e4a43] text-white flex items-center justify-center text-xs font-semibold shadow-inner" title="BS. Minh Anh / Người tham gia">
+          MA
+        </div>
+</div>
+</header>
+<!-- END: MobileHeader -->
+<!-- Emergency Hotline Banner (Compact for Mobile) -->
+<div class="mx-4 mt-3 bg-[#e8f1e6] border border-[#d2e2cf] rounded-xl px-3.5 py-2.5 flex items-center justify-between shadow-2xs" data-purpose="crisis-support-bar">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+<span class="text-xs font-medium text-[#2d564b]">Hỗ trợ khẩn cấp 24/7:</span>
+<span class="text-xs font-bold text-[#1e4a43]">1900 xxxx</span>
+</div>
+<a aria-label="Gọi khẩn cấp" class="text-[11px] font-semibold text-[#1e4a43] underline bg-white/70 px-2 py-1 rounded-md" href="tel:1900xxxx">Gọi ngay</a>
+</div>
+<!-- BEGIN: MainContent -->
+<main class="flex-1 px-4 pt-4 pb-6 space-y-5" data-purpose="content-stream">
+<!-- BEGIN: ScreenIntro -->
+<section class="space-y-2.5" data-purpose="title-and-intent">
+<!-- Privacy Badge -->
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#e3efe1] border border-[#cbe0c7] text-[#20493f] text-[11px] font-medium tracking-wide">
+<svg class="w-3.5 h-3.5 text-[#1e4a43]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>RIÊNG TƯ CHO BẠN</span>
+<span class="text-emerald-500">•</span>
+<span>Không công khai</span>
+<span class="text-emerald-500">•</span>
+<span>Bảo mật lâm sàng</span>
+</div>
+<h1 class="text-2xl font-serif font-semibold text-[#163832] tracking-tight leading-snug">
+          Bộ sưu tập hành trình
+        </h1>
+<p class="text-xs text-[#445b50] leading-relaxed">
+          Những bước đã được lưu từ hoạt động của bạn. Không có xếp hạng hay áp lực duy trì chuỗi liên tục.
+        </p>
+</section>
+<!-- END: ScreenIntro -->
+<!-- BEGIN: PrivacySettingCard -->
+<section class="bg-white rounded-2xl p-4 border border-[#dce9d8] shadow-sm space-y-3" data-purpose="privacy-toggle-section">
+<div class="flex items-start justify-between gap-3">
+<div class="flex items-start gap-2.5">
+<div class="w-8 h-8 rounded-lg bg-[#edf6eb] text-[#1e4a43] flex items-center justify-center flex-shrink-0 mt-0.5">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<div>
+<h2 class="text-sm font-semibold text-[#193d35]">Quyền riêng tư hiển thị</h2>
+<p class="text-xs text-[#526a5d] mt-0.5 leading-relaxed">
+                Chỉ bạn mới có thể thấy bộ sưu tập này. Dữ liệu hoàn toàn riêng tư.
+              </p>
+</div>
+</div>
+<!-- Accessible Toggle Switch (46x26) -->
+<div class="flex-shrink-0 pt-0.5">
+<label aria-label="Bật tắt quyền riêng tư" class="relative inline-block w-[46px] h-[26px] switch-toggle cursor-pointer">
+<input checked="" class="opacity-0 w-0 h-0 sr-only" type="checkbox"/>
+<span class="slider"></span>
+</label>
+</div>
+</div>
+<!-- Safe clinical reassurance notice -->
+<div class="bg-[#f5fbf3] border border-[#d8e8d5] rounded-xl p-2.5 flex items-start gap-2 text-[11px] text-[#405c4f] leading-normal">
+<svg class="w-4 h-4 text-emerald-700 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Ẩn bộ sưu tập sẽ không làm ảnh hưởng đến Nhật ký, check-in cảm xúc, Tài nguyên hay Kế hoạch tự chăm sóc của bạn.</span>
+</div>
+</section>
+<!-- END: PrivacySettingCard -->
+<!-- BEGIN: ObjectiveSummaryCard -->
+<section class="bg-white rounded-2xl p-4 border border-[#dce9d8] shadow-sm space-y-3" data-purpose="objective-metrics-summary">
+<div class="flex items-center justify-between">
+<span class="text-[11px] font-semibold tracking-wider text-[#577264] uppercase">TÓM TẮT KHÁCH QUAN</span>
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#e4f4e2] text-[#1b5e20] border border-[#c4e3c1]">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+            Đã đồng bộ
+          </span>
+</div>
+<div class="pt-1">
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-serif font-bold text-[#143d34]">4</span>
+<span class="text-base font-semibold text-[#1e4a43]">dấu mốc đã ghi nhận</span>
+</div>
+<p class="text-xs text-[#526b5d] mt-1.5 leading-relaxed">
+            Dữ liệu được xác thực lúc 09:15 sáng nay từ phiên bản ứng dụng cá nhân.
+          </p>
+</div>
+<div class="pt-2 border-t border-[#edf4ec] flex items-center justify-between gap-2">
+<span class="text-[11px] text-[#71877b] italic">Không tính điểm hay xếp hạng</span>
+<button aria-label="Kiểm tra cập nhật dữ liệu" class="tap-target inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#cfe2cc] bg-[#f9fdf8] text-[#1e4a43] text-xs font-medium hover:bg-[#eaf4e7]" type="button">
+<svg class="w-3.5 h-3.5 text-emerald-700" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Kiểm tra cập nhật</span>
+</button>
+</div>
+</section>
+<!-- END: ObjectiveSummaryCard -->
+<!-- BEGIN: MilestoneDomainJournaling -->
+<section class="space-y-3" data-purpose="domain-journaling">
+<!-- Section Header -->
+<div class="flex items-start gap-2.5 pt-1">
+<div class="w-7 h-7 rounded-lg bg-[#e1eee0] text-[#1e4a43] flex items-center justify-center flex-shrink-0 mt-0.5">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<div>
+<h2 class="text-base font-semibold text-[#143a32]">Viết nhật ký</h2>
+<p class="text-xs text-[#5b7367]">Không gian suy ngẫm chân thực, ghi nhận từng dòng xúc cảm tự nhiên.</p>
+</div>
+</div>
+<!-- Card 1: Trang viết đầu tiên -->
+<article class="bg-white rounded-2xl p-4 border border-[#dce9d8] shadow-sm space-y-3" data-purpose="milestone-card">
+<div class="flex items-center justify-between">
+<div class="w-8 h-8 rounded-full bg-[#f0f7ee] border border-[#d6ebd3] flex items-center justify-center text-[#255e50]">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#e7f7e4] text-[#1a632e] border border-[#cbefc5]">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Đã lưu
+            </span>
+</div>
+<div>
+<h3 class="text-sm font-semibold text-[#183d34]">Trang viết đầu tiên</h3>
+<p class="text-xs text-[#526a5e] mt-1 leading-relaxed">Bắt đầu lưu giữ những suy nghĩ chân thực đầu tiên vào không gian riêng.</p>
+</div>
+<div class="pt-2 border-t border-[#f0f6ee] flex items-center gap-1.5 text-[11px] text-[#698274]">
+<svg class="w-3.5 h-3.5 text-emerald-700" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Đã ghi nhận ngày 12/10/2024</span>
+</div>
+</article>
+<!-- Card 2: Ba ngày viết khác nhau -->
+<article class="bg-white rounded-2xl p-4 border border-[#dce9d8] shadow-sm space-y-3" data-purpose="milestone-card">
+<div class="flex items-center justify-between">
+<div class="w-8 h-8 rounded-full bg-[#f0f7ee] border border-[#d6ebd3] flex items-center justify-center text-[#255e50]">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#e7f7e4] text-[#1a632e] border border-[#cbefc5]">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Đã lưu
+            </span>
+</div>
+<div>
+<h3 class="text-sm font-semibold text-[#183d34]">Ba ngày viết khác nhau</h3>
+<p class="text-xs text-[#526a5e] mt-1 leading-relaxed">Đã hoàn thành qua 3 ngày ghi chép riêng biệt (không yêu cầu liên tục).</p>
+</div>
+<div class="pt-2 border-t border-[#f0f6ee] flex items-center gap-1.5 text-[11px] text-[#698274]">
+<svg class="w-3.5 h-3.5 text-emerald-700" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>3 mốc độc lập được lưu</span>
+</div>
+</article>
+<!-- Card 3: Bảy ngày viết khác nhau (Đang diễn ra) -->
+<article class="bg-white/95 rounded-2xl p-4 border border-[#d6e5d2] shadow-sm space-y-3" data-purpose="milestone-in-progress">
+<div class="flex items-center justify-between">
+<div class="w-8 h-8 rounded-full bg-[#f4f7f4] border border-[#e2ece0] flex items-center justify-center text-[#546b60]">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#edf2ec] text-[#4d6659] border border-[#dae6d7]">
+              Đang diễn ra
+            </span>
+</div>
+<div>
+<h3 class="text-sm font-semibold text-[#183d34]">Bảy ngày viết khác nhau</h3>
+<p class="text-xs text-[#526a5e] mt-1 leading-relaxed">Mỗi ngày bạn ghé qua ghi lại suy nghĩ đều được trân trọng theo nhịp độ tự nhiên.</p>
+</div>
+<div class="pt-2 border-t border-[#f0f6ee] flex items-center justify-between text-[11px] text-[#556e61]">
+<span class="font-medium text-[#1e4a43]">4/7 ngày viết khác nhau đã lưu</span>
+<span class="italic text-[#778d81]">Theo nhịp độ của bạn</span>
+</div>
+</article>
+</section>
+<!-- END: MilestoneDomainJournaling -->
+<!-- BEGIN: MilestoneDomainCheckin -->
+<section class="space-y-3" data-purpose="domain-checkin">
+<!-- Section Header -->
+<div class="flex items-start gap-2.5 pt-1">
+<div class="w-7 h-7 rounded-lg bg-[#e1eee0] text-[#1e4a43] flex items-center justify-center flex-shrink-0 mt-0.5">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<div>
+<h2 class="text-base font-semibold text-[#143a32]">Check-in cảm xúc</h2>
+<p class="text-xs text-[#5b7367]">Nhận diện và gọi tên trạng thái nội tâm trong sự bình an.</p>
+</div>
+</div>
+<!-- Card 1: Đã ghi nhận -->
+<article class="bg-white rounded-2xl p-4 border border-[#dce9d8] shadow-sm space-y-3" data-purpose="milestone-card">
+<div class="flex items-center justify-between">
+<div class="w-8 h-8 rounded-full bg-[#f0f7ee] border border-[#d6ebd3] flex items-center justify-center text-[#255e50]">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#e7f7e4] text-[#1a632e] border border-[#cbefc5]">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Đã ghi nhận
+            </span>
+</div>
+<div>
+<h3 class="text-sm font-semibold text-[#183d34]">Lắng nghe cảm xúc đầu tiên</h3>
+<p class="text-xs text-[#526a5e] mt-1 leading-relaxed">Dừng lại một nhịp để ghi nhận trạng thái tâm lý một cách không phán xét.</p>
+</div>
+<div class="pt-2 border-t border-[#f0f6ee] flex items-center gap-1.5 text-[11px] text-[#698274]">
+<svg class="w-3.5 h-3.5 text-emerald-700" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Ghi nhận ngày 28/10/2024 (Nhẹ nhàng &amp; Ổn định)</span>
+</div>
+</article>
+<!-- Card 2: Trạng thái Mất kết nối nguồn (Dashed Border / SOURCE_UNAVAILABLE) -->
+<article class="bg-[#fbfcfa] rounded-2xl p-4 border-2 border-dashed border-[#cfded0] space-y-3" data-purpose="milestone-source-unavailable">
+<div class="flex items-center justify-between">
+<div class="w-8 h-8 rounded-full bg-[#f1f3f1] text-[#718579] flex items-center justify-center">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#fef3c7] text-[#92400e] border border-[#fde68a]">
+<svg class="w-3 h-3 text-[#b45309]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+              Nguồn chưa kết nối
+            </span>
+</div>
+<div>
+<h3 class="text-sm font-semibold text-[#183d34]">Nhận diện cảm xúc qua 3 ngày khác nhau</h3>
+<p class="text-xs text-[#526a5e] mt-1 leading-relaxed">
+              Nguồn dữ liệu tạm thời chưa khả dụng. Hệ thống không thể xác minh mốc này vào lúc này để đảm bảo tính chuẩn xác.
+            </p>
+</div>
+<div class="pt-2 border-t border-[#ebf0ea] flex items-center justify-between gap-2">
+<span class="text-[11px] text-[#72857b] italic">Không hiển thị dữ liệu ước đoán nhằm tôn trọng sự thật.</span>
+<button aria-label="Thử lại kết nối nguồn" class="tap-target inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-[#c5d8c6] bg-white text-[#1e4a43] text-xs font-medium hover:bg-[#edf6ec]" type="button">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Thử lại kết nối</span>
+</button>
+</div>
+</article>
+</section>
+<!-- END: MilestoneDomainCheckin -->
+<!-- BEGIN: MilestoneDomainResources -->
+<section class="space-y-3" data-purpose="domain-resources">
+<!-- Section Header -->
+<div class="flex items-start gap-2.5 pt-1">
+<div class="w-7 h-7 rounded-lg bg-[#e1eee0] text-[#1e4a43] flex items-center justify-center flex-shrink-0 mt-0.5">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<div>
+<h2 class="text-base font-semibold text-[#143a32]">Tài nguyên đã duyệt</h2>
+<p class="text-xs text-[#5b7367]">Các bài tập điều hòa thần kinh và tài liệu tâm lý học thường thức.</p>
+</div>
+</div>
+<!-- Card 1: Bài tập thực hành đầu tiên -->
+<article class="bg-white rounded-2xl p-4 border border-[#dce9d8] shadow-sm space-y-3" data-purpose="milestone-card">
+<div class="flex items-center justify-between">
+<div class="w-8 h-8 rounded-full bg-[#f0f7ee] border border-[#d6ebd3] flex items-center justify-center text-[#255e50]">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#e7f7e4] text-[#1a632e] border border-[#cbefc5]">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Đã hoàn thành
+            </span>
+</div>
+<div>
+<h3 class="text-sm font-semibold text-[#183d34]">Bài tập thực hành đầu tiên</h3>
+<p class="text-xs text-[#526a5e] mt-1 leading-relaxed">Đã hoàn thành bài tập Thở hộp 4-4-4-4 giúp làm dịu hệ thần kinh giao cảm.</p>
+</div>
+<div class="pt-2 border-t border-[#f0f6ee] flex items-center gap-1.5 text-[11px] text-[#698274]">
+<svg class="w-3.5 h-3.5 text-emerald-700" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Con dấu xác nhận lâm sàng</span>
+</div>
+</article>
+<!-- Card 2: Tìm hiểu 3 tài nguyên khác nhau -->
+<article class="bg-white/95 rounded-2xl p-4 border border-[#d6e5d2] shadow-sm space-y-3" data-purpose="milestone-in-progress">
+<div class="flex items-center justify-between">
+<div class="w-8 h-8 rounded-full bg-[#f4f7f4] border border-[#e2ece0] flex items-center justify-center text-[#546b60]">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#edf2ec] text-[#4d6659] border border-[#dae6d7]">
+              Đang tìm hiểu
+            </span>
+</div>
+<div>
+<h3 class="text-sm font-semibold text-[#183d34]">Tìm hiểu 3 tài nguyên khác nhau</h3>
+<p class="text-xs text-[#526a5e] mt-1 leading-relaxed">Tiếp cận các phương pháp điều hòa cảm xúc đa dạng theo nhu cầu cá nhân.</p>
+</div>
+<div class="pt-2 border-t border-[#f0f6ee] flex items-center justify-between text-[11px] text-[#556e61]">
+<span class="font-medium text-[#1e4a43]">Đã duyệt 2/3 tài nguyên lâm sàng</span>
+<span class="italic text-[#778d81]">Tự do trải nghiệm</span>
+</div>
+</article>
+<!-- Card 3: Thực hành trong 3 ngày riêng biệt -->
+<article class="bg-white rounded-2xl p-4 border border-[#dce9d8] shadow-sm space-y-3" data-purpose="milestone-card">
+<div class="flex items-center justify-between">
+<div class="w-8 h-8 rounded-full bg-[#f0f7ee] border border-[#d6ebd3] flex items-center justify-center text-[#255e50]">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#e7f7e4] text-[#1a632e] border border-[#cbefc5]">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Đã ghi nhận
+            </span>
+</div>
+<div>
+<h3 class="text-sm font-semibold text-[#183d34]">Thực hành trong 3 ngày riêng biệt</h3>
+<p class="text-xs text-[#526a5e] mt-1 leading-relaxed">Đã ghi nhận các phiên tự chăm sóc trong 3 khung ngày khác nhau.</p>
+</div>
+<div class="pt-2 border-t border-[#f0f6ee] flex items-center gap-1.5 text-[11px] text-[#698274]">
+<svg class="w-3.5 h-3.5 text-emerald-700" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Các ngày độc lập, không tính chuỗi streak</span>
+</div>
+</article>
+</section>
+<!-- END: MilestoneDomainResources -->
+<!-- BEGIN: DeferredChapterCard -->
+<section class="bg-[#edf6eb] rounded-2xl p-4 border border-[#cfded0] space-y-3" data-purpose="deferred-milestone-section">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-lg bg-white/80 text-[#1e4a43] flex items-center justify-center flex-shrink-0">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<span class="text-[11px] font-semibold text-[#3b6255] tracking-wider uppercase">HÀNH TRÌNH TIẾP NỐI</span>
+</div>
+<div>
+<h2 class="text-base font-serif font-semibold text-[#163c33]">Một chương mới</h2>
+<div class="mt-1">
+<span class="inline-block text-[11px] font-medium px-2 py-0.5 rounded-full bg-white/70 text-[#4c675a] border border-[#d2e2cf]">
+              Chưa mở trong phiên bản này
+            </span>
+</div>
+</div>
+<p class="text-xs text-[#435e51] leading-relaxed">
+          Chương này chỉ xuất hiện khi bạn chủ động xác nhận một cột mốc phù hợp trong <strong class="font-medium text-[#1a4439]">Kế hoạch hỗ trợ (Support Plan)</strong>. Hệ thống sẽ không bao giờ tự động suy đoán dựa trên sự vắng mặt hay ngày quay trở lại của bạn.
+        </p>
+<div class="pt-1">
+<a aria-label="Xem Kế hoạch tự chăm sóc hiện tại" class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1e4a43] hover:underline" href="#">
+<span>Xem Kế hoạch tự chăm sóc hiện tại</span>
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</a>
+</div>
+</section>
+<!-- END: DeferredChapterCard -->
+<!-- BEGIN: DataMinimizationDisclosure -->
+<section class="bg-white rounded-2xl p-4 border border-[#dce9d8] shadow-sm flex items-start gap-3" data-purpose="clinical-data-disclosure">
+<div class="w-8 h-8 rounded-lg bg-[#edf6eb] text-[#1e4a43] flex items-center justify-center flex-shrink-0 mt-0.5">
+<svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<div class="space-y-1">
+<h2 class="text-xs font-semibold text-[#183d34]">Cách dữ liệu được ghi nhận &amp; Bảo mật lâm sàng</h2>
+<p class="text-[11px] text-[#556e60] leading-relaxed">
+            Chỉ các sự kiện tối giản về thời gian và loại hoạt động (ví dụ: ngày đã lưu ghi chép) được sử dụng để hiển thị các mốc này. Nội dung nhật ký cá nhân, ghi chú cảm xúc, thang điểm lâm sàng (như PHQ/GAD) và thông tin trao đổi tham vấn tuyệt đối không bao giờ được quét hay sử dụng.
+          </p>
+</div>
+</section>
+<!-- END: DataMinimizationDisclosure -->
+<!-- BEGIN: ClinicalEthicsFooter -->
+<footer class="pt-3 pb-2 text-center space-y-1 text-[11px] text-[#6e8579]" data-purpose="clinical-footer">
+<p>MentalBridge • Thiết kế theo nguyên lý bảo mật y khoa &amp; sự tôn trọng nhịp độ tự nhiên.</p>
+<p class="text-[10px] text-[#869c90]">Mã phiên bản: MB-VN-2024.11-CALM</p>
+</footer>
+<!-- END: ClinicalEthicsFooter -->
+</main>
+<!-- END: MainContent -->
+<!-- BEGIN: MobileBottomNavigation -->
+<nav class="fixed bottom-0 left-0 right-0 max-w-[390px] mx-auto bg-white/95 backdrop-blur-md border-t border-[#dce7da] px-2 py-1.5 z-50 flex items-center justify-around shadow-lg" data-purpose="global-mobile-tabbar">
+<!-- Tab 1: Tổng quan -->
+<a aria-label="Tổng quan" class="tap-target flex flex-col items-center justify-center flex-1 py-1 text-[#667e71] hover:text-[#1e4a43]" href="#">
+<svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="text-[10px] font-normal leading-none">Tổng quan</span>
+</a>
+<!-- Tab 2: Tài nguyên -->
+<a aria-label="Tài nguyên" class="tap-target flex flex-col items-center justify-center flex-1 py-1 text-[#667e71] hover:text-[#1e4a43]" href="#">
+<svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="text-[10px] font-normal leading-none">Tài nguyên</span>
+</a>
+<!-- Tab 3: Kế hoạch -->
+<a aria-label="Kế hoạch" class="tap-target flex flex-col items-center justify-center flex-1 py-1 text-[#667e71] hover:text-[#1e4a43]" href="#">
+<svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="text-[10px] font-normal leading-none">Kế hoạch</span>
+</a>
+<!-- Tab 4: Nhật ký -->
+<a aria-label="Nhật ký" class="tap-target flex flex-col items-center justify-center flex-1 py-1 text-[#667e71] hover:text-[#1e4a43]" href="#">
+<svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="text-[10px] font-normal leading-none">Nhật ký</span>
+</a>
+<!-- Tab 5: Bộ sưu tập (ACTIVE) -->
+<a aria-current="page" aria-label="Bộ sưu tập (Đang xem)" class="tap-target flex flex-col items-center justify-center flex-1 py-1 text-[#1e4a43] relative" href="#">
+<div class="relative">
+<svg class="w-5 h-5 mb-0.5 text-[#1e4a43]" fill="currentColor" viewbox="0 0 24 24">
+<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+</svg>
+<span class="absolute -top-1 -right-1 w-2 h-2 bg-emerald-600 rounded-full"></span>
+</div>
+<span class="text-[10px] font-bold text-[#1e4a43] leading-none">Bộ sưu tập</span>
+</a>
+<!-- Tab 6: Cài đặt -->
+<a aria-label="Cài đặt" class="tap-target flex flex-col items-center justify-center flex-1 py-1 text-[#667e71] hover:text-[#1e4a43]" href="#">
+<svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="text-[10px] font-normal leading-none">Cài đặt</span>
+</a>
+</nav>
+<!-- END: MobileBottomNavigation -->
+</div>
+<script data-purpose="toggle-interactivity">
+    // Simple state handler for privacy toggle visual state
+    document.addEventListener('DOMContentLoaded', () => {
+      const toggle = document.querySelector('.switch-toggle input');
+      if (toggle) {
+        toggle.addEventListener('change', (e) => {
+          // Keep accessible feedback without altering state invasively
+          console.log('Quyền riêng tư hiển thị:', e.target.checked ? 'Đã bật' : 'Đã tắt');
+        });
+      }
+    });
+  </script>
+</body></html>

@@ -5,8 +5,36 @@ export type ResourceSummary = components['schemas']['ResourceSummary']
 export type ResourceDetail = components['schemas']['AdminResourceDetail']
 export type ResourceCategory = components['schemas']['ResourceCategory']
 export type ResourceStatus = components['schemas']['ResourceStatus']
+export type ResourceReviewDecision =
+  components['schemas']['ResourceReviewDecision']
 
-export type CreateResourceRequest = {
+type ResourceExperienceInput = Partial<
+  Pick<
+    components['schemas']['UpdateResourceRequest'],
+    | 'resourceKind'
+    | 'interactionType'
+    | 'repeatability'
+    | 'completionMode'
+    | 'streakEligible'
+    | 'expectedDurationMinutes'
+    | 'cooldownDays'
+    | 'recommendedFrequencyPerWeek'
+    | 'planTags'
+    | 'structuredContent'
+    | 'interactionConfig'
+    | 'safetyNotes'
+    | 'catalogueVisibility'
+    | 'contentVersionLabel'
+    | 'sourceOrganization'
+    | 'sourceTitle'
+    | 'sourceUrl'
+    | 'sourceReviewNote'
+    | 'sourceRetrievedAt'
+    | 'sourceContentHash'
+  >
+>
+
+export type CreateResourceRequest = ResourceExperienceInput & {
   category: ResourceCategory
   locale?: string
   title: string
@@ -17,7 +45,7 @@ export type CreateResourceRequest = {
   expiresAt?: string | null
 }
 
-export type UpdateResourceRequest = {
+export type UpdateResourceRequest = ResourceExperienceInput & {
   locale?: string
   title?: string
   summary?: string
@@ -120,6 +148,29 @@ export const adminResourcesApi = {
       {
         params: { version },
       },
+    )
+    return response.data
+  },
+
+  async review(
+    id: string,
+    version: number,
+    decision: 'APPROVED' | 'REJECTED',
+    reasonCode: string,
+  ): Promise<ResourceReviewDecision> {
+    const response = await browserApiClient.post<ResourceReviewDecision>(
+      `/admin/resources/${id}/review`,
+      { decision, reasonCode },
+      { params: { version } },
+    )
+    return response.data
+  },
+
+  async createVersion(id: string, version: number): Promise<ResourceDetail> {
+    const response = await browserApiClient.post<ResourceDetail>(
+      `/admin/resources/${id}/versions`,
+      {},
+      { params: { version } },
     )
     return response.data
   },

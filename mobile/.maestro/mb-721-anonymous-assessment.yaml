@@ -1,0 +1,37 @@
+appId: com.mentalbridge.mobile
+name: MB-721 anonymous guest assessment
+---
+# Author-only evidence. NOT_RUN until the MB-666 staging/device gate is available.
+# The staging Care service must expose published PHQ-9/GAD-7 definitions and the
+# anonymous session endpoints before this source can be executed truthfully.
+- launchApp:
+    clearState: true
+- tapOn: 'Sàng lọc không cần tài khoản'
+- assertVisible: 'SÀNG LỌC ẨN DANH'
+- assertVisible: 'Hiểu hơn về cảm xúc hiện tại'
+- assertVisible: 'PHQ-9'
+- assertVisible: 'GAD-7'
+- assertVisible: 'Công bố quyền riêng tư'
+- tapOn: 'Tôi đã đọc và đồng ý.*'
+- tapOn:
+    text: 'Bắt đầu sàng lọc'
+    retryTapIfNoChange: true
+- extendedWaitUntil:
+    visible: 'PHQ-9 · CÂU 1 / 9'
+    timeout: 10000
+- repeat:
+    times: 9
+    commands:
+      - tapOn: 'Không bao giờ'
+      - tapOn:
+          text: 'Câu tiếp theo|Gửi và xem kết quả'
+          retryTapIfNoChange: true
+- extendedWaitUntil:
+    visible: 'Bạn đã hoàn tất PHQ-9'
+    timeout: 15000
+- assertVisible: 'Đây không phải chẩn đoán y khoa'
+- assertVisible: 'Giới hạn của kết quả này'
+- assertVisible: 'Không có lịch sử dài hạn.*không chia sẻ với chuyên gia.*'
+- assertNotVisible: 'Lịch sử sàng lọc'
+- tapOn: 'Làm bài khác'
+- assertVisible: 'Hiểu hơn về cảm xúc hiện tại'

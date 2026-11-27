@@ -9,6 +9,7 @@ import {
   registrationErrorMessage,
   loginAndResolveWorkspace,
   loginErrorMessage,
+  resolveCurrentWorkspace,
   terminateSession,
   verificationErrorMessage,
   verifyEmailChallenge,
@@ -108,6 +109,46 @@ describe('browser authentication', () => {
     })
   })
 
+  it('logs in an ADMIN and resolves the protected admin workspace from the authoritative session', async () => {
+    mockServer.use(
+      http.post('http://localhost/api/identity/login', () =>
+        HttpResponse.json({ authenticated: true }),
+      ),
+      http.get('http://localhost/api/identity/session', () =>
+        HttpResponse.json({
+          account: { ...activeAccount, roles: ['ADMIN'] },
+        }),
+      ),
+    )
+
+    await expect(
+      loginAndResolveWorkspace({
+        email: 'admin@example.com',
+        password: 'correct horse battery staple',
+      }),
+    ).resolves.toMatchObject({
+      path: '/admin/dashboard',
+      workspaces: [expect.objectContaining({ role: 'ADMIN' })],
+    })
+  })
+
+  it.each([
+    [['USER'], '/dashboard'],
+    [['SPECIALIST'], '/specialist/dashboard'],
+    [['ADMIN'], '/admin/dashboard'],
+  ] as const)(
+    'resolves the landing action for the authoritative %s workspace',
+    async (roles, path) => {
+      mockServer.use(
+        http.get('http://localhost/api/identity/session', () =>
+          HttpResponse.json({ account: { ...activeAccount, roles } }),
+        ),
+      )
+
+      await expect(resolveCurrentWorkspace()).resolves.toMatchObject({ path })
+    },
+  )
+
   it.each([
     { ...activeAccount, status: 'DISABLED' },
     { ...activeAccount, emailVerified: false },
@@ -151,6 +192,31 @@ describe('browser authentication', () => {
 
     await terminateSession(mode)
     expect(called).toHaveBeenCalledOnce()
+  })
+
+  it('drops every unsent AI Companion draft on logout, even when the request fails', async () => {
+    window.sessionStorage.setItem('mb.companion.draft.acc.conv', 'riêng tư')
+    window.sessionStorage.setItem(
+      'mb.companion.pending.acc.conv',
+      '{"key":"k","text":"riêng tư"}',
+    )
+    window.sessionStorage.setItem('other', 'keep')
+    mockServer.use(
+      http.post(
+        'http://localhost/api/identity/logout',
+        () => new HttpResponse(null, { status: 503 }),
+      ),
+    )
+
+    await terminateSession('current').catch(() => undefined)
+    expect(
+      window.sessionStorage.getItem('mb.companion.draft.acc.conv'),
+    ).toBeNull()
+    expect(
+      window.sessionStorage.getItem('mb.companion.pending.acc.conv'),
+    ).toBeNull()
+    expect(window.sessionStorage.getItem('other')).toBe('keep')
+    window.sessionStorage.clear()
   })
 
   it('keeps account failures generic while identifying a dependency outage', () => {

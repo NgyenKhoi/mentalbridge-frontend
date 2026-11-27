@@ -13,7 +13,6 @@ const mode = process.env.MB273_E2E_MODE
 const isLocalMode = mode === 'fixture' || mode === 'service'
 const isLiveMode = mode === 'live'
 const careServiceUrl = 'http://127.0.0.1:3202'
-const identityFixtureUrl = 'http://127.0.0.1:3201'
 const releaseAccessToken = 'synthetic-mb273-e2e-access'
 const foreignAccessToken = 'synthetic-care-e2e-other-access'
 const accessCookie = 'mentalbridge_access'
@@ -60,6 +59,18 @@ type ReleaseState = {
       meaning: { text: string; limitation: string }
     }>
     nextStep: { text: string; boundary: string }
+    disclaimer: string
+  }
+  combinedMeaning: {
+    supportEvaluationId: string
+    episodeId: string
+    evidence: Array<{
+      assessmentId: string
+      instrument: string
+      totalScore: number
+      screeningLevel: string
+    }>
+    presentationPriority: string
     disclaimer: string
   }
 }
@@ -130,15 +141,15 @@ async function createProfileAndConsent(
 
   await birthDate.fill('2000-01-01')
   await save.click()
-  await expect(page.getByText('Đã tạo hồ sơ của bạn.')).toBeVisible()
+  await expect(form.getByRole('button', { name: 'Lưu thay đổi' })).toBeVisible()
 
-  const grant = page.getByRole('button', { name: 'Tôi đồng ý' })
-  if (await grant.isVisible().catch(() => false)) {
-    await grant.click()
-    await expect(
-      page.getByText('Đã ghi nhận sự đồng ý xử lý dữ liệu sàng lọc.'),
-    ).toBeVisible()
-  }
+  const privacyToggle = page.getByRole('switch', {
+    name: /xử lý dữ liệu cho các lần sàng lọc mới/,
+  })
+  await expect(privacyToggle).toBeVisible()
+  if ((await privacyToggle.getAttribute('aria-checked')) !== 'true')
+    await privacyToggle.click()
+  await expect(privacyToggle).toHaveAttribute('aria-checked', 'true')
 }
 
 async function completeQuestions(
@@ -156,21 +167,6 @@ async function completeQuestions(
   await page.getByRole('checkbox', { name: /tôi đồng ý/i }).check()
   if (beforeSubmit) await beforeSubmit()
   await page.getByRole('button', { name: completionLabel }).click()
-}
-
-async function injectLocalCareFault(request: APIRequestContext) {
-  const response = await request.post(
-    `${careServiceUrl}/__test/care/initial-check-fault?mode=GAD_UNAVAILABLE`,
-    { headers: { Authorization: `Bearer ${releaseAccessToken}` } },
-  )
-  expect([200, 204]).toContain(response.status())
-}
-
-async function injectLocalContentFault(request: APIRequestContext) {
-  const response = await request.post(
-    `${identityFixtureUrl}/__test/content-fault?mode=UNAVAILABLE`,
-  )
-  expect(response.status()).toBe(204)
 }
 
 async function submitForeignGad(request: APIRequestContext) {
@@ -220,13 +216,13 @@ async function submitLiveForeignGad(browser: Browser, baseURL: string) {
     ) {
       await createProfileAndConsent(page, 'MB-273 Foreign Evidence', false)
     }
-    const grant = page.getByRole('button', { name: 'Tôi đồng ý' })
-    if (await grant.isVisible().catch(() => false)) {
-      await grant.click()
-      await expect(
-        page.getByText('Đã ghi nhận sự đồng ý xử lý dữ liệu sàng lọc.'),
-      ).toBeVisible()
-    }
+    const privacyToggle = page.getByRole('switch', {
+      name: /xử lý dữ liệu cho các lần sàng lọc mới/,
+    })
+    await expect(privacyToggle).toBeVisible()
+    if ((await privacyToggle.getAttribute('aria-checked')) !== 'true')
+      await privacyToggle.click()
+    await expect(privacyToggle).toHaveAttribute('aria-checked', 'true')
 
     await page.goto('/assessment/gad7')
     const submission = page.waitForResponse(
@@ -353,32 +349,24 @@ test.describe('MB-273 initial-check release readiness', () => {
         pending.url().includes('/api/care/initial-check/assessments/phq9'),
     )
 
-    let liveGadFault = false
-    if (isLiveMode) {
-      liveGadFault = true
-      await page.route('**/api/care/questionnaires/gad7', async (route) => {
-        if (!liveGadFault) {
-          await route.continue()
-          return
-        }
-        await route.fulfill({
+    await page.route('**/api/care/questionnaires/gad7', async (route) => {
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({
+          type: 'about:blank',
+          title: 'Unavailable',
           status: 503,
-          contentType: 'application/problem+json',
-          body: JSON.stringify({
-            type: 'about:blank',
-            title: 'Unavailable',
-            status: 503,
-            code: 'QUESTIONNAIRE_UNAVAILABLE',
-            correlationId: '50000000-0000-4000-8000-000000000273',
-          }),
-        })
+          code: 'QUESTIONNAIRE_UNAVAILABLE',
+          correlationId: '50000000-0000-4000-8000-000000000273',
+        }),
       })
-    }
+    })
 
     await completeQuestions(
       page,
       [...Array.from({ length: 8 }, () => 'Không có gì'), 'Vài ngày'],
-      isLocalMode ? () => injectLocalCareFault(request) : undefined,
+      undefined,
       'Lưu PHQ-9 và bắt đầu GAD-7',
     )
     const originalRequest = await phq9SubmissionRequest
@@ -389,10 +377,7 @@ test.describe('MB-273 initial-check release readiness', () => {
     await expect(
       page.getByRole('heading', { name: 'Bài sàng lọc hiện chưa khả dụng' }),
     ).toBeVisible()
-    if (isLiveMode) {
-      liveGadFault = false
-      await page.unroute('**/api/care/questionnaires/gad7')
-    }
+    await page.unroute('**/api/care/questionnaires/gad7')
 
     const duplicateStatus = await page.evaluate(
       async ({ key, body }) => {
@@ -427,46 +412,27 @@ test.describe('MB-273 initial-check release readiness', () => {
       }),
     ).toBeVisible()
 
-    if (isLocalMode) {
-      await injectLocalContentFault(request)
-    } else {
-      await page.route('**/api/resources?**', (route) =>
-        route.fulfill({
-          status: 503,
-          contentType: 'application/problem+json',
-          body: JSON.stringify({
-            type: 'about:blank',
-            title: 'Unavailable',
-            status: 503,
-            code: 'CONTENT_UNAVAILABLE',
-            correlationId: '50000000-0000-4000-8000-000000000274',
-          }),
-        }),
-      )
-    }
     await completeQuestions(
       page,
       Array.from({ length: 7 }, () => 'Không bao giờ (0 ngày nào)'),
     )
 
-    const resultHeading = page.getByRole('heading', {
-      name: 'Kết quả kiểm tra ban đầu',
-    })
+    const resultCard = page.locator('article.combined-meaning')
+    const resultHeading = resultCard.getByRole('heading', { level: 1 })
     await expect(resultHeading).toBeVisible()
     await expect(
-      page.getByRole('heading', { name: 'Ưu tiên xem hướng dẫn an toàn' }),
+      resultCard.getByRole('heading', {
+        name: 'Xem hướng dẫn an toàn và tìm hỗ trợ trực tiếp',
+      }),
     ).toBeVisible()
+    await expect(resultCard.getByText('1/27 điểm · Tối thiểu')).toBeAttached()
+    await expect(resultCard.getByText('0/21 điểm · Tối thiểu')).toBeAttached()
     await expect(
-      page.getByRole('heading', { name: 'Nên ưu tiên theo dõi an toàn' }),
+      resultCard.getByText(/chủ động liên hệ dịch vụ khẩn cấp/i),
     ).toBeVisible()
+    await resultCard.getByText('Điều cần biết về kết quả này').first().click()
     await expect(
-      page.getByText(/không phải chẩn đoán y khoa/i).first(),
-    ).toBeVisible()
-    await expect(
-      page.getByText(/chủ động liên hệ dịch vụ khẩn cấp/i),
-    ).toBeVisible()
-    await expect(
-      page.getByText('Dịch vụ tạm thời không khả dụng'),
+      resultCard.getByText(/không phải chẩn đoán y khoa/i).first(),
     ).toBeVisible()
 
     const stateResult = await page.evaluate(async () => {
@@ -500,6 +466,11 @@ test.describe('MB-273 initial-check release readiness', () => {
         supportTier: 'SAFETY_FOLLOW_UP_RECOMMENDED',
         reasonCodes: ['PHQ9_SAFETY_SCREEN_POSITIVE'],
       },
+      combinedMeaning: {
+        supportEvaluationId: state.evaluation.supportEvaluationId,
+        episodeId: expect.any(String),
+        presentationPriority: 'SAFETY',
+      },
     })
     expect(state.evaluation.evidence.map((item) => item.instrument)).toEqual([
       'PHQ9',
@@ -518,6 +489,19 @@ test.describe('MB-273 initial-check release readiness', () => {
     expect(state.evaluation.nextStep.text).toBeTruthy()
     expect(state.evaluation.nextStep.boundary).toBeTruthy()
     expect(state.evaluation.disclaimer).toMatch(/không phải chẩn đoán/i)
+    expect(state.combinedMeaning.evidence).toEqual([
+      expect.objectContaining({
+        assessmentId: state.phq9.assessmentId,
+        instrument: 'PHQ9',
+        totalScore: 1,
+      }),
+      expect.objectContaining({
+        assessmentId: state.gad7.assessmentId,
+        instrument: 'GAD7',
+        totalScore: 0,
+      }),
+    ])
+    expect(state.combinedMeaning.disclaimer).toMatch(/không phải chẩn đoán/i)
     await attachEvidence(testInfo, state)
 
     const evidencePath =
@@ -559,6 +543,22 @@ test.describe('MB-273 initial-check release readiness', () => {
           String(testInfo.project.use.baseURL),
         )
       : await submitForeignGad(request)
+    const foreignRead = await page.evaluate(async (assessmentId) => {
+      const response = await fetch(
+        `/api/care/assessments/by-id/${assessmentId}`,
+        {
+          credentials: 'same-origin',
+        },
+      )
+      return { status: response.status, body: await response.json() }
+    }, foreignAssessmentId)
+    expect(foreignRead.status).toBe(404)
+    expect(foreignRead.body).toMatchObject({ code: 'ASSESSMENT_NOT_FOUND' })
+    expect(
+      (await context.cookies()).filter((cookie) =>
+        [phq9Cookie, gad7Cookie, evaluationCookie].includes(cookie.name),
+      ),
+    ).toHaveLength(0)
     const cookieUrl = String(testInfo.project.use.baseURL)
     await context.addCookies([
       {
@@ -577,37 +577,30 @@ test.describe('MB-273 initial-check release readiness', () => {
       })
       return { status: response.status, body: await response.json() }
     })
-    expect(foreignResult.status).toBe(404)
+    expect(foreignResult.status).toBe(201)
     expect(foreignResult.body).toMatchObject({
-      code: 'ASSESSMENT_NOT_FOUND',
+      supportEvaluationId: state.evaluation.supportEvaluationId,
+      evidence: [
+        expect.objectContaining({ assessmentId: state.phq9.assessmentId }),
+        expect.objectContaining({ assessmentId: state.gad7.assessmentId }),
+      ],
     })
 
-    await context.addCookies([
-      {
-        name: gad7Cookie,
-        value: state.gad7.assessmentId,
-        url: cookieUrl,
-        httpOnly: true,
-        sameSite: 'Lax',
-        secure: cookieUrl.startsWith('https:'),
-      },
-      {
-        name: evaluationCookie,
-        value: state.evaluation.supportEvaluationId,
-        url: cookieUrl,
-        httpOnly: true,
-        sameSite: 'Lax',
-        secure: cookieUrl.startsWith('https:'),
-      },
-    ])
+    await context.clearCookies({ name: gad7Cookie })
     await page.goto('/dashboard')
-    await page.getByRole('link', { name: /Bắt đầu kiểm tra ban đầu/ }).click()
+    await page.getByRole('link', { name: /Bắt đầu bài sàng lọc/ }).click()
     await expect(resultHeading).toBeVisible()
 
-    const journeyCookies = (await context.cookies()).filter((cookie) =>
-      [phq9Cookie, gad7Cookie, evaluationCookie].includes(cookie.name),
+    const cookies = await context.cookies()
+    expect(
+      cookies.filter((cookie) =>
+        [phq9Cookie, gad7Cookie, evaluationCookie].includes(cookie.name),
+      ),
+    ).toHaveLength(0)
+    const journeyCookies = cookies.filter(
+      (cookie) => cookie.name === accessCookie,
     )
-    expect(journeyCookies).toHaveLength(3)
+    expect(journeyCookies).toHaveLength(1)
     expect(journeyCookies.every((cookie) => cookie.httpOnly)).toBe(true)
     const browserState = await page.evaluate(() => ({
       cookie: document.cookie,
@@ -615,11 +608,19 @@ test.describe('MB-273 initial-check release readiness', () => {
       session: JSON.stringify(sessionStorage),
       url: window.location.href,
     }))
-    for (const cookie of journeyCookies) {
-      expect(browserState.cookie).not.toContain(cookie.value)
-      expect(browserState.local).not.toContain(cookie.value)
-      expect(browserState.session).not.toContain(cookie.value)
-      expect(browserState.url).not.toContain(cookie.value)
+    const protectedValues = [
+      ...journeyCookies.map((cookie) => cookie.value),
+      state.phq9.assessmentId,
+      state.gad7.assessmentId,
+      state.evaluation.supportEvaluationId,
+      state.combinedMeaning.episodeId,
+      foreignAssessmentId,
+    ]
+    for (const value of protectedValues) {
+      expect(browserState.cookie).not.toContain(value)
+      expect(browserState.local).not.toContain(value)
+      expect(browserState.session).not.toContain(value)
+      expect(browserState.url).not.toContain(value)
     }
     expect(browserState.local).not.toMatch(/questionId|answers|totalScore/)
     expect(browserState.session).not.toMatch(/questionId|answers|totalScore/)

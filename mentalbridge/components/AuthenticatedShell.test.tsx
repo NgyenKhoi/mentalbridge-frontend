@@ -1,0 +1,440 @@
+import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { http, HttpResponse } from 'msw'
+import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const navigation = vi.hoisted(() => ({ pathname: '/dashboard' }))
+const profileApi = vi.hoisted(() => ({ getCareProfile: vi.fn() }))
+vi.mock('@/features/notifications/api/browser-notifications', () => ({
+  getNotifications: vi.fn().mockResolvedValue({
+    items: [],
+    nextCursor: null,
+    hasMore: false,
+    unreadCount: 0,
+  }),
+  markAllNotificationsRead: vi.fn(),
+  markNotificationRead: vi.fn(),
+}))
+vi.mock('next/navigation', () => ({ usePathname: () => navigation.pathname }))
+vi.mock('@/features/assessment/api/browser-care', () => ({
+  getCareProfile: profileApi.getCareProfile,
+}))
+vi.mock('@/features/auth/components/SessionActions', () => ({
+  default: ({
+    displayName,
+    accountLabel,
+    avatar,
+  }: {
+    displayName: string
+    accountLabel: string
+    avatar: ReactNode
+  }) => (
+    <div data-testid="sidebar-account">
+      Phiên người dùng <span>{displayName}</span> <span>{accountLabel}</span>{' '}
+      <span>{avatar}</span>
+    </div>
+  ),
+}))
+vi.mock('@/features/onboarding/OnboardingTour', () => ({ default: () => null }))
+vi.mock('@/features/auth/components/WorkspaceSwitcher', () => ({
+  default: () => <div>Đổi không gian</div>,
+}))
+vi.mock('@/features/resources/components/ResourceNavBadge', () => ({
+  default: () => null,
+}))
+
+import { mockServer } from '@/tests/mocks/server'
+import AuthenticatedShell from './AuthenticatedShell'
+
+describe('AuthenticatedShell', () => {
+  beforeEach(() => {
+    navigation.pathname = '/dashboard'
+    profileApi.getCareProfile.mockReset().mockReturnValue(new Promise(() => {}))
+  })
+
+  it('orders the sidebar as today, daily, 14-day journey and real people', () => {
+    render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+    const menu = screen.getByRole('navigation', { name: 'Điều hướng chính' })
+    const sections = Array.from(menu.querySelectorAll('section')).map(
+      (section) => ({
+        title: section.querySelector('h2')?.textContent ?? null,
+        links: Array.from(section.querySelectorAll('a')).map((link) => [
+          link.getAttribute('href'),
+          link.textContent,
+        ]),
+      }),
+    )
+    expect(sections).toEqual([
+      { title: null, links: [['/dashboard', 'Hôm nay']] },
+      {
+        title: 'Mỗi ngày cùng Mầm',
+        links: [
+          ['/ai-companion', 'Trò chuyện với Mầm'],
+          ['/journal', 'Nhật ký'],
+          ['/resources', 'Tài nguyên'],
+        ],
+      },
+      {
+        title: 'Hành trình 14 ngày',
+        links: [
+          ['/assessments', 'Bài sàng lọc'],
+          ['/support-guides', 'Gợi ý hỗ trợ'],
+          ['/support-plan', 'Kế hoạch hỗ trợ'],
+          ['/nhin-lai', 'Nhìn lại'],
+        ],
+      },
+      {
+        title: 'Khi cần người thật',
+        links: [
+          ['/specialists', 'Chuyên gia'],
+          ['/appointments', 'Lịch hẹn'],
+          ['/messages', 'Tin nhắn'],
+        ],
+      },
+    ])
+    // Notifications stay in the header bell; milestones and the plan in the account menu.
+    expect(within(menu).queryByRole('link', { name: 'Thông báo' })).toBeNull()
+  })
+
+  it.each([
+    ['/dashboard', 'Hôm nay cùng Mầm'],
+    ['/achievements', 'Dấu mốc của bạn'],
+  ])('titles %s in the header', (path, title) => {
+    navigation.pathname = path
+    render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+    expect(within(screen.getByRole('banner')).getByText(title)).toBeVisible()
+  })
+
+  it('offers the 14-day look-back in the sidebar', () => {
+    navigation.pathname = '/nhin-lai'
+    render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+    const link = screen.getByRole('link', { name: 'Nhìn lại' })
+    expect(link).toHaveAttribute('href', '/nhin-lai')
+    expect(link).toHaveClass('active')
+  })
+
+  it('shows the specialist search only on the specialist directory', () => {
+    navigation.pathname = '/dashboard'
+    const { rerender } = render(
+      <AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>,
+    )
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+    expect(screen.queryByText('Không gian cá nhân')).not.toBeInTheDocument()
+    expect(screen.queryByText('⌘K')).not.toBeInTheDocument()
+
+    navigation.pathname = '/specialists'
+    rerender(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+    expect(
+      screen.getByRole('searchbox', {
+        name: 'Tìm chuyên gia theo tên hoặc chuyên môn',
+      }),
+    ).toBeVisible()
+  })
+
+  it('shows the real profile name and initials in the sidebar and header', async () => {
+    profileApi.getCareProfile.mockResolvedValue({
+      displayName: '  Nguyễn Minh An  ',
+    })
+    render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+    const account = within(screen.getByTestId('sidebar-account'))
+    expect(await account.findByText('Nguyễn Minh An')).toBeVisible()
+    expect(account.getByText('MA')).toBeVisible()
+    expect(account.getByText('Hồ sơ cá nhân')).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: 'Hồ sơ Nguyễn Minh An' }),
+    ).toHaveTextContent('MA')
+  })
+
+  it('shows the community photo in the header and sidebar when there is one, initials otherwise', async () => {
+    profileApi.getCareProfile.mockResolvedValue({
+      displayName: 'Nguyễn Minh An',
+    })
+    mockServer.use(
+      http.get('/api/community/profile', () =>
+        HttpResponse.json({
+          communityProfileId: '11111111-1111-4111-8111-111111111111',
+          displayName: 'Minh An',
+          avatarPreset: null,
+          avatarImage: {
+            mediaId: '22222222-2222-4222-8222-222222222222',
+            url: 'https://cdn.example.test/avatar.webp',
+            width: 96,
+            height: 96,
+          },
+          status: 'ACTIVE',
+          version: 1,
+          createdAt: '2026-09-20T08:00:00Z',
+          updatedAt: '2026-09-20T08:00:00Z',
+        }),
+      ),
+    )
+    render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+
+    const link = await screen.findByRole('link', {
+      name: 'Hồ sơ Nguyễn Minh An',
+    })
+    await waitFor(() =>
+      expect(link.querySelector('img')).toHaveAttribute(
+        'src',
+        'https://cdn.example.test/avatar.webp',
+      ),
+    )
+    expect(link).not.toHaveTextContent('MA')
+    expect(
+      screen.getByTestId('sidebar-account').querySelector('img'),
+    ).toBeInTheDocument()
+  })
+
+  it('invites an account without a profile to add their own name', async () => {
+    profileApi.getCareProfile.mockResolvedValue(null)
+    render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+    const account = within(screen.getByTestId('sidebar-account'))
+    expect(await account.findByText('Hoàn thiện hồ sơ')).toBeVisible()
+    expect(account.getByText('Thêm tên của bạn')).toBeVisible()
+    expect(account.queryByText('Người dùng')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Hồ sơ Hoàn thiện hồ sơ' }),
+    ).toHaveAttribute('href', '/profile')
+  })
+
+  it('keeps an updated name when an earlier profile read finishes late', async () => {
+    let finish!: (value: { displayName: string }) => void
+    profileApi.getCareProfile.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        }),
+    )
+    render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent('mb:profile-updated', {
+          detail: { displayName: 'Tên vừa cập nhật' },
+        }),
+      )
+    })
+    await act(async () => finish({ displayName: 'Tên cũ' }))
+    expect(
+      within(screen.getByTestId('sidebar-account')).getByText(
+        'Tên vừa cập nhật',
+      ),
+    ).toBeVisible()
+    expect(screen.queryByText('Tên cũ')).not.toBeInTheDocument()
+  })
+
+  it('explains an unavailable profile and reloads it when the user returns', async () => {
+    profileApi.getCareProfile.mockRejectedValueOnce(new Error('offline'))
+    render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+    expect(await screen.findByText('Chưa tải được thông tin')).toBeVisible()
+    profileApi.getCareProfile.mockResolvedValue({ displayName: 'Nguyễn An' })
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'))
+    })
+    expect(
+      await screen.findByRole('link', { name: 'Hồ sơ Nguyễn An' }),
+    ).toBeVisible()
+  })
+
+  it('keeps AI conversation and appointment messaging separate in the USER workspace', () => {
+    navigation.pathname = '/ai-companion'
+    render(
+      <AuthenticatedShell workspaces={[]}>Hội thoại AI</AuthenticatedShell>,
+    )
+
+    const navigationMenu = within(
+      screen.getByRole('navigation', { name: 'Điều hướng chính' }),
+    )
+    expect(
+      navigationMenu.getByRole('link', { name: 'Trò chuyện với Mầm' }),
+    ).toHaveAttribute('href', '/ai-companion')
+    expect(
+      navigationMenu.getByRole('link', { name: 'Tin nhắn' }),
+    ).toHaveAttribute('href', '/messages')
+    expect(
+      within(screen.getByRole('banner')).getByText('Trò chuyện với Mầm'),
+    ).toBeVisible()
+  })
+
+  it('offers Community in the USER header without duplicating it in the sidebar', () => {
+    render(
+      <AuthenticatedShell workspaces={[]}>
+        <p>Nội dung dashboard</p>
+      </AuthenticatedShell>,
+    )
+
+    const topbar = screen.getByRole('banner')
+    expect(
+      within(topbar).getByRole('button', { name: 'Thông báo' }),
+    ).toBeInTheDocument()
+    expect(within(topbar).getByRole('link', { name: /Hồ sơ/ })).toHaveAttribute(
+      'href',
+      '/profile',
+    )
+    expect(
+      within(topbar).getByRole('link', { name: 'Cộng đồng' }),
+    ).toHaveAttribute('href', '/community')
+    expect(
+      within(
+        screen.getByRole('navigation', { name: 'Điều hướng chính' }),
+      ).queryByRole('link', { name: 'Cộng đồng' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('keeps Community reachable from the header when the sidebar is collapsed', async () => {
+    const user = userEvent.setup()
+    render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+
+    await user.click(screen.getByRole('button', { name: 'Thu gọn sidebar' }))
+
+    expect(
+      within(
+        screen.getByRole('navigation', { name: 'Điều hướng chính' }),
+      ).queryByRole('link', { name: 'Cộng đồng' }),
+    ).not.toBeInTheDocument()
+    const link = within(screen.getByRole('banner')).getByRole('link', {
+      name: 'Cộng đồng',
+    })
+    expect(link).toHaveAttribute('href', '/community')
+  })
+
+  it('closes the mobile menu when Community is chosen from the header', async () => {
+    const user = userEvent.setup()
+    render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+    const trigger = screen.getByRole('button', { name: 'Mở menu' })
+
+    await user.click(trigger)
+    expect(trigger).toHaveAttribute('aria-expanded', 'true')
+    const link = within(screen.getByRole('banner')).getByRole('link', {
+      name: 'Cộng đồng',
+    })
+    link.addEventListener('click', (event) => event.preventDefault())
+    await user.click(link)
+
+    expect(link).toHaveAttribute('href', '/community')
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    expect(
+      screen.queryByRole('button', { name: 'Đóng menu' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it.each(['loading', 'unavailable'])(
+    'keeps Community reachable when the Care profile is %s',
+    async (state) => {
+      if (state === 'loading')
+        profileApi.getCareProfile.mockReturnValue(new Promise(() => {}))
+      else
+        profileApi.getCareProfile.mockRejectedValue(
+          new Error('Profile unavailable'),
+        )
+      render(<AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>)
+      if (state === 'unavailable')
+        await screen.findByText('Chưa tải được thông tin')
+
+      expect(
+        within(screen.getByRole('banner')).getByRole('link', {
+          name: 'Cộng đồng',
+        }),
+      ).toHaveAttribute('href', '/community')
+    },
+  )
+
+  it('preserves Community in the resource-specific header variant', () => {
+    navigation.pathname = '/resources/00000000-0000-4000-8000-000000000215'
+    render(<AuthenticatedShell workspaces={[]}>Tài nguyên</AuthenticatedShell>)
+
+    const topbar = screen.getByRole('banner')
+    expect(
+      within(topbar).getByRole('link', { name: 'Cộng đồng' }),
+    ).toHaveAttribute('href', '/community')
+    expect(
+      within(topbar).getByRole('navigation', { name: 'Đường dẫn trên cùng' }),
+    ).toBeVisible()
+  })
+
+  it('names a saved assessment result in the shared shell', () => {
+    navigation.pathname =
+      '/assessments/results/20000000-0000-4000-8000-000000000101'
+    render(<AuthenticatedShell workspaces={[]}>Kết quả</AuthenticatedShell>)
+
+    expect(
+      within(screen.getByRole('banner')).getByText('Kết quả sàng lọc'),
+    ).toBeVisible()
+  })
+
+  describe('page entrance latch', () => {
+    beforeEach(() => vi.useFakeTimers())
+    afterEach(() => {
+      vi.restoreAllMocks()
+      vi.useRealTimers()
+    })
+
+    it('finishes once and stays entered through same-path content changes', () => {
+      const { rerender } = render(
+        <AuthenticatedShell workspaces={[]}>
+          Nội dung ban đầu
+        </AuthenticatedShell>,
+      )
+      const content = screen.getByRole('main')
+      expect(content).not.toHaveAttribute('data-entered')
+
+      act(() => vi.advanceTimersByTime(1199))
+      expect(content).not.toHaveAttribute('data-entered')
+      act(() => vi.advanceTimersByTime(1))
+      expect(content).toHaveAttribute('data-entered')
+
+      // Query-only navigation also keeps usePathname unchanged.
+      rerender(
+        <AuthenticatedShell workspaces={[]}>
+          Nội dung cập nhật
+        </AuthenticatedShell>,
+      )
+      expect(screen.getByRole('main')).toBe(content)
+      expect(content).toHaveAttribute('data-entered')
+    })
+
+    it('resets for each pathname, including a quick return to the previous page', () => {
+      const shell = (
+        <AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>
+      )
+      const { rerender } = render(shell)
+      const content = screen.getByRole('main')
+      act(() => vi.advanceTimersByTime(1200))
+      expect(content).toHaveAttribute('data-entered')
+
+      navigation.pathname = '/journal'
+      rerender(<AuthenticatedShell workspaces={[]}>Nhật ký</AuthenticatedShell>)
+      expect(screen.getByRole('main')).toBe(content)
+      expect(content).not.toHaveAttribute('data-entered')
+      act(() => vi.advanceTimersByTime(600))
+
+      navigation.pathname = '/dashboard'
+      rerender(shell)
+      expect(screen.getByRole('main')).toBe(content)
+      expect(content).not.toHaveAttribute('data-entered')
+      act(() => vi.advanceTimersByTime(600))
+      expect(content).not.toHaveAttribute('data-entered')
+      act(() => vi.advanceTimersByTime(600))
+      expect(content).toHaveAttribute('data-entered')
+    })
+
+    it('replaces the pending timer on navigation and clears it on unmount', () => {
+      const scheduled = vi.spyOn(window, 'setTimeout')
+      const cleared = vi.spyOn(window, 'clearTimeout')
+      const { rerender, unmount } = render(
+        <AuthenticatedShell workspaces={[]}>Nội dung</AuthenticatedShell>,
+      )
+
+      navigation.pathname = '/journal'
+      rerender(<AuthenticatedShell workspaces={[]}>Nhật ký</AuthenticatedShell>)
+      const entranceTimers = scheduled.mock.calls.flatMap(([, delay], index) =>
+        delay === 1200 ? [scheduled.mock.results[index].value] : [],
+      )
+      expect(entranceTimers).toHaveLength(2)
+      expect(cleared).toHaveBeenCalledWith(entranceTimers[0])
+
+      unmount()
+      expect(cleared).toHaveBeenCalledWith(entranceTimers[1])
+    })
+  })
+})

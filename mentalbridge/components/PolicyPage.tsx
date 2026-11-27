@@ -22,7 +22,7 @@ export default function PolicyPage({ type }: { type: 'terms' | 'privacy' }) {
               ],
               [
                 'Quyền đồng ý và chia sẻ',
-                'Bạn kiểm soát specialist nào được truy cập loại dữ liệu nào. Quyền này có thể được thu hồi bất kỳ lúc nào trong Profile & Privacy.',
+                'Bạn kiểm soát chuyên gia nào được truy cập loại dữ liệu nào. Quyền này có thể được thu hồi bất kỳ lúc nào trong Hồ sơ và quyền riêng tư.',
               ],
               [
                 'Lưu giữ và xóa dữ liệu',
@@ -44,11 +44,11 @@ export default function PolicyPage({ type }: { type: 'terms' | 'privacy' }) {
               ],
               [
                 'Lịch hẹn và thanh toán',
-                'Điều kiện hủy, đổi lịch và hoàn consultation credit được hiển thị trước khi xác nhận đặt lịch.',
+                'Điều kiện hủy, đổi lịch và hoàn lượt tư vấn được hiển thị trước khi xác nhận đặt lịch.',
               ],
               [
                 'Giới hạn chuyên môn',
-                'Assessment và phân tích AI là thông tin hỗ trợ, không phải chẩn đoán hoặc chỉ định điều trị.',
+                'Kết quả sàng lọc và phân tích AI là thông tin hỗ trợ, không phải chẩn đoán hoặc chỉ định điều trị.',
               ],
             ]
         ).map(([title, copy]) => (

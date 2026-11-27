@@ -1,0 +1,255 @@
+.support-plan-review-explanation,
+.support-plan-review-explanation > section {
+  display: grid;
+  min-width: 0;
+  gap: 0.65rem;
+}
+
+.support-plan-review-explanation h3,
+.support-plan-review-outcome,
+.support-plan-review-confirmation {
+  margin: 0;
+}
+
+.support-plan-review-explanation h3 {
+  color: var(--teal-deep);
+  font-family: var(--font-fraunces), serif;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.support-plan-review-outcome {
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.support-plan-review-dimensions,
+.support-plan-review-options {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.support-plan-review-dimensions > li,
+.support-plan-review-options > li {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.55rem;
+}
+
+.support-plan-review-dimensions > li {
+  padding: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-soft);
+}
+
+.support-plan-review-dimensions > li[data-state='limited'] {
+  background: color-mix(in srgb, var(--surface) 88%, var(--amber-soft));
+}
+
+.support-plan-review-dimensions svg,
+.support-plan-review-options svg {
+  margin-top: 0.12rem;
+  color: var(--teal-deep);
+}
+
+.support-plan-review-dimensions strong,
+.support-plan-review-options strong {
+  display: block;
+  color: var(--ink);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.support-plan-review-dimensions p,
+.support-plan-review-dimensions small,
+.support-plan-review-option-copy {
+  display: block;
+  margin: 0.12rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.support-plan-review-contradiction {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0.7rem;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--amber-soft) 55%, var(--surface));
+  color: var(--ink-soft);
+  font-size: 0.73rem;
+  line-height: 1.55;
+}
+
+.support-plan-review-contradiction svg {
+  margin-top: 0.12rem;
+  color: var(--amber-deep);
+}
+
+.support-plan-review-contradiction strong {
+  color: var(--ink);
+}
+
+.support-plan-review-options > li {
+  padding: 0.15rem 0;
+}
+
+.support-plan-review-option-details {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.4rem 0 0;
+  padding-left: 1rem;
+  color: var(--ink-soft);
+}
+
+.support-plan-review-option-details li {
+  display: list-item;
+}
+
+.support-plan-review-confirmation {
+  padding: 0.65rem;
+  border-left: 3px solid var(--teal);
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  background: color-mix(in srgb, var(--surface) 72%, var(--teal-pale));
+  color: var(--ink);
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.support-plan-review-open-adjust {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--teal) 38%, var(--line));
+  border-radius: var(--radius-control);
+  background: var(--surface-soft);
+  color: var(--teal-deep);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 750;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.support-plan-review-open-adjust:hover {
+  background: color-mix(in srgb, var(--surface) 70%, var(--teal-pale));
+}
+
+.support-plan-contextual-anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.support-plan-contextual-trigger {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--teal) 32%, var(--line));
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--teal-deep);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.support-plan-contextual-trigger:focus-visible,
+.support-plan-contextual-bubble button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--teal) 38%, transparent);
+  outline-offset: 2px;
+}
+
+.support-plan-contextual-trigger:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.support-plan-contextual-trigger svg[data-lucide='loader-circle'] {
+  animation: support-plan-companion-orbit 1s linear infinite;
+}
+
+.support-plan-contextual-bubble {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  display: grid;
+  width: min(330px, calc(100vw - 3rem));
+  gap: 0.55rem;
+  padding: 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--teal) 30%, var(--line));
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  box-shadow: var(--elevation-2);
+  color: var(--ink);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+/* On a phone the bubble flows under its button instead of hanging off it. */
+@media (max-width: 1099px) {
+  .support-plan-contextual-anchor {
+    display: grid;
+    justify-items: start;
+  }
+
+  .support-plan-contextual-bubble {
+    position: static;
+    width: 100%;
+  }
+}
+
+.support-plan-contextual-bubble[data-status='fallback'] {
+  border-color: var(--line);
+}
+
+.support-plan-contextual-bubble-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.support-plan-contextual-bubble button {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+@keyframes support-plan-companion-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .support-plan-contextual-trigger svg[data-lucide='loader-circle'] {
+    animation: none !important;
+  }
+}

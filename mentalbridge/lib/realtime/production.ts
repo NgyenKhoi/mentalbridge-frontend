@@ -43,9 +43,7 @@ export function createProductionRealtimeBoundary(
   return { status: 'approved', decision, transport: approvedTransport }
 }
 
-export const currentProductionRealtimeBoundary =
-  createProductionRealtimeBoundary({
-    kind: 'unavailable',
-    reason:
-      'No approved short-lived socket credential or same-origin termination contract exists.',
-  })
+export const currentBrowserHandshakeDecision: BrowserHandshakeDecision = {
+  kind: 'short-lived-socket-credential',
+  architectureDecisionId: 'MB-382/ADR_REALTIME_BROWSER_HANDSHAKE',
+}

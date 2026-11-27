@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MB-660 Resource Bingo & Bookmarks — Mobile</title>
+  <!-- Google Fonts: Fraunces & Be Vietnam Pro -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Material Symbols Outlined -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            heading: ['Fraunces', 'serif'],
+            sans: ['"Be Vietnam Pro"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f2f8f4',
+              100: '#e1efe7',
+              200: '#c3dfd1',
+              300: '#97c7b4',
+              600: '#2c6e5a',
+              700: '#215647',
+              800: '#1e4a43', // Primary deep green Calm Garden
+              900: '#173a35',
+            },
+            surface: {
+              canvas: '#f5fbf1',
+              card: '#ffffff',
+              low: '#eff5eb',
+              dim: '#e4ece0',
+            },
+            outline: {
+              subtle: '#d8e2d4',
+              variant: '#cad6c5',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Be Vietnam Pro', sans-serif;
+      background-color: #f5fbf1;
+      color: #1a2420;
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.6;
+    }
+    h1, h2, h3, h4, .font-heading {
+      font-family: 'Fraunces', serif;
+      letter-spacing: -0.015em;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    .material-symbols-outlined.fill-1 {
+      font-variation-settings: 'FILL' 1;
+    }
+    /* Diacritic safety & touch sizing */
+    .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    /* Calm subtle pulse for loading indicator */
+    @keyframes gentle-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.96); }
+    }
+    .animate-gentle {
+      animation: gentle-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  </style>
+</head>
+<body class="bg-[#f5fbf1] text-[#1c2824] antialiased min-h-screen flex justify-center pb-24">
+  <!-- 390px Mobile Viewport Container -->
+  <div class="w-full max-w-[390px] min-h-screen bg-[#f5fbf1] border-x border-[#dbe6d7] shadow-xl relative flex flex-col">
+
+    <!-- Top App Bar / Mobile Shell Header -->
+    <header class="sticky top-0 z-40 bg-[#f5fbf1]/95 backdrop-blur-md border-b border-[#d8e3d3] px-4 py-2.5 flex items-center justify-between transition-colors">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-[#1e4a43] flex items-center justify-center text-white shadow-sm flex-shrink-0" aria-label="MentalBridge logo">
+          <span class="material-symbols-outlined text-[20px]">spa</span>
+        </div>
+        <div>
+          <span class="font-heading font-bold text-[17px] text-[#1e4a43] tracking-tight leading-tight block">MentalBridge</span>
+          <span class="text-[10.5px] text-[#556961] font-medium leading-none block mt-0.5">Chăm sóc tâm lý cá nhân</span>
+        </div>
+      </div>
+      
+      <!-- Top actions -->
+      <div class="flex items-center gap-1">
+        <button type="button" aria-label="Thông báo hỗ trợ" class="touch-target w-11 h-11 flex items-center justify-center rounded-full text-[#314a42] hover:bg-[#e4ede0] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e4a43]">
+          <span class="material-symbols-outlined text-[22px]">notifications</span>
+        </button>
+        <button type="button" aria-label="Hồ sơ người tham gia BS. Minh Anh" class="touch-target w-11 h-11 flex items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e4a43]">
+          <div class="w-8 h-8 rounded-full bg-[#1e4a43] text-[#f2f8f4] text-xs font-semibold flex items-center justify-center border border-[#bad1c3]">
+            MA
+          </div>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Stream -->
+    <main class="flex-1 px-4 pt-3.5 pb-8 space-y-4">
+
+      <!-- Calm Partial Outage Banner (MB-660 requirement) -->
+      <aside aria-label="Thông báo trạng thái hệ thống" class="p-3.5 rounded-2xl bg-[#eff6ec] border border-[#cfdfcb] text-[#2c4037] shadow-sm">
+        <div class="flex items-start gap-2.5">
+          <span class="material-symbols-outlined text-[#336858] text-[20px] mt-0.5 flex-shrink-0" aria-hidden="true">sync_problem</span>
+          <div class="flex-1 text-[12.5px] leading-relaxed">
+            <div class="font-semibold text-[#1e4a43] mb-0.5">Khả năng đọc tài liệu vẫn bảo đảm</div>
+            <p class="text-[#3c5047]">
+              Kho tài liệu vẫn mở đọc ngoại tuyến bình thường. Hệ thống đang tự động kiểm tra lại kết nối đồng bộ đám mây cho Bingo kế hoạch tuần.
+            </p>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Page Title & Scope Section -->
+      <section class="pt-1">
+        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#e3ede0] text-[#235245] text-[11px] font-medium mb-1.5">
+          <span class="material-symbols-outlined text-[14px]">auto_stories</span>
+          <span>Kho tài nguyên & Bài tập thực hành</span>
+        </div>
+        <h1 class="font-heading text-[22px] font-bold text-[#14352e] leading-snug">
+          Thực hành định tâm & Thư giãn tuần này
+        </h1>
+        <p class="text-[12.5px] text-[#4b6156] mt-1 leading-relaxed">
+          Tài liệu chuẩn mực hướng dẫn điều hòa hệ thần kinh, được thẩm định độc lập bởi hội đồng chuyên môn lâm sàng.
+        </p>
+      </section>
+
+      <!-- Featured Resource Card with Accessible Bookmark Toggle -->
+      <article aria-labelledby="featured-title" class="p-4 rounded-2xl bg-white border border-[#d6e3d2] shadow-sm relative transition-all">
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#eaf4e7] text-[#215647] text-[11px] font-medium border border-[#cbe0c6]">
+            <span class="material-symbols-outlined text-[13px]">verified</span>
+            Trọng tâm tuần
+          </span>
+          <span class="inline-flex items-center gap-1 text-[11.5px] text-[#556961]">
+            <span class="material-symbols-outlined text-[14px]">schedule</span>
+            7 phút thực hành
+          </span>
+        </div>
+
+        <h2 id="featured-title" class="font-heading text-[17px] font-bold text-[#1a3830] leading-snug pr-8">
+          Kỹ thuật Thở hộp (Box Breathing) 4-4-4-4 điều hòa hệ thần kinh thực vật
+        </h2>
+
+        <!-- Bookmark Toggle Button (Accessible with explicit aria-label and aria-pressed) -->
+        <button 
+          type="button" 
+          aria-label="Bỏ lưu bài tập Kỹ thuật Thở hộp khỏi kho cá nhân" 
+          aria-pressed="true"
+          class="touch-target absolute top-3.5 right-3 w-11 h-11 flex items-center justify-center rounded-xl bg-[#f0f6ec] text-[#1e4a43] hover:bg-[#e4ede0] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e4a43]"
+          title="Đã lưu vào danh mục của bạn">
+          <span class="material-symbols-outlined fill-1 text-[22px]">bookmark</span>
+        </button>
+
+        <p class="text-[12.5px] text-[#3d5349] mt-2 leading-relaxed">
+          Phương pháp thở chuẩn mực 4 thì (hít vào - giữ - thở ra - giữ) hỗ trợ hạ nhịp tim và lấy lại sự định tâm trong các thời điểm căng thẳng cao.
+        </p>
+
+        <!-- Metadata & Actions -->
+        <div class="mt-3 pt-3 border-t border-[#edf3ea] flex flex-col gap-2">
+          <div class="flex items-center justify-between text-[11px] text-[#5b7167]">
+            <span>Ban Lâm sàng MentalBridge · v3.2</span>
+            <span class="italic text-[#275e4e]">Đã lưu lúc 09:15 sáng</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 mt-1">
+            <button 
+              type="button" 
+              class="touch-target w-full py-2.5 px-3 rounded-xl bg-[#f0f5ed] hover:bg-[#e4ede0] text-[#1e4a43] font-medium text-[12.5px] border border-[#cadac5] flex items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e4a43]">
+              <span class="material-symbols-outlined fill-1 text-[17px]">bookmark</span>
+              <span>Đã lưu</span>
+            </button>
+            <button 
+              type="button" 
+              class="touch-target w-full py-2.5 px-3 rounded-xl bg-[#1e4a43] hover:bg-[#163a34] text-white font-medium text-[12.5px] flex items-center justify-center gap-1.5 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#1e4a43]">
+              <span>Mở bài thực hành</span>
+              <span class="material-symbols-outlined text-[17px]">arrow_forward</span>
+            </button>
+          </div>
+        </div>
+      </article>
+
+      <!-- WEEKLY BINGO CARD CONTAINER (MB-660 Requirements) -->
+      <section aria-labelledby="bingo-heading" class="p-4 rounded-3xl bg-[#fdfefc] border-2 border-[#cfe0cb] shadow-md space-y-3.5">
+        
+        <!-- Bingo Header & Meta -->
+        <div>
+          <div class="flex items-center justify-between gap-2">
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#e8f1e4] text-[#204e42] text-[11.5px] font-semibold">
+              <span class="material-symbols-outlined text-[15px]">grid_view</span>
+              <span>Không tính chuỗi ngày (No-streak)</span>
+            </div>
+            <span class="text-[11px] text-[#597266] font-medium">MB-660</span>
+          </div>
+          
+          <h2 id="bingo-heading" class="font-heading text-[19px] font-bold text-[#15392f] mt-1.5 leading-tight">
+            Bingo hoạt động trong kế hoạch
+          </h2>
+          <p class="text-[12px] text-[#4d665a] mt-0.5 font-medium">
+            Tuần 12–18 tháng 10 · Múi giờ Asia/Ho_Chi_Minh
+          </p>
+        </div>
+
+        <!-- Clinical & Ethical Scope Notice (Explicitly non-judgmental) -->
+        <div class="p-3 rounded-xl bg-[#f4f8f2] border border-[#d8e5d5] text-[11.5px] leading-relaxed text-[#354f43]">
+          <div class="flex items-start gap-2">
+            <span class="material-symbols-outlined text-[#2f6857] text-[17px] mt-0.5 flex-shrink-0" aria-hidden="true">info</span>
+            <div>
+              <strong class="text-[#1a3d33] font-semibold">Tự định hướng nhẹ nhàng:</strong> 
+              Bảng hoạt động nhằm hỗ trợ bạn tự chăm sóc theo nhịp riêng, hoàn toàn không tính điểm thành tích hay chuỗi ngày (streak). Việc bỏ qua một hoạt động không có bất kỳ chế tài hay ảnh hưởng nào đến kế hoạch lâm sàng chung.
+            </div>
+          </div>
+        </div>
+
+        <!-- VERTICAL BINGO LIST DEMONSTRATING ALL REQUIRED MB-660 STATES -->
+        <div class="space-y-3 pt-1" role="list" aria-label="Danh sách các ô Bingo hoạt động tuần">
+
+          <!-- 1. NEUTRAL ITEM: "Tự đánh dấu" -->
+          <div role="listitem" class="p-3.5 rounded-2xl bg-white border border-[#d4e2d0] shadow-sm space-y-2.5">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex-1">
+                <span class="text-[10.5px] font-semibold tracking-wider uppercase text-[#5a7367] block">
+                  Hoạt động #1 · Vận động định tâm
+                </span>
+                <h3 class="font-heading text-[15px] font-semibold text-[#183a30] leading-snug mt-0.5">
+                  Đi dạo chánh niệm 15 phút không dùng điện thoại
+                </h3>
+              </div>
+              <span class="px-2 py-0.5 rounded-md bg-[#edf3ea] text-[#4c6356] text-[11px] font-medium flex-shrink-0 border border-[#d9e5d5]">
+                Chưa đánh dấu
+              </span>
+            </div>
+            
+            <p class="text-[11.5px] text-[#556c60] leading-relaxed">
+              Tập trung quan sát cảm giác bàn chân chạm đất và nhịp thở tự nhiên. Bạn có thể tự ghi nhận sau khi hoàn thành.
+            </p>
+
+            <div class="pt-1 flex items-center justify-between gap-3">
+              <button 
+                type="button" 
+                class="touch-target w-full py-2 px-3 rounded-xl bg-white hover:bg-[#f2f7ef] text-[#1e4a43] font-medium text-[12.5px] border-2 border-[#1e4a43] flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e4a43]">
+                <span class="material-symbols-outlined text-[18px]">check_box_outline_blank</span>
+                <span>Tự đánh dấu</span>
+              </button>
+            </div>
+            <span class="text-[10px] text-[#6e8579] italic block text-center">Bỏ qua không ảnh hưởng đến tiến độ hỗ trợ</span>
+          </div>
+
+          <!-- 2. AMBER ITEM: "Bạn tự đánh dấu" with "Bỏ tự đánh dấu" -->
+          <div role="listitem" class="p-3.5 rounded-2xl bg-[#fffcf5] border-2 border-[#e6c989] shadow-sm space-y-2.5">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex-1">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="text-[10.5px] font-semibold tracking-wider uppercase text-[#855e1b]">
+                    Hoạt động #2 · Nhật ký biểu đạt
+                  </span>
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#faeed4] text-[#855914] text-[11px] font-semibold border border-[#eed097]">
+                    <span class="material-symbols-outlined text-[13px]">person</span>
+                    Bạn tự đánh dấu
+                  </span>
+                </div>
+                <h3 class="font-heading text-[15px] font-semibold text-[#382a13] leading-snug mt-1">
+                  Ghi nhật ký cảm xúc 3 điều biết ơn buổi tối
+                </h3>
+              </div>
+            </div>
+
+            <div class="p-2 rounded-lg bg-[#fef7e9] text-[11px] text-[#6b4e18] flex items-center justify-between">
+              <span>Đã tự xác nhận lúc 21:30 hôm qua</span>
+              <span class="font-medium text-[#855e1b]">Ghi nhận cá nhân</span>
+            </div>
+
+            <div class="pt-0.5">
+              <button 
+                type="button" 
+                class="touch-target w-full py-2 px-3 rounded-xl bg-[#faeed4] hover:bg-[#f6e2be] text-[#784d0b] font-medium text-[12.5px] border border-[#dfbb77] flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#855914]">
+                <span class="material-symbols-outlined text-[17px]">close</span>
+                <span>Bỏ tự đánh dấu</span>
+              </button>
+            </div>
+            <p class="text-[10px] text-[#7f6334] text-center italic">
+              Đây là xác nhận tự nguyện của bạn, không gửi thẩm định lâm sàng
+            </p>
+          </div>
+
+          <!-- 3. GREEN ITEM: "Đã xác minh từ hoạt động đã lưu · Nội dung v4" -->
+          <div role="listitem" class="p-3.5 rounded-2xl bg-[#f6fbf5] border-2 border-[#a7d3a2] shadow-sm space-y-2.5">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex-1">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="text-[10.5px] font-semibold tracking-wider uppercase text-[#236647]">
+                    Hoạt động #3 · Hơi thở sinh học
+                  </span>
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#ddf2da] text-[#1c5e3f] text-[11px] font-semibold border border-[#9ed697]">
+                    <span class="material-symbols-outlined text-[13px]">verified_user</span>
+                    Đã xác minh từ hoạt động đã lưu · Nội dung v4
+                  </span>
+                </div>
+                <h3 class="font-heading text-[15px] font-semibold text-[#143d2c] leading-snug mt-1">
+                  Hoàn tất bài tập Thở hộp 4-4-4-4 cùng đồng hồ nhịp
+                </h3>
+              </div>
+            </div>
+
+            <p class="text-[11.5px] text-[#2c5240] leading-relaxed">
+              Dữ liệu được xác thực tự động khi phiên thở 7 phút kết thúc hoàn tất trên ứng dụng.
+            </p>
+
+            <div class="flex items-center justify-between p-2.5 rounded-xl bg-[#eaf7e7] border border-[#c2e5bc] text-[11.5px] text-[#1f593b]">
+              <span class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px] text-[#247048]">cloud_done</span>
+                Đã đồng bộ vào hồ sơ hỗ trợ
+              </span>
+              <span class="font-semibold text-[11px] text-[#1e5839]">14:20 Thứ Ba</span>
+            </div>
+          </div>
+
+          <!-- 4. LOADING STATE: "Đang lưu…" button demonstration -->
+          <div role="listitem" class="p-3.5 rounded-2xl bg-white border border-[#d4e2d0] shadow-sm space-y-2.5">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex-1">
+                <span class="text-[10.5px] font-semibold tracking-wider uppercase text-[#5a7367] block">
+                  Hoạt động #4 · Vệ sinh giấc ngủ
+                </span>
+                <h3 class="font-heading text-[15px] font-semibold text-[#183a30] leading-snug mt-0.5">
+                  Tắt màn hình xanh 30 phút trước khi ngủ
+                </h3>
+              </div>
+              <span class="px-2 py-0.5 rounded-md bg-[#eef4ec] text-[#4d6658] text-[11px] font-medium flex-shrink-0">
+                Đang xử lý
+              </span>
+            </div>
+
+            <p class="text-[11.5px] text-[#556c60] leading-relaxed">
+              Bạn vừa chạm đánh dấu hoàn tất. Trạng thái đang được lưu cục bộ và gửi lên máy chủ an toàn.
+            </p>
+
+            <!-- Loading Button with clear disabled/loading UX -->
+            <div class="pt-0.5">
+              <button 
+                type="button" 
+                disabled 
+                aria-busy="true"
+                class="touch-target w-full py-2.5 px-3 rounded-xl bg-[#285d4f]/80 text-white font-medium text-[12.5px] flex items-center justify-center gap-2 cursor-wait opacity-90 shadow-inner">
+                <span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                <span>Đang lưu…</span>
+              </button>
+            </div>
+            <span class="text-[10px] text-[#698275] text-center block">Vui lòng đợi trong giây lát, bạn không cần thao tác lại</span>
+          </div>
+
+          <!-- 5. INLINE STALE / CONFLICT STATE: "Chưa đồng bộ thay đổi" with "Thử lại" and "Tải trạng thái mới nhất" -->
+          <div role="listitem" class="p-3.5 rounded-2xl bg-[#fff8f8] border-2 border-[#e8a8a8] shadow-sm space-y-3">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex-1">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="text-[10.5px] font-semibold tracking-wider uppercase text-[#963737]">
+                    Hoạt động #5 · Thư giãn cơ bắp
+                  </span>
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#fce8e8] text-[#9c2d2d] text-[11px] font-semibold border border-[#f3bebe]">
+                    <span class="material-symbols-outlined text-[13px]">sync_problem</span>
+                    Chưa đồng bộ thay đổi
+                  </span>
+                </div>
+                <h3 class="font-heading text-[15px] font-semibold text-[#441a1a] leading-snug mt-1">
+                  Bài tập Giãn cơ tiến triển (PMR) 10 phút
+                </h3>
+              </div>
+            </div>
+
+            <div class="p-2.5 rounded-xl bg-[#faecec] border border-[#f1c5c5] text-[11.5px] text-[#752626] leading-relaxed">
+              Phiên bản trên máy bạn lưu lúc 08:30 khác với dữ liệu máy chủ ghi nhận lúc 08:45 từ thiết bị khác. Chọn hướng xử lý an toàn:
+            </div>
+
+            <!-- Stale/Conflict Resolution Buttons (At least 44px touch targets) -->
+            <div class="grid grid-cols-2 gap-2 pt-0.5">
+              <button 
+                type="button" 
+                class="touch-target py-2.5 px-2 rounded-xl bg-white hover:bg-[#faefef] text-[#992626] font-semibold text-[11.5px] border-2 border-[#d97c7c] flex items-center justify-center gap-1.5 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#992626]">
+                <span class="material-symbols-outlined text-[16px]">refresh</span>
+                <span>Thử lại</span>
+              </button>
+              <button 
+                type="button" 
+                class="touch-target py-2.5 px-2 rounded-xl bg-[#8c2525] hover:bg-[#721c1c] text-white font-semibold text-[11px] rounded-xl flex items-center justify-center gap-1 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#8c2525]">
+                <span class="material-symbols-outlined text-[16px]">cloud_download</span>
+                <span>Tải trạng thái mới nhất</span>
+              </button>
+            </div>
+            <span class="text-[10px] text-[#8c4f4f] text-center block">Không mất ghi chú cá nhân của bạn</span>
+          </div>
+
+        </div> <!-- End vertical Bingo list -->
+
+        <!-- Bottom Guidance within Bingo Card -->
+        <div class="pt-2 text-center border-t border-[#dae7d6]">
+          <p class="text-[11px] text-[#557062] leading-normal">
+            MentalBridge cam kết tôn trọng quyền tự quyết. Bảng tự chăm sóc không nhằm chẩn đoán hay thay thế tư vấn y khoa chuyên sâu.
+          </p>
+        </div>
+
+      </section>
+
+      <!-- Additional Resources Quick Shelf -->
+      <section aria-labelledby="other-resources-title" class="space-y-3 pt-2">
+        <h3 id="other-resources-title" class="font-heading text-[16px] font-bold text-[#1a3c33]">
+          Tài liệu chuyên đề đề xuất thêm
+        </h3>
+
+        <!-- Card: PMR Guide -->
+        <div class="p-3.5 rounded-2xl bg-white border border-[#d6e3d2] shadow-sm flex items-center justify-between gap-3">
+          <div class="flex-1">
+            <span class="text-[10px] uppercase font-semibold text-[#4e6b5e]">Hướng dẫn thực hành · v1.8</span>
+            <h4 class="font-heading text-[14px] font-semibold text-[#173a30] leading-snug mt-0.5">
+              Kỹ thuật Thư giãn cơ tiến triển (PMR)
+            </h4>
+            <span class="text-[11px] text-[#5c7368] mt-1 inline-flex items-center gap-1">
+              <span class="material-symbols-outlined text-[13px]">timer</span> 10 phút · Thư giãn thân thể
+            </span>
+          </div>
+          <button 
+            type="button" 
+            aria-label="Lưu tài liệu Kỹ thuật Thư giãn cơ tiến triển"
+            aria-pressed="false"
+            class="touch-target w-11 h-11 rounded-xl bg-[#f0f6ec] hover:bg-[#e2edd9] text-[#2c5b4e] flex items-center justify-center border border-[#d0e0cb] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e4a43]">
+            <span class="material-symbols-outlined text-[20px]">bookmark_border</span>
+          </button>
+        </div>
+
+        <!-- Card: Cognitive Distortions -->
+        <div class="p-3.5 rounded-2xl bg-white border border-[#d6e3d2] shadow-sm flex items-center justify-between gap-3">
+          <div class="flex-1">
+            <span class="text-[10px] uppercase font-semibold text-[#4e6b5e]">Khoa Tâm lý học · v2.1</span>
+            <h4 class="font-heading text-[14px] font-semibold text-[#173a30] leading-snug mt-0.5">
+              Nhận diện 10 bẫy suy nghĩ tiêu cực phổ biến
+            </h4>
+            <span class="text-[11px] text-[#5c7368] mt-1 inline-flex items-center gap-1">
+              <span class="material-symbols-outlined text-[13px]">menu_book</span> 12 phút đọc · Nhận thức
+            </span>
+          </div>
+          <button 
+            type="button" 
+            aria-label="Lưu tài liệu Nhận diện bẫy suy nghĩ tiêu cực"
+            aria-pressed="false"
+            class="touch-target w-11 h-11 rounded-xl bg-[#f0f6ec] hover:bg-[#e2edd9] text-[#2c5b4e] flex items-center justify-center border border-[#d0e0cb] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e4a43]">
+            <span class="material-symbols-outlined text-[20px]">bookmark_border</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Emergency Helpline Bar (Calm Garden Spec) -->
+      <section class="mt-4 p-3 rounded-2xl bg-[#eff6ea] border border-[#d2e2cd] flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-full bg-[#1e4a43] text-white flex items-center justify-center flex-shrink-0">
+            <span class="material-symbols-outlined text-[18px]">support_agent</span>
+          </div>
+          <div>
+            <div class="text-[12px] font-bold text-[#173d33]">Hỗ trợ khẩn cấp 1900 xxxx</div>
+            <div class="text-[10.5px] text-[#4d665b]">Trực ban 24/7 hoàn toàn bảo mật</div>
+          </div>
+        </div>
+        <a href="tel:19000000" class="touch-target px-3 py-2 rounded-xl bg-white text-[#1e4a43] text-[12px] font-semibold border border-[#c3d7bd] flex items-center justify-center hover:bg-[#f3f9ef]">
+          Gọi ngay
+        </a>
+      </section>
+
+    </main>
+
+    <!-- Mobile Shell Bottom Navigation Bar (Thumb-friendly & high ergonomics) -->
+    <nav aria-label="Điều hướng chính" class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[390px] bg-[#f5fbf1]/95 backdrop-blur-md border-t border-[#d5e2cf] px-2 py-1.5 flex items-center justify-around z-50">
+      
+      <!-- Tab 1: Tổng quan -->
+      <a href="#overview" class="flex flex-col items-center justify-center w-14 touch-target text-[#587265] hover:text-[#1e4a43] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e4a43] rounded-lg">
+        <span class="material-symbols-outlined text-[22px]">dashboard</span>
+        <span class="text-[10px] font-medium mt-0.5">Tổng quan</span>
+      </a>
+
+      <!-- Tab 2: Tài nguyên (ACTIVE) -->
+      <a href="#resources" aria-current="page" class="flex flex-col items-center justify-center w-14 touch-target text-[#1e4a43] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e4a43] rounded-lg">
+        <div class="w-10 h-7 rounded-full bg-[#d8ead3] flex items-center justify-center mb-0.5">
+          <span class="material-symbols-outlined text-[20px] fill-1 text-[#18443b]">auto_stories</span>
+        </div>
+        <span class="text-[10.5px] font-bold text-[#143c32]">Tài nguyên</span>
+      </a>
+
+      <!-- Tab 3: Kế hoạch -->
+      <a href="#plan" class="flex flex-col items-center justify-center w-14 touch-target text-[#587265] hover:text-[#1e4a43] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e4a43] rounded-lg">
+        <span class="material-symbols-outlined text-[22px]">spa</span>
+        <span class="text-[10px] font-medium mt-0.5">Kế hoạch</span>
+      </a>
+
+      <!-- Tab 4: Nhật ký -->
+      <a href="#journal" class="flex flex-col items-center justify-center w-14 touch-target text-[#587265] hover:text-[#1e4a43] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e4a43] rounded-lg">
+        <span class="material-symbols-outlined text-[22px]">menu_book</span>
+        <span class="text-[10px] font-medium mt-0.5">Nhật ký</span>
+      </a>
+
+      <!-- Tab 5: Cài đặt -->
+      <a href="#settings" class="flex flex-col items-center justify-center w-14 touch-target text-[#587265] hover:text-[#1e4a43] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e4a43] rounded-lg">
+        <span class="material-symbols-outlined text-[22px]">settings</span>
+        <span class="text-[10px] font-medium mt-0.5">Cài đặt</span>
+      </a>
+
+    </nav>
+
+  </div>
+</body>
+</html>

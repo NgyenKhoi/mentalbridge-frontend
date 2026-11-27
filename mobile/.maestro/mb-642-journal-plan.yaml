@@ -1,0 +1,103 @@
+appId: com.mentalbridge.mobile
+name: MB-642 private Journal action explicit owner completion
+---
+# AUTHOR-ONLY — NOT_RUN_MB666. Requires the approved disposable owner fixture.
+# Fixture: exactly one ACTIVE supported JOURNAL action scheduled for today,
+# activation before this run, no accepted entry, and separate no-AI consent.
+- assertTrue: '${MAESTRO_MB642_DISPOSABLE_FIXTURE === "true"}'
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn: 'Email'
+- inputText: '${MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL}'
+- tapOn: 'Mật khẩu'
+- inputText: '${MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Mở kế hoạch hỗ trợ'
+- scrollUntilVisible:
+    element:
+      id: 'journal-write-.*'
+    direction: DOWN
+- tapOn:
+    id: 'journal-write-.*'
+- assertVisible: 'Hoạt động trong kế hoạch'
+- assertVisible: 'Nội dung nhật ký vẫn riêng tư. Kế hoạch chỉ ghi nhận việc bạn đã lưu bài.'
+- tapOn:
+    id: 'journal-text'
+- inputText: 'MB642 synthetic private writing; not a real user story.'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'journal-mood-GOOD'
+    direction: DOWN
+- tapOn:
+    id: 'journal-mood-GOOD'
+- scrollUntilVisible:
+    element:
+      id: 'journal-save'
+    direction: DOWN
+- tapOn:
+    id: 'journal-save'
+    enabled: true
+- assertVisible: 'Đã lưu nhật ký.'
+- scrollUntilVisible:
+    element:
+      id: 'journal-return-to-plan'
+    direction: UP
+- tapOn:
+    id: 'journal-return-to-plan'
+    enabled: true
+- scrollUntilVisible:
+    element:
+      id: 'reconcile-journal-.*'
+    direction: DOWN
+- assertVisible: 'Bạn vừa quay lại từ nhật ký'
+- assertVisible: 'Chưa ghi nhận hoàn thành'
+- tapOn:
+    id: 'reconcile-journal-.*'
+- assertVisible: 'Đã ghi nhận hoàn thành'
+- tapOn:
+    id: 'reconcile-journal-.*'
+- assertVisible: 'Đã ghi nhận hoàn thành'
+# Revision must keep the accepted creation fact; it is not a new completion.
+- scrollUntilVisible:
+    element:
+      text: 'Xem nhật ký đã ghi nhận'
+    direction: DOWN
+- tapOn: 'Xem nhật ký đã ghi nhận'
+- tapOn:
+    id: 'journal-text'
+- eraseText
+- inputText: 'MB642 revised synthetic writing, same entry.'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'journal-save'
+    direction: DOWN
+- tapOn:
+    id: 'journal-save'
+- assertVisible: 'Đã lưu nhật ký.'
+- scrollUntilVisible:
+    element:
+      id: 'journal-return-to-plan'
+    direction: UP
+- tapOn:
+    id: 'journal-return-to-plan'
+- scrollUntilVisible:
+    element:
+      id: 'reconcile-journal-.*'
+    direction: DOWN
+- tapOn:
+    id: 'reconcile-journal-.*'
+- assertVisible: 'Đã ghi nhận hoàn thành'
+- stopApp
+- launchApp
+- tapOn: 'Mở kế hoạch hỗ trợ'
+- scrollUntilVisible:
+    element:
+      text: 'Đã ghi nhận hoàn thành'
+    direction: DOWN
+- assertVisible: 'Đã ghi nhận hoàn thành'

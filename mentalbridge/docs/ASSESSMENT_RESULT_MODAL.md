@@ -148,7 +148,7 @@ export default function AssessmentsPage() {
       questions: [...],
       previousScore: 10
     }
-    
+
     setSelectedResult(detailedResult)
     setIsResultOpen(true)
   }
@@ -403,4 +403,3 @@ Display full result
 **Features**: Score, level, description, recommendations, questions
 **Interactions**: Close, download PDF (planned)
 **Animations**: Entrance, stagger, hover effects
-

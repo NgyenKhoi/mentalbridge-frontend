@@ -1,0 +1,2612 @@
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
+import type { ReactNode } from 'react'
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
+
+import { MamDock } from './MamDock'
+import { MamDockSlot } from './MamDockSlot'
+import { observeMamAwardRead, type MamAward } from './mam-celebrations'
+import { resetMamRendererFailure } from './mam-failure'
+import { resetMamWelcomeAttempts } from './mam-welcome-attempts'
+import { setMamMotionOff, setMamMuted } from './mam-preferences'
+import { dispatchMamSaved } from './mam-saved'
+import { useMamSuppress } from './mam-suppression'
+import { loadMamDockHost } from './testing/load-mam-dock-host'
+import { useMamTarget } from './use-mam-target'
+
+// Captured before any test fakes timers: Motion paints on real frames.
+const realTimeout = globalThis.setTimeout
+
+const navigation = vi.hoisted(() => ({ pathname: '/dashboard' }))
+
+vi.mock('next/navigation', () => ({
+  usePathname: () => navigation.pathname,
+}))
+
+const character = vi.hoisted(() => ({
+  mounts: 0,
+  plays: 0,
+  ready: false,
+  fallback: null as 'error' | 'unsupported' | null,
+}))
+
+vi.mock('./MamCharacter', async () => {
+  const { useEffect } = await import('react')
+  return {
+    MamCharacter: (props: {
+      size: number
+      behavior: string
+      reducedMotion: boolean
+      oneShot?: { kind: string } | null
+      gaze?: unknown
+      onStatusChange?: (status: 'ready') => void
+      onFallback?: (reason: 'error' | 'unsupported') => void
+    }) => {
+      useEffect(() => {
+        character.mounts += 1
+        if (character.ready) props.onStatusChange?.('ready')
+        if (character.fallback) props.onFallback?.(character.fallback)
+        // Mount only: the status is reported once, as the real character does.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [])
+      const shotKey = (props.oneShot as { key?: string } | null | undefined)
+        ?.key
+      useEffect(() => {
+        if (shotKey) character.plays += 1
+      }, [shotKey])
+      return (
+        <span
+          data-testid="mam-character"
+          data-size={props.size}
+          data-behavior={props.behavior}
+          data-reduced={props.reducedMotion}
+          data-one-shot={props.oneShot?.kind ?? ''}
+          data-gaze={props.gaze ? 'on' : 'off'}
+        />
+      )
+    },
+  }
+})
+
+function stubMatchMedia(matches: (query: string) => boolean) {
+  window.matchMedia = vi.fn((query: string) => ({
+    matches: matches(query),
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })) as unknown as typeof window.matchMedia
+}
+
+const dockButton = () => screen.getByRole('button', { name: 'Mầm' })
+let resizeContent: () => void
+
+function stubOverlap() {
+  let overlapping = true
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+    function (this: HTMLElement) {
+      if (this.matches('[data-mam-dock]')) return new DOMRect(20, 700, 96, 96)
+      if (this.closest('.ref-content'))
+        return new DOMRect(20, overlapping ? 720 : 100, 200, 44)
+      return new DOMRect()
+    },
+  )
+  return (value: boolean) => {
+    overlapping = value
+  }
+}
+
+// The dock host is lazy (MB-781): load it once, as the app does.
+beforeAll(loadMamDockHost, 20_000)
+
+describe('MamDock', () => {
+  beforeEach(() => {
+    // The orchestrator picks a look by weight: 0 is the first candidate (the existing looks: celebrate_hero, nod, ...).
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    navigation.pathname = '/dashboard'
+    character.mounts = 0
+    character.plays = 0
+    character.ready = false
+    character.fallback = null
+    // The dizzy latch lasts for the page; each test is a fresh page.
+    resetMamRendererFailure()
+    resetMamWelcomeAttempts()
+    window.localStorage.clear()
+    window.sessionStorage.clear()
+    // MB-894: an automated browser never gets the welcome flight unless `?mamWelcome=1` asks for it.
+    Object.defineProperty(navigator, 'webdriver', {
+      value: true,
+      configurable: true,
+    })
+    stubMatchMedia(() => false)
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(onResize: () => void) {
+          resizeContent = onResize
+        }
+        observe = vi.fn()
+        disconnect = vi.fn()
+      },
+    )
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    Reflect.deleteProperty(navigator, 'webdriver')
+    document.body.innerHTML = ''
+  })
+
+  it('renders nothing without a USER layout slot', () => {
+    render(<MamDock />)
+    expect(screen.queryByTestId('mam-character')).toBeNull()
+  })
+
+  it('renders nothing on a route outside the surface matrix', () => {
+    navigation.pathname = '/support-plan/today'
+    render(
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    expect(screen.queryByTestId('mam-character')).toBeNull()
+  })
+
+  it('keeps one character across a layout switch between USER routes', async () => {
+    const { rerender } = render(
+      <>
+        <MamDockSlot key="dashboard" />
+        <MamDock />
+      </>,
+    )
+    await screen.findByTestId('mam-character')
+
+    navigation.pathname = '/resources'
+    rerender(
+      <>
+        <MamDockSlot key="resources" />
+        <MamDock />
+      </>,
+    )
+
+    expect(screen.getAllByTestId('mam-character')).toHaveLength(1)
+    expect(character.mounts).toBe(1)
+  })
+
+  it('uses the 96 px dock on desktop and 72 px on compact screens', () => {
+    const { unmount } = render(
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    expect(screen.getByTestId('mam-character').dataset.size).toBe('96')
+    unmount()
+
+    stubMatchMedia((query) => query === '(max-width: 900px)')
+    render(
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    expect(screen.getByTestId('mam-character').dataset.size).toBe('72')
+  })
+
+  it('opens the menu, turns Mầm curious and closes on Escape with focus back', async () => {
+    render(
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    dockButton().focus()
+    fireEvent.click(dockButton())
+    expect(dockButton()).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('group', { name: 'Mầm' })).toBeInTheDocument()
+    expect(screen.getByTestId('mam-character').dataset.behavior).toBe('curious')
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() =>
+      expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull(),
+    )
+    expect(dockButton()).toHaveFocus()
+    expect(screen.getByTestId('mam-character').dataset.behavior).toBe('idle')
+  })
+
+  it('stores mute per session and motion per device', () => {
+    render(
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    fireEvent.click(dockButton())
+
+    const mute = screen.getByRole('switch', { name: 'Mầm tự lên tiếng' })
+    expect(mute).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(mute)
+    expect(mute).toHaveAttribute('aria-checked', 'false')
+    expect(
+      window.sessionStorage.getItem('mentalbridge_mam_session_muted'),
+    ).toBe('true')
+    expect(
+      window.localStorage.getItem('mentalbridge_mam_session_muted'),
+    ).toBeNull()
+
+    const motion = screen.getByRole('switch', { name: 'Chuyển động' })
+    fireEvent.click(motion)
+    expect(motion).toHaveAttribute('aria-checked', 'false')
+    expect(window.localStorage.getItem('mentalbridge_mam_motion')).toBe(
+      'reduced',
+    )
+    expect(screen.getByTestId('mam-character').dataset.reduced).toBe('true')
+  })
+
+  it('locks the motion switch off under the OS reduced-motion setting', () => {
+    stubMatchMedia((query) => query.includes('prefers-reduced-motion'))
+    render(
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    fireEvent.click(dockButton())
+    const motion = screen.getByRole('switch', { name: 'Chuyển động' })
+    expect(motion).toHaveAttribute('aria-disabled', 'true')
+    expect(motion).toHaveAttribute('aria-checked', 'false')
+    expect(motion).toHaveAccessibleDescription(
+      'Thiết bị của bạn đang bật giảm chuyển động.',
+    )
+    fireEvent.click(motion)
+    expect(window.localStorage.getItem('mentalbridge_mam_motion')).toBeNull()
+  })
+
+  it('hides Mầm behind a handle that survives a remount and shows it again', async () => {
+    const { unmount } = render(
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    fireEvent.click(dockButton())
+    fireEvent.click(screen.getByRole('button', { name: 'Ẩn Mầm' }))
+
+    const handle = await screen.findByRole('button', { name: 'Hiện Mầm' })
+    await waitFor(() => expect(handle).toHaveFocus())
+    expect(screen.queryByTestId('mam-character')).toBeNull()
+    expect(window.localStorage.getItem('mentalbridge_mam_hidden')).toBe('true')
+    unmount()
+
+    render(
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Hiện Mầm' }))
+    await waitFor(() => expect(dockButton()).toHaveFocus())
+    expect(window.localStorage.getItem('mentalbridge_mam_hidden')).toBe('false')
+  })
+
+  it('closes the menu and stays still while a modal is open', async () => {
+    render(
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    fireEvent.click(dockButton())
+
+    const modal = document.createElement('div')
+    modal.setAttribute('aria-modal', 'true')
+    await act(async () => {
+      document.body.appendChild(modal)
+    })
+
+    await waitFor(() =>
+      expect(screen.queryByTestId('mam-character')).toBeNull(),
+    )
+    expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull()
+    expect(document.querySelector('[data-mam-dock]')).toHaveAttribute(
+      'data-mam-dock',
+      'away',
+    )
+
+    await act(async () => {
+      modal.remove()
+    })
+    const returned = await screen.findByTestId('mam-character')
+    expect(returned.dataset.reduced).toBe('false')
+    expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull()
+  })
+
+  it('removes the hide handle too while a dialog is open, and brings it back', async () => {
+    window.localStorage.setItem('mentalbridge_mam_hidden', 'true')
+    render(
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    expect(screen.getByRole('button', { name: 'Hiện Mầm' })).toBeInTheDocument()
+    const dialog = document.createElement('dialog')
+    await act(async () => {
+      document.body.appendChild(dialog)
+      dialog.setAttribute('open', '')
+    })
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Hiện Mầm' })).toBeNull(),
+    )
+    await act(async () => {
+      dialog.removeAttribute('open')
+    })
+    expect(
+      await screen.findByRole('button', { name: 'Hiện Mầm' }),
+    ).toBeInTheDocument()
+  })
+
+  describe('feature zones', () => {
+    function Zone({
+      mode,
+      on = true,
+    }: Readonly<{ mode?: 'hide' | 'suppress'; on?: boolean }>) {
+      useMamSuppress(on, mode)
+      return null
+    }
+    const dock = (zone: ReactNode) => (
+      <>
+        {zone}
+        <MamDockSlot />
+        <MamDock />
+      </>
+    )
+
+    it('a hide zone removes the character and returns it after', async () => {
+      const { rerender } = render(dock(<Zone mode="hide" />))
+      await waitFor(() =>
+        expect(screen.queryByTestId('mam-character')).toBeNull(),
+      )
+      rerender(dock(<Zone mode="hide" on={false} />))
+      expect(await screen.findByTestId('mam-character')).toBeInTheDocument()
+    })
+
+    it('a plain suppress zone keeps the character, still and inert', () => {
+      render(dock(<Zone />))
+      expect(screen.getByTestId('mam-character').dataset.reduced).toBe('true')
+      expect(document.querySelector('[data-mam-dock]')).toHaveAttribute(
+        'data-mam-dock',
+        'shown',
+      )
+    })
+
+    it('moves focus from the dock to the page content when a hide zone removes it', async () => {
+      const content = document.createElement('main')
+      content.className = 'ref-content'
+      content.tabIndex = -1
+      document.body.appendChild(content)
+      const { rerender } = render(dock(<Zone on={false} />))
+      dockButton().focus()
+      expect(dockButton()).toHaveFocus()
+      rerender(dock(<Zone mode="hide" />))
+      await waitFor(() => expect(content).toHaveFocus())
+    })
+
+    it('leaves focus alone when it is not in the dock', async () => {
+      const content = document.createElement('main')
+      content.className = 'ref-content'
+      content.tabIndex = -1
+      document.body.appendChild(content)
+      const { rerender } = render(
+        <>
+          {dock(<Zone on={false} />)}
+          <button type="button">Trang</button>
+        </>,
+      )
+      screen.getByRole('button', { name: 'Trang' }).focus()
+      rerender(
+        <>
+          {dock(<Zone mode="hide" />)}
+          <button type="button">Trang</button>
+        </>,
+      )
+      await waitFor(() =>
+        expect(screen.queryByTestId('mam-character')).toBeNull(),
+      )
+      expect(screen.getByRole('button', { name: 'Trang' })).toHaveFocus()
+    })
+
+    it('a hide zone closes an open menu', async () => {
+      const { rerender } = render(dock(<Zone on={false} />))
+      fireEvent.click(dockButton())
+      expect(screen.getByRole('group', { name: 'Mầm' })).toBeInTheDocument()
+      rerender(dock(<Zone mode="hide" />))
+      await waitFor(() =>
+        expect(screen.queryByTestId('mam-character')).toBeNull(),
+      )
+      expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull()
+    })
+  })
+
+  it('closes the menu when focus moves to the page', async () => {
+    render(
+      <>
+        <button type="button">Trang</button>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    dockButton().focus()
+    fireEvent.click(dockButton())
+    expect(screen.getByRole('group', { name: 'Mầm' })).toBeInTheDocument()
+    screen.getByRole('button', { name: 'Trang' }).focus()
+    await waitFor(() =>
+      expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull(),
+    )
+  })
+
+  it('yields to overlapping page actions and recovers on scroll, resize and content resize', async () => {
+    const setOverlap = stubOverlap()
+    render(
+      <>
+        <main className="ref-content">
+          <button type="button">Lưu ghi nhận</button>
+        </main>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    const root = dockButton().closest('[data-mam-dock]')
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'true'))
+    expect(root).toHaveAttribute('data-focus-yield', 'false')
+
+    const action = screen.getByRole('button', { name: 'Lưu ghi nhận' })
+    action.style.opacity = '0'
+    act(() => resizeContent())
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'false'))
+    action.style.opacity = '1'
+    action.style.clipPath = 'inset(50%)'
+    act(() => resizeContent())
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'false'))
+    action.style.clipPath = ''
+    act(() => resizeContent())
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'true'))
+
+    setOverlap(false)
+    fireEvent.scroll(window)
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'false'))
+    setOverlap(true)
+    fireEvent.resize(window)
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'true'))
+    setOverlap(false)
+    act(() => resizeContent())
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'false'))
+  })
+
+  it('rechecks actions replacing same-sized loading placeholders', async () => {
+    stubOverlap()
+    const { container } = render(
+      <>
+        <main className="ref-content" />
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    const root = dockButton().closest('[data-mam-dock]')
+    const action = document.createElement('button')
+    action.textContent = 'Lưu ghi nhận'
+    act(() => container.querySelector('.ref-content')?.appendChild(action))
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'true'))
+    act(() => action.remove())
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'false'))
+  })
+
+  it('keeps focus yield and lets the focused dock or its open menu take precedence', async () => {
+    stubOverlap()
+    render(
+      <>
+        <main className="ref-content">
+          <button type="button">Lưu ghi nhận</button>
+        </main>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    const root = dockButton().closest('[data-mam-dock]')
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'true'))
+    // Custom controls may focus a transparent native input under their label.
+    const action = screen.getByRole('button', { name: 'Lưu ghi nhận' })
+    action.style.opacity = '0'
+    act(() => action.focus())
+    await waitFor(() =>
+      expect(root).toHaveAttribute('data-focus-yield', 'true'),
+    )
+    act(() => dockButton().focus())
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'false'))
+
+    action.style.opacity = '1'
+    fireEvent.click(dockButton())
+    act(() => dockButton().blur())
+    fireEvent.scroll(window)
+    expect(dockButton()).toHaveAttribute('aria-expanded', 'true')
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'false'))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(root).toHaveAttribute('data-yield', 'true'))
+  })
+
+  it('MB-895: marks the mode, stays visible on a QUIET route and is still only while a form has focus', async () => {
+    navigation.pathname = '/journal'
+    const { rerender } = render(
+      <>
+        <textarea aria-label="Nhật ký" />
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    const reduced = () => screen.getByTestId('mam-character').dataset.reduced
+    expect(document.querySelector('[data-mam-dock]')).toHaveAttribute(
+      'data-mam-mode',
+      'quiet',
+    )
+    expect(dockButton()).toBeVisible()
+    expect(reduced()).toBe('false')
+    act(() => screen.getByLabelText('Nhật ký').focus())
+    await waitFor(() => expect(reduced()).toBe('true'))
+    expect(dockButton()).toBeVisible()
+    act(() => screen.getByLabelText('Nhật ký').blur())
+    await waitFor(() => expect(reduced()).toBe('false'))
+    expect(window.localStorage.getItem('mentalbridge_mam_motion')).toBeNull()
+
+    navigation.pathname = '/dashboard'
+    rerender(
+      <>
+        <textarea aria-label="Nhật ký" />
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    expect(document.querySelector('[data-mam-dock]')).toHaveAttribute(
+      'data-mam-mode',
+      'full',
+    )
+    expect(character.mounts).toBe(1)
+  })
+
+  describe('MB-895 journal editor companion', () => {
+    const showPopover = vi.fn()
+    const hidePopover = vi.fn()
+    const editor = (attributes: { companion?: boolean } = {}) => (
+      <>
+        <dialog
+          open
+          data-mam-companion={attributes.companion ? 'quiet' : undefined}
+        >
+          <section data-mam-panel>
+            <textarea aria-label="Nội dung" />
+          </section>
+        </dialog>
+        <MamDockSlot />
+        <MamDock />
+      </>
+    )
+    const dockRootEl = () => document.querySelector('[data-mam-dock]')!
+    beforeEach(() => {
+      navigation.pathname = '/journal'
+      character.ready = true
+      showPopover.mockClear()
+      hidePopover.mockReset()
+      Object.defineProperty(HTMLElement.prototype, 'showPopover', {
+        value: showPopover,
+        configurable: true,
+      })
+      Object.defineProperty(HTMLElement.prototype, 'hidePopover', {
+        value: hidePopover,
+        configurable: true,
+      })
+      stubMatchMedia((query) => query === '(min-width: 901px)')
+    })
+    afterEach(() => {
+      // Unmount before the globals go: removing the dialog would re-run the host's effects.
+      cleanup()
+      Reflect.deleteProperty(HTMLElement.prototype, 'showPopover')
+      Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover')
+    })
+
+    it('stays docked above the dialog backdrop on desktop: top-layer popover, marked for z-order', () => {
+      render(editor({ companion: true }))
+      expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'shown')
+      expect(dockRootEl()).toHaveAttribute('data-mam-above', 'true')
+      expect(dockRootEl()).toHaveAttribute('popover', 'manual')
+      expect(showPopover).toHaveBeenCalledTimes(1)
+    })
+
+    it('is not a popover when no dialog is open', () => {
+      render(
+        <>
+          <MamDockSlot />
+          <MamDock />
+        </>,
+      )
+      expect(dockRootEl()).toHaveAttribute('data-mam-above', 'false')
+      expect(dockRootEl()).not.toHaveAttribute('popover')
+    })
+
+    it('stays away at 900 px or less', () => {
+      stubMatchMedia(() => false)
+      render(editor({ companion: true }))
+      expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'away')
+      expect(dockRootEl()).toHaveAttribute('data-mam-above', 'false')
+      expect(showPopover).not.toHaveBeenCalled()
+    })
+
+    it('every other modal still hides her', () => {
+      render(editor())
+      expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'away')
+      expect(showPopover).not.toHaveBeenCalled()
+    })
+
+    const panelAt = (left: number, height = 700) =>
+      vi
+        .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+        .mockImplementation(function (this: HTMLElement) {
+          if (this.matches('[data-mam-panel]'))
+            return new DOMRect(left, 100, 980, height)
+          return new DOMRect()
+        })
+
+    it.each([
+      [310, 198], // panel.left - 96 - 16
+      [230, 118],
+      [193, 81],
+    ])(
+      'sits in the gap left of the panel (panel at %i, her left %i)',
+      async (left, expected) => {
+        panelAt(left)
+        render(editor({ companion: true }))
+        await waitFor(() =>
+          expect(dockRootEl()).toHaveStyle({ left: `${expected}px` }),
+        )
+        expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'shown')
+        expect(dockRootEl()).toHaveStyle({ '--mam-dock-offset': '0px' })
+      },
+    )
+
+    it('is away when the panel leaves no room (panel.left < size + 32)', async () => {
+      panelAt(127)
+      render(editor({ companion: true }))
+      await waitFor(() =>
+        expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'away'),
+      )
+    })
+
+    it('stays when the room is exactly size + 32', async () => {
+      panelAt(128)
+      render(editor({ companion: true }))
+      await waitFor(() => expect(dockRootEl()).toHaveStyle({ left: '16px' }))
+      expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'shown')
+    })
+
+    it('follows the panel when the window resizes', async () => {
+      panelAt(310)
+      render(editor({ companion: true }))
+      await waitFor(() => expect(dockRootEl()).toHaveStyle({ left: '198px' }))
+      panelAt(230)
+      fireEvent(window, new Event('resize'))
+      await waitFor(() => expect(dockRootEl()).toHaveStyle({ left: '118px' }))
+    })
+
+    it('lines her bottom edge up with the panel, never below her dock', async () => {
+      panelAt(310, 500) // panel bottom 600, the window is 768 high: 168 px up
+      render(editor({ companion: true }))
+      await waitFor(() => expect(dockRootEl()).toHaveStyle({ bottom: '168px' }))
+      cleanup()
+      panelAt(310, 700) // panel bottom 800 is below the window: her dock edge
+      render(editor({ companion: true }))
+      await waitFor(() => expect(dockRootEl()).toHaveStyle({ bottom: '24px' }))
+    })
+
+    it('stays hidden while the panel entrance runs, then appears at the settled position', async () => {
+      panelAt(310)
+      let running = true
+      Object.defineProperty(HTMLElement.prototype, 'getAnimations', {
+        value: () => (running ? [{ playState: 'running' }] : []),
+        configurable: true,
+      })
+      try {
+        render(editor({ companion: true }))
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 60))
+        })
+        expect(dockRootEl()).toHaveStyle({ visibility: 'hidden' })
+        running = false
+        fireEvent(
+          document.querySelector('[data-mam-panel]')!,
+          new Event('animationend'),
+        )
+        await waitFor(() => expect(dockRootEl()).toHaveStyle({ left: '198px' }))
+        expect(dockRootEl()).not.toHaveStyle({ visibility: 'hidden' })
+      } finally {
+        Reflect.deleteProperty(HTMLElement.prototype, 'getAnimations')
+      }
+    })
+
+    it('a panel that never settles is measured after the 350 ms fallback', async () => {
+      panelAt(310)
+      Object.defineProperty(HTMLElement.prototype, 'getAnimations', {
+        value: () => [{ playState: 'running' }],
+        configurable: true,
+      })
+      try {
+        render(editor({ companion: true }))
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 100))
+        })
+        expect(dockRootEl()).toHaveStyle({ visibility: 'hidden' })
+        await waitFor(() => expect(dockRootEl()).toHaveStyle({ left: '198px' }))
+      } finally {
+        Reflect.deleteProperty(HTMLElement.prototype, 'getAnimations')
+      }
+    })
+
+    describe('leaving the top layer', () => {
+      const popoverGone = () => {
+        expect(dockRootEl()).toHaveAttribute('data-mam-above', 'false')
+        expect(dockRootEl()).not.toHaveAttribute('popover')
+        expect((dockRootEl() as HTMLElement).style.left).toBe('')
+        expect(hidePopover).toHaveBeenCalled()
+      }
+
+      it('the dialog closing', async () => {
+        panelAt(310)
+        render(editor({ companion: true }))
+        await waitFor(() => expect(dockRootEl()).toHaveStyle({ left: '198px' }))
+        act(() => document.querySelector('dialog')!.removeAttribute('open'))
+        await waitFor(() =>
+          expect(dockRootEl()).toHaveAttribute('data-mam-above', 'false'),
+        )
+        popoverGone()
+        expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'shown')
+      })
+
+      it('the editor becoming the reader (the opt-in is removed): every modal rule applies again', async () => {
+        panelAt(310)
+        render(editor({ companion: true }))
+        await waitFor(() => expect(dockRootEl()).toHaveStyle({ left: '198px' }))
+        act(() =>
+          document
+            .querySelector('dialog')!
+            .removeAttribute('data-mam-companion'),
+        )
+        await waitFor(() =>
+          expect(dockRootEl()).toHaveAttribute('data-mam-above', 'false'),
+        )
+        popoverGone()
+        expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'away')
+      })
+
+      it('unmounting', () => {
+        panelAt(310)
+        const { unmount } = render(editor({ companion: true }))
+        expect(hidePopover).not.toHaveBeenCalled()
+        unmount()
+        expect(hidePopover).toHaveBeenCalled()
+      })
+
+      it('the window narrowing to 900 px or less', async () => {
+        panelAt(310)
+        let desktop = true
+        let fire = () => {}
+        const query = '(min-width: 901px)'
+        window.matchMedia = vi.fn((media: string) => ({
+          get matches() {
+            return media === query ? desktop : false
+          },
+          media,
+          addEventListener: (_type: string, listener: () => void) => {
+            if (media === query) fire = listener
+          },
+          removeEventListener: vi.fn(),
+        })) as unknown as typeof window.matchMedia
+        render(editor({ companion: true }))
+        await waitFor(() => expect(dockRootEl()).toHaveStyle({ left: '198px' }))
+        desktop = false
+        act(() => fire())
+        await waitFor(() =>
+          expect(dockRootEl()).toHaveAttribute('data-mam-above', 'false'),
+        )
+        popoverGone()
+        expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'away')
+      })
+
+      it('does not throw when the browser already dropped the popover (hidePopover throws)', async () => {
+        panelAt(310)
+        hidePopover.mockImplementation(() => {
+          throw new DOMException('not showing', 'InvalidStateError')
+        })
+        render(editor({ companion: true }))
+        await waitFor(() => expect(dockRootEl()).toHaveStyle({ left: '198px' }))
+        act(() => document.querySelector('dialog')!.removeAttribute('open'))
+        await waitFor(() =>
+          expect(dockRootEl()).toHaveAttribute('data-mam-above', 'false'),
+        )
+        expect(hidePopover).toHaveBeenCalled()
+        expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'shown')
+      })
+    })
+
+    it('the opt-in is honoured on QUIET routes only: on a FULL route the dialog hides her like any modal', () => {
+      navigation.pathname = '/dashboard'
+      render(editor({ companion: true }))
+      expect(dockRootEl()).toHaveAttribute('data-mam-dock', 'away')
+      expect(dockRootEl()).toHaveAttribute('data-mam-above', 'false')
+      expect(showPopover).not.toHaveBeenCalled()
+    })
+
+    it('a focused field that leaves the DOM stops counting as a form focus', async () => {
+      stubMatchMedia(() => false)
+      const view = render(
+        <>
+          <form>
+            <input aria-label="Ô nhập" />
+          </form>
+          <MamDockSlot />
+          <MamDock />
+        </>,
+      )
+      act(() => screen.getByLabelText('Ô nhập').focus())
+      await waitFor(() =>
+        expect(screen.getByTestId('mam-character').dataset.reduced).toBe(
+          'true',
+        ),
+      )
+      // The field is removed with no focusout; the next render of the host sees that it is gone.
+      view.rerender(
+        <>
+          <MamDockSlot />
+          <MamDock />
+        </>,
+      )
+      navigation.pathname = '/profile'
+      view.rerender(
+        <>
+          <MamDockSlot />
+          <MamDock />
+        </>,
+      )
+      await waitFor(() =>
+        expect(screen.getByTestId('mam-character').dataset.reduced).toBe(
+          'false',
+        ),
+      )
+    })
+
+    it('keeps her idle life while the user types: a field with focus does not still her', async () => {
+      vi.useFakeTimers()
+      window.localStorage.setItem('mentalbridge_mam_tip_seen', 'true')
+      vi.spyOn(Math, 'random').mockReturnValue(0) // 25 s FULL, 50 s on a QUIET route
+      panelAt(310)
+      render(editor({ companion: true }))
+      const field = screen.getByLabelText('Nội dung')
+      act(() => field.focus())
+      for (let t = 0; t < 49_500; t += 500)
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(500)
+        })
+      expect(character.plays).toBe(0)
+      for (let t = 0; t < 1_500; t += 500)
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(500)
+        })
+      expect(character.plays).toBe(1)
+      expect(dockRootEl()).toHaveAttribute('data-mam-gaze', 'false')
+      vi.useRealTimers()
+    })
+  })
+
+  it('MB-895: renders nothing on a HIDDEN route', () => {
+    navigation.pathname = '/call/a-1'
+    render(
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    expect(document.querySelector('[data-mam-dock]')).toBeNull()
+  })
+
+  it('closes the menu on a route change', async () => {
+    const { rerender } = render(
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    fireEvent.click(dockButton())
+    navigation.pathname = '/achievements'
+    rerender(
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    await waitFor(() =>
+      expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull(),
+    )
+  })
+
+  it('shows on /support-plan and on no deeper SupportPlan path', () => {
+    navigation.pathname = '/support-plan'
+    const { unmount } = render(
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>,
+    )
+    expect(screen.getByTestId('mam-character')).toBeInTheDocument()
+    unmount()
+  })
+
+  describe('a confirmed save', () => {
+    const shown = () => (
+      <>
+        <MamDockSlot />
+        <MamDock />
+      </>
+    )
+    const oneShot = () =>
+      screen.getByTestId('mam-character').getAttribute('data-one-shot')
+
+    beforeEach(() => {
+      navigation.pathname = '/support-plan'
+      character.ready = true
+    })
+
+    it('plays nod once, then settles', async () => {
+      vi.useFakeTimers()
+      render(shown())
+      expect(oneShot()).toBe('')
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('nod')
+      act(() => {
+        vi.advanceTimersByTime(1500)
+      })
+      expect(oneShot()).toBe('')
+      vi.useRealTimers()
+    })
+
+    it('clears playing save feedback on navigation without replaying on return', () => {
+      const { rerender } = render(shown())
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('nod')
+
+      navigation.pathname = '/achievements'
+      rerender(shown())
+      expect(oneShot()).toBe('')
+      navigation.pathname = '/support-plan'
+      rerender(shown())
+      expect(oneShot()).toBe('')
+      expect(character.mounts).toBe(1)
+
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('nod')
+    })
+
+    it('does not replay an interrupted save when Mầm returns before it ends', async () => {
+      function Zone({ on }: Readonly<{ on: boolean }>) {
+        useMamSuppress(on, 'hide')
+        return null
+      }
+      const withZone = (on: boolean) => (
+        <>
+          <Zone on={on} />
+          {shown()}
+        </>
+      )
+      const { rerender } = render(withZone(false))
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('nod')
+      expect(character.plays).toBe(1)
+
+      rerender(withZone(true))
+      await waitFor(() =>
+        expect(screen.queryByTestId('mam-character')).toBeNull(),
+      )
+      rerender(withZone(false))
+      expect(await screen.findByTestId('mam-character')).toBeInTheDocument()
+      expect(oneShot()).toBe('')
+      expect(character.plays).toBe(1)
+    })
+
+    it.each([
+      [
+        'hidden',
+        () => window.localStorage.setItem('mentalbridge_mam_hidden', 'true'),
+      ],
+      [
+        'muted',
+        () =>
+          window.sessionStorage.setItem(
+            'mentalbridge_mam_session_muted',
+            'true',
+          ),
+      ],
+      [
+        'motion off',
+        () => window.localStorage.setItem('mentalbridge_mam_motion', 'reduced'),
+      ],
+    ])('stays still while Mầm is %s', (name, setup) => {
+      setup()
+      render(shown())
+      act(() => dispatchMamSaved())
+      // Hidden Mầm has no character at all, so nothing can play.
+      if (name === 'hidden')
+        expect(screen.queryByTestId('mam-character')).toBeNull()
+      else expect(oneShot()).toBe('')
+    })
+
+    it('stays still while the feature reports a no-interrupt zone', () => {
+      function Dirty() {
+        useMamSuppress(true)
+        return null
+      }
+      render(
+        <>
+          <Dirty />
+          {shown()}
+        </>,
+      )
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('')
+    })
+
+    it('stays still while the menu is open', () => {
+      render(shown())
+      fireEvent.click(dockButton(), { detail: 1 })
+      // The poke that opened the menu giggles; the save never nods on top of it.
+      expect(oneShot()).toBe('giggle')
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('giggle')
+    })
+
+    it('stays still before the character is ready', () => {
+      character.ready = false
+      render(shown())
+      act(() => dispatchMamSaved())
+      expect(oneShot()).toBe('')
+    })
+  })
+  // MB-814: the living Mầm. The character is a stub; the host's own gates,
+  // labels and sequences are what these cover.
+  describe('living Mầm', () => {
+    function Cards() {
+      const ref = useMamTarget({ kind: 'home.next-step' })
+      return (
+        <main className="ref-content">
+          <section ref={ref} aria-label="Bước tiếp theo">
+            <button type="button">Làm ngay</button>
+          </section>
+        </main>
+      )
+    }
+    const living = (cards = true) => (
+      <>
+        {cards ? <Cards /> : null}
+        <MamDockSlot />
+        <MamDock />
+      </>
+    )
+    const root = () => document.querySelector('[data-mam-dock]')!
+    const anyDock = () => screen.getByRole('button', { name: /^Mầm/ })
+    // Sequences resume on promises: advance the clock the async way, inside act.
+    const advance = (ms: number) =>
+      act(async () => {
+        await vi.advanceTimersByTimeAsync(ms)
+      })
+    const behavior = () =>
+      screen.getByTestId('mam-character').getAttribute('data-behavior')
+    const tip = () => screen.queryByRole('group', { name: 'Mầm' })
+    const motionStub = (reduced: boolean, coarse = false) =>
+      stubMatchMedia(
+        (query) =>
+          (reduced && query.includes('prefers-reduced-motion')) ||
+          (coarse && query === '(pointer: coarse)'),
+      )
+    const press = (
+      type: 'pointerDown' | 'pointerMove' | 'pointerUp',
+      x: number,
+      y: number,
+    ) =>
+      fireEvent[type](anyDock(), {
+        pointerId: 1,
+        pointerType: 'mouse',
+        isPrimary: true,
+        button: 0,
+        clientX: x,
+        clientY: y,
+      })
+
+    beforeEach(() => {
+      character.ready = true
+      if (!('PointerEvent' in window))
+        vi.stubGlobal(
+          'PointerEvent',
+          class extends MouseEvent {
+            pointerType: string
+            pointerId: number
+            isPrimary: boolean
+            constructor(type: string, init: PointerEventInit = {}) {
+              super(type, init)
+              this.pointerType = init.pointerType ?? 'mouse'
+              this.pointerId = init.pointerId ?? 0
+              this.isPrimary = init.isPrimary ?? false
+            }
+          },
+        )
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    describe('the first-run guide', () => {
+      const GUIDE_ACCOUNT = '11111111-1111-4111-8111-111111111111'
+      afterEach(() => {
+        window.localStorage.clear()
+        window.sessionStorage.clear()
+      })
+
+      it('owns Mầm while it waits: no tip over it, stray keys keep it, she acts each line', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+        window.localStorage.setItem(
+          `mb:mam-guide:v1:${GUIDE_ACCOUNT}`,
+          JSON.stringify({
+            version: 1,
+            startedAt: '2026-11-26T00:00:00.000Z',
+            done: {},
+            declined: {},
+            pending: { after: 'result', next: 'journal' },
+            unwindKind: null,
+            plan: null,
+            graduatedAt: null,
+          }),
+        )
+        render(
+          <>
+            <Cards />
+            <MamDockSlot accountId={GUIDE_ACCOUNT} />
+            <MamDock />
+          </>,
+        )
+        act(() => vi.advanceTimersByTime(10))
+        const guide = () => document.querySelector('[data-mam-bubble="guide"]')
+        expect(guide()).toHaveTextContent('Mầm đọc kết quả của bạn rồi nè.')
+        expect(behavior()).toBe('curious')
+        expect(
+          screen.getByTestId('mam-character').getAttribute('data-one-shot'),
+        ).toBe('nod')
+        fireEvent.keyDown(document, { key: 'Escape' })
+        fireEvent.keyDown(document, { key: 'a' })
+        // Past the tip's 1.4 s: the tip never opens while the guide waits.
+        act(() => vi.advanceTimersByTime(2000))
+        expect(guide()).toHaveTextContent('Mầm đọc kết quả của bạn rồi nè.')
+        expect(window.localStorage.getItem('mentalbridge_mam_tip_seen')).toBe(
+          null,
+        )
+        vi.useRealTimers()
+        fireEvent.click(screen.getByRole('button', { name: /^Tiếp/ }))
+        // The line swaps in place once the old one has faded out.
+        await waitFor(() =>
+          expect(guide()).toHaveTextContent(
+            'Bạn không cần hiểu hết web này đâu.',
+          ),
+        )
+        expect(behavior()).toBe('gentle')
+      })
+    })
+
+    describe('the one-time tip', () => {
+      const realSetTimeout = globalThis.setTimeout
+      const realWait = (ms: number) =>
+        new Promise<void>((resolve) => realSetTimeout(resolve, ms))
+
+      it('shows once, 1.4 s after load, and is marked seen', () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+        const { unmount } = render(living())
+        act(() => vi.advanceTimersByTime(1399))
+        expect(tip()).toBeNull()
+        act(() => vi.advanceTimersByTime(1))
+        act(() => vi.advanceTimersByTime(100))
+        expect(tip()).toHaveTextContent(
+          'Mẹo nè: chuột phải vào thẻ bất kỳ, mình sẽ trèo lên giải thích cho bạn.',
+        )
+        expect(window.localStorage.getItem('mentalbridge_mam_tip_seen')).toBe(
+          'true',
+        )
+        // The tip never takes focus (it is automatic).
+        expect(dockButton()).not.toHaveFocus()
+        fireEvent.click(screen.getByRole('button', { name: 'Cảm ơn Mầm' }))
+        unmount()
+
+        render(living())
+        act(() => vi.advanceTimersByTime(5000))
+        expect(tip()).toBeNull()
+      })
+
+      it('uses the long-press copy on a coarse pointer', () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+        motionStub(false, true)
+        render(living())
+        act(() => vi.advanceTimersByTime(1400))
+        act(() => vi.advanceTimersByTime(200))
+        expect(tip()).toHaveTextContent(
+          'Mẹo nè: nhấn giữ vào thẻ bất kỳ, mình sẽ trèo lên giải thích cho bạn.',
+        )
+      })
+
+      it('shows without a hop under reduced motion', () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+        motionStub(true)
+        render(living())
+        act(() => vi.advanceTimersByTime(1600))
+        expect(tip()).not.toBeNull()
+        expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+      })
+
+      it.each([
+        [
+          '"tự lên tiếng" is off',
+          () =>
+            window.sessionStorage.setItem(
+              'mentalbridge_mam_session_muted',
+              'true',
+            ),
+        ],
+        [
+          'Mầm is hidden',
+          () => window.localStorage.setItem('mentalbridge_mam_hidden', 'true'),
+        ],
+        [
+          'the tip was seen',
+          () =>
+            window.localStorage.setItem('mentalbridge_mam_tip_seen', 'true'),
+        ],
+      ])('stays away when %s', (_name, arrange) => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+        arrange()
+        render(living())
+        act(() => vi.advanceTimersByTime(5000))
+        expect(tip()).toBeNull()
+        expect(screen.queryByText(/Mẹo nè/)).toBeNull()
+      })
+
+      it('needs a registered element target on the page', () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+        render(living(false))
+        act(() => vi.advanceTimersByTime(5000))
+        expect(tip()).toBeNull()
+        expect(window.localStorage.getItem('mentalbridge_mam_tip_seen')).toBe(
+          null,
+        )
+      })
+
+      it('waits while a feature zone is quiet', () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+        function Zone() {
+          useMamSuppress(true)
+          return null
+        }
+        render(
+          <>
+            <Zone />
+            {living()}
+          </>,
+        )
+        act(() => vi.advanceTimersByTime(5000))
+        expect(tip()).toBeNull()
+      })
+
+      it('leaves one bubble: a tip left open holds an award that becomes due', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+        vi.setSystemTime(new Date(2026, 9, 27, 10, 0, 0))
+        window.localStorage.removeItem('mentalbridge_mam_tip_seen')
+        navigation.pathname = '/dashboard'
+        Object.defineProperty(navigator, 'locks', {
+          configurable: true,
+          value: {
+            request: (_name: string, callback: () => unknown) =>
+              Promise.resolve().then(callback),
+          },
+        })
+        const read = (awards: MamAward[]) => ({
+          scope: 'achievements:JOURNAL',
+          available: true,
+          visible: true,
+          readAt: Date.now(),
+          awards,
+        })
+        const earned = Date.now() - 60_000
+        await observeMamAwardRead('u1', read([]))
+        await observeMamAwardRead(
+          'u1',
+          read([
+            {
+              key: `achievement:a:${new Date(earned).toISOString()}`,
+              kind: 'achievement',
+              at: earned,
+              title: 'Thành tựu a',
+            },
+          ]),
+        )
+        render(
+          <>
+            <Cards />
+            <MamDockSlot accountId="u1" />
+            <MamDock />
+          </>,
+        )
+        const bubbles = () => document.querySelectorAll('[data-mam-bubble]')
+        const oneShot = () =>
+          screen.getByTestId('mam-character').getAttribute('data-one-shot')
+
+        await act(() => vi.advanceTimersByTimeAsync(1600))
+        expect(bubbles()).toHaveLength(1)
+        expect(bubbles()[0]).toHaveAttribute('data-mam-bubble', 'tip')
+        // The coalescing window closes while the tip is still open: held.
+        await act(() => vi.advanceTimersByTimeAsync(15_000))
+        expect(bubbles()).toHaveLength(1)
+        expect(oneShot()).toBe('')
+
+        fireEvent.click(screen.getByRole('button', { name: 'Cảm ơn Mầm' }))
+        await act(() => vi.advanceTimersByTimeAsync(200))
+        expect(oneShot()).toBe('celebrate_hero')
+        await act(() => realWait(400)) // the tip's exit animation
+        await act(() => vi.advanceTimersByTimeAsync(3000))
+        expect(bubbles()).toHaveLength(1)
+        expect(bubbles()[0]).toHaveAttribute('data-mam-bubble', 'celebration')
+      })
+    })
+
+    describe('the dock menu lead', () => {
+      it('names the right-click path on a fine pointer, even with the tip off', () => {
+        window.localStorage.setItem('mentalbridge_mam_tip_seen', 'true')
+        render(living())
+        fireEvent.click(dockButton())
+        expect(
+          screen.getByText(
+            'Mầm ngồi ở góc này và chỉ lên tiếng khi bạn cần. Chuột phải vào một thẻ để hỏi Mầm về thẻ đó.',
+          ),
+        ).toBeInTheDocument()
+      })
+
+      it('names the long-press path on a coarse pointer', () => {
+        motionStub(false, true)
+        render(living())
+        fireEvent.click(dockButton())
+        expect(
+          screen.getByText(
+            'Mầm ngồi ở góc này và chỉ lên tiếng khi bạn cần. Nhấn giữ vào một thẻ để hỏi Mầm về thẻ đó.',
+          ),
+        ).toBeInTheDocument()
+      })
+    })
+
+    describe('dizzy', () => {
+      beforeEach(() => {
+        window.localStorage.setItem('mentalbridge_mam_tip_seen', 'true')
+      })
+
+      it('shows for a renderer failure, with the failure label and swirl eyes', async () => {
+        character.fallback = 'error'
+        render(living())
+        const dock = await screen.findByRole('button', {
+          name: 'Mầm đang gặp sự cố',
+        })
+        expect(root()).toHaveAttribute('data-mam-dizzy', 'true')
+        expect(behavior()).toBe('gentle')
+        // Two swirl eyes and a wobbly mouth over the calm pose.
+        expect(dock.querySelectorAll('svg ellipse')).toHaveLength(3)
+        expect(dock.querySelectorAll('svg [data-star]')).toHaveLength(3)
+        expect(dock.querySelector('[data-still]')).toHaveAttribute(
+          'data-still',
+          'false',
+        )
+      })
+
+      it('plays for 8 s, settles, and plays again each time the message opens', async () => {
+        vi.useFakeTimers({
+          toFake: ['setTimeout', 'clearTimeout', 'Date'],
+          shouldAdvanceTime: true,
+        })
+        character.fallback = 'error'
+        render(living())
+        const dock = await screen.findByRole('button', {
+          name: 'Mầm đang gặp sự cố',
+        })
+        const art = () => dock.querySelector('[data-still]')!
+        expect(art()).toHaveAttribute('data-still', 'false')
+        act(() => vi.advanceTimersByTime(7900))
+        expect(art()).toHaveAttribute('data-still', 'false')
+        act(() => vi.advanceTimersByTime(200))
+        expect(art()).toHaveAttribute('data-still', 'true')
+
+        fireEvent.click(dock)
+        expect(art()).toHaveAttribute('data-still', 'false')
+        act(() => vi.advanceTimersByTime(8100))
+        expect(art()).toHaveAttribute('data-still', 'true')
+      })
+
+      it('keeps Tab inside the open message', async () => {
+        character.fallback = 'error'
+        render(living())
+        const dock = await screen.findByRole('button', {
+          name: 'Mầm đang gặp sự cố',
+        })
+        fireEvent.click(dock)
+        const dialog = await screen.findByRole('dialog', { name: 'Mầm' })
+        const close = screen.getByRole('button', { name: 'Đóng Mầm' })
+        const hide = screen.getByRole('button', { name: 'Ẩn Mầm' })
+        hide.focus()
+        fireEvent.keyDown(hide, { key: 'Tab' })
+        expect(close).toHaveFocus()
+        fireEvent.keyDown(close, { key: 'Tab', shiftKey: true })
+        expect(hide).toHaveFocus()
+        // A middle button leaves Tab alone.
+        const confirm = screen.getByRole('button', { name: 'Đã hiểu' })
+        confirm.focus()
+        expect(fireEvent.keyDown(confirm, { key: 'Tab' })).toBe(true)
+        expect(dialog).not.toHaveAttribute('aria-modal')
+      })
+
+      it('is static under reduced motion', async () => {
+        motionStub(true)
+        character.fallback = 'error'
+        render(living())
+        const dock = await screen.findByRole('button', {
+          name: 'Mầm đang gặp sự cố',
+        })
+        expect(dock.querySelector('[data-still]')).toHaveAttribute(
+          'data-still',
+          'true',
+        )
+      })
+
+      it('is not shown for an unsupported device', () => {
+        character.fallback = 'unsupported'
+        render(living())
+        expect(root()).toHaveAttribute('data-mam-dizzy', 'false')
+        fireEvent.click(dockButton())
+        expect(screen.getByRole('group', { name: 'Mầm' })).toBeInTheDocument()
+      })
+
+      it('a tap says so, with Đã hiểu and Ẩn Mầm, and hands focus back', async () => {
+        character.fallback = 'error'
+        render(living())
+        const dock = await screen.findByRole('button', {
+          name: 'Mầm đang gặp sự cố',
+        })
+        dock.focus()
+        fireEvent.click(dock)
+        const dialog = await screen.findByRole('dialog', { name: 'Mầm' })
+        await waitFor(() =>
+          expect(dialog).toHaveTextContent(
+            'Mình đang bị choáng một chút nên tạm thời chưa giúp được. Bạn vẫn dùng trang bình thường nha, lát nữa gọi lại mình nè.',
+          ),
+        )
+        expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull()
+        expect(screen.getByRole('button', { name: 'Đã hiểu' })).toHaveFocus()
+        expect(
+          screen.getByRole('button', { name: 'Ẩn Mầm' }),
+        ).toBeInTheDocument()
+
+        fireEvent.click(screen.getByRole('button', { name: 'Đã hiểu' }))
+        await waitFor(() => expect(dock).toHaveFocus())
+        await waitFor(() =>
+          expect(screen.queryByRole('dialog', { name: 'Mầm' })).toBeNull(),
+        )
+      })
+
+      it('Escape closes the message and Ẩn Mầm hides the broken Mầm', async () => {
+        character.fallback = 'error'
+        render(living())
+        const dock = await screen.findByRole('button', {
+          name: 'Mầm đang gặp sự cố',
+        })
+        dock.focus()
+        fireEvent.click(dock)
+        await screen.findByRole('dialog', { name: 'Mầm' })
+        fireEvent.keyDown(document, { key: 'Escape' })
+        await waitFor(() =>
+          expect(screen.queryByRole('dialog', { name: 'Mầm' })).toBeNull(),
+        )
+        expect(dock).toHaveFocus()
+
+        fireEvent.click(dock)
+        fireEvent.click(await screen.findByRole('button', { name: 'Ẩn Mầm' }))
+        expect(
+          await screen.findByRole('button', { name: 'Hiện Mầm' }),
+        ).toBeInTheDocument()
+        expect(window.localStorage.getItem('mentalbridge_mam_hidden')).toBe(
+          'true',
+        )
+      })
+    })
+
+    // Before the suites that fake every timer: Motion's frame loop paints on real frames.
+    describe('first drag move', () => {
+      it('a fast first move already carries Mầm, and the release keeps the movement', async () => {
+        const capture = vi.fn()
+        HTMLElement.prototype.setPointerCapture = capture
+        render(living())
+        const mover = anyDock().querySelector<HTMLElement>('[class*="mover"]')!
+        const shift = () =>
+          Number(
+            /translateX\((-?[\d.]+)px\)/.exec(
+              mover.getAttribute('style') ?? '',
+            )?.[1],
+          )
+        press('pointerDown', 50, 700)
+        await act(() => new Promise<void>((r) => realTimeout(r, 25)))
+        press('pointerMove', 300, 500)
+        // The release comes inside the 90 ms window, so the flick is thrown.
+        press('pointerUp', 300, 500)
+        expect(root()).toHaveAttribute('data-mam-travel', 'fly')
+        // Carried by the first move (250 px), then flung on to the right.
+        await waitFor(() => expect(shift()).toBeGreaterThan(260))
+        delete (HTMLElement.prototype as { setPointerCapture?: unknown })
+          .setPointerCapture
+      })
+    })
+
+    describe('sleep', () => {
+      const sleep = async () => {
+        await advance(60_000)
+        await advance(4000)
+      }
+
+      beforeEach(() => {
+        window.localStorage.setItem('mentalbridge_mam_tip_seen', 'true')
+        vi.useFakeTimers()
+      })
+
+      it('lies down after 60 s without input, then wakes on a tap that opens no menu', async () => {
+        render(living())
+        await advance(59_000)
+        expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+        await advance(1000)
+        // 60 s: the upright yawn plays first; Mầm is not lying down yet.
+        expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+        expect(
+          screen.getByTestId('mam-character').getAttribute('data-one-shot'),
+        ).toBe('drowsy')
+        expect(behavior()).toBe('idle')
+        // MB-896: the yawn and lie-down are the catalogue's REST/drowsy_sleep.
+        expect(root()).toHaveAttribute('data-mam-intent', 'REST')
+        expect(root()).toHaveAttribute('data-mam-variation', 'drowsy_sleep')
+        await advance(2500)
+        expect(root()).toHaveAttribute('data-mam-sleep', 'true')
+        expect(
+          screen.getByRole('button', {
+            name: 'Mầm đang ngủ, bấm để đánh thức',
+          }),
+        ).toBeInTheDocument()
+        // The asset is on its sleep face as the lie-down starts.
+        expect(behavior()).toBe('sleep')
+        await advance(1200)
+        expect(behavior()).toBe('sleep')
+
+        // Page input does not wake Mầm.
+        fireEvent.keyDown(document.body, { key: 'a' })
+        fireEvent.pointerMove(document.body)
+        await advance(2000)
+        expect(root()).toHaveAttribute('data-mam-sleep', 'true')
+
+        const sleeping = screen.getByRole('button', {
+          name: 'Mầm đang ngủ, bấm để đánh thức',
+        })
+        fireEvent.click(sleeping)
+        expect(sleeping).toHaveAttribute('aria-expanded', 'false')
+        expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull()
+        await advance(3000)
+        expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+        expect(behavior()).toBe('idle')
+        expect(dockButton()).toHaveAttribute('aria-label', 'Mầm')
+      })
+
+      it('input before 60 s restarts the wait', async () => {
+        render(living())
+        await advance(50_000)
+        fireEvent.keyDown(document.body, { key: 'a' })
+        await advance(50_000)
+        expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+        await advance(13_000)
+        expect(root()).toHaveAttribute('data-mam-sleep', 'true')
+      })
+
+      it('does not sleep with the menu open', async () => {
+        render(living())
+        fireEvent.click(dockButton())
+        await sleep()
+        expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+      })
+
+      it('does not sleep before the character is ready', async () => {
+        character.ready = false
+        render(living())
+        await sleep()
+        expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+      })
+
+      it('never sleeps under reduced motion', async () => {
+        motionStub(true)
+        render(living())
+        await sleep()
+        expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+      })
+
+      it('does not sleep while a feature zone is quiet', async () => {
+        function Zone({ on }: Readonly<{ on: boolean }>) {
+          useMamSuppress(on)
+          return null
+        }
+        const view = (on: boolean) => (
+          <>
+            <Zone on={on} />
+            {living()}
+          </>
+        )
+        const { rerender } = render(view(true))
+        await sleep()
+        expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+        rerender(view(false))
+        await sleep()
+        expect(root()).toHaveAttribute('data-mam-sleep', 'true')
+      })
+
+      it('does not sleep while dizzy', async () => {
+        character.fallback = 'error'
+        render(living())
+        await sleep()
+        expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+      })
+
+      it('a celebration wakes a sleeping Mầm without ceremony', async () => {
+        navigation.pathname = '/support-plan'
+        render(living())
+        await sleep()
+        expect(root()).toHaveAttribute('data-mam-sleep', 'true')
+        act(() => dispatchMamSaved())
+        expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+        expect(
+          screen.getByTestId('mam-character').getAttribute('data-one-shot'),
+        ).toBe('nod')
+      })
+
+      it('a drag wakes a sleeping Mầm quietly', async () => {
+        render(living())
+        await sleep()
+        press('pointerDown', 50, 700)
+        press('pointerMove', 80, 650)
+        expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+        expect(root()).toHaveAttribute('data-mam-travel', 'drag')
+      })
+    })
+
+    describe('drag and throw', () => {
+      beforeEach(() => {
+        window.localStorage.setItem('mentalbridge_mam_tip_seen', 'true')
+      })
+
+      it('captures the pointer at the press, so a fast first move off the button still drags', () => {
+        const capture = vi.fn()
+        HTMLElement.prototype.setPointerCapture = capture
+        render(living())
+        press('pointerDown', 50, 700)
+        expect(capture).toHaveBeenCalledWith(1)
+        // The very first move is already far away: the drag starts anyway.
+        press('pointerMove', 300, 500)
+        expect(root()).toHaveAttribute('data-mam-travel', 'drag')
+        delete (HTMLElement.prototype as { setPointerCapture?: unknown })
+          .setPointerCapture
+      })
+
+      it('a press that moves under 6 px is a tap and opens the menu', async () => {
+        render(living())
+        press('pointerDown', 50, 700)
+        press('pointerMove', 53, 702)
+        press('pointerUp', 53, 702)
+        fireEvent.click(dockButton())
+        expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+        expect(screen.getByRole('group', { name: 'Mầm' })).toBeInTheDocument()
+      })
+
+      it('leaves the tab order while Mầm is away from the dock', async () => {
+        vi.useFakeTimers()
+        render(living())
+        expect(anyDock()).not.toHaveAttribute('tabindex')
+        press('pointerDown', 50, 700)
+        press('pointerMove', 90, 600)
+        expect(anyDock()).toHaveAttribute('tabindex', '-1')
+        press('pointerUp', 90, 600)
+        await advance(20_000)
+        expect(anyDock()).not.toHaveAttribute('tabindex')
+      })
+
+      it('drags past 6 px, throws, hops home and ignores the click that ends the drag', async () => {
+        vi.useFakeTimers()
+        render(living())
+        press('pointerDown', 50, 700)
+        press('pointerMove', 90, 600)
+        expect(root()).toHaveAttribute('data-mam-travel', 'drag')
+        expect(root()).toHaveAttribute('data-front', 'true')
+        // Held by the pointer for the whole drag.
+        expect(behavior()).toBe('dangle')
+        press('pointerMove', 120, 520)
+        press('pointerUp', 120, 520)
+        fireEvent.click(dockButton())
+        expect(root()).toHaveAttribute('data-mam-travel', 'fly')
+        expect(screen.queryByRole('group', { name: 'Mầm' })).toBeNull()
+
+        await advance(20_000)
+        expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+        expect(root()).toHaveAttribute('data-front', 'false')
+        expect(behavior()).toBe('idle')
+        // After the drag a plain tap works again.
+        fireEvent.click(dockButton())
+        expect(screen.getByRole('group', { name: 'Mầm' })).toBeInTheDocument()
+      })
+
+      it('Escape during the flight snaps Mầm home', async () => {
+        vi.useFakeTimers()
+        render(living())
+        press('pointerDown', 50, 700)
+        press('pointerMove', 90, 600)
+        press('pointerUp', 90, 600)
+        await advance(100)
+        expect(root()).toHaveAttribute('data-mam-travel', 'fly')
+        fireEvent.keyDown(document, { key: 'Escape' })
+        expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+      })
+
+      it('a route change during the flight snaps Mầm home', async () => {
+        vi.useFakeTimers()
+        const { rerender } = render(living())
+        press('pointerDown', 50, 700)
+        press('pointerMove', 90, 600)
+        press('pointerUp', 90, 600)
+        await advance(100)
+        expect(root()).toHaveAttribute('data-mam-travel', 'fly')
+        navigation.pathname = '/achievements'
+        rerender(living())
+        expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+      })
+
+      it('a modal during the flight snaps Mầm home', async () => {
+        vi.useFakeTimers()
+        render(living())
+        press('pointerDown', 50, 700)
+        press('pointerMove', 90, 600)
+        press('pointerUp', 90, 600)
+        await advance(100)
+        const modal = document.createElement('div')
+        modal.setAttribute('aria-modal', 'true')
+        await act(async () => {
+          document.body.appendChild(modal)
+          await vi.advanceTimersByTimeAsync(50)
+        })
+        expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+      })
+
+      it.each([
+        ['reduced motion', () => motionStub(true)],
+        [
+          'dizzy',
+          () => {
+            character.fallback = 'error'
+          },
+        ],
+      ])('does not drag under %s', (_name, arrange) => {
+        arrange()
+        render(living())
+        const dock = screen.getByRole('button', { name: /^Mầm/ })
+        fireEvent.pointerDown(dock, {
+          pointerId: 1,
+          isPrimary: true,
+          button: 0,
+          clientX: 50,
+          clientY: 700,
+        })
+        fireEvent.pointerMove(dock, {
+          pointerId: 1,
+          isPrimary: true,
+          clientX: 120,
+          clientY: 600,
+        })
+        expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+      })
+    })
+
+    // ---- Round 1 review ---------------------------------------------------
+    describe('round 1 review', () => {
+      function Zone({ on }: Readonly<{ on: boolean }>) {
+        useMamSuppress(on)
+        return null
+      }
+      const quiet = (on: boolean) => (
+        <>
+          <Zone on={on} />
+          {living()}
+        </>
+      )
+
+      beforeEach(() => {
+        window.localStorage.setItem('mentalbridge_mam_tip_seen', 'true')
+      })
+
+      it('stays dizzy across an excluded route and back', async () => {
+        character.fallback = 'error'
+        const { rerender } = render(living())
+        await screen.findByRole('button', { name: 'Mầm đang gặp sự cố' })
+        // A reload is the only way out: the renderer would now succeed.
+        character.fallback = null
+        navigation.pathname = '/support-plan/today'
+        rerender(living())
+        expect(screen.queryByTestId('mam-character')).toBeNull()
+        navigation.pathname = '/dashboard'
+        rerender(living())
+        expect(
+          await screen.findByRole('button', { name: 'Mầm đang gặp sự cố' }),
+        ).toBeInTheDocument()
+        expect(root()).toHaveAttribute('data-mam-dizzy', 'true')
+      })
+
+      it('suppression freezes the dizzy playback and releases it after', async () => {
+        character.fallback = 'error'
+        const { rerender } = render(quiet(false))
+        const dock = await screen.findByRole('button', {
+          name: 'Mầm đang gặp sự cố',
+        })
+        const art = () => dock.querySelector('[data-still]')!
+        expect(art()).toHaveAttribute('data-still', 'false')
+        rerender(quiet(true))
+        await waitFor(() => expect(art()).toHaveAttribute('data-still', 'true'))
+        rerender(quiet(false))
+        await waitFor(() =>
+          expect(art()).toHaveAttribute('data-still', 'false'),
+        )
+      })
+
+      it('suppression keeps a settled sleep asleep, frozen, and page input still does not wake it', async () => {
+        vi.useFakeTimers()
+        const { rerender } = render(quiet(false))
+        await advance(60_000)
+        await advance(4000)
+        expect(root()).toHaveAttribute('data-mam-sleep', 'true')
+        expect(behavior()).toBe('sleep')
+        rerender(quiet(true))
+        await advance(100)
+        expect(root()).toHaveAttribute('data-mam-suppressed', 'true')
+        fireEvent.keyDown(document.body, { key: 'a' })
+        fireEvent.pointerMove(document.body)
+        await advance(3000)
+        expect(root()).toHaveAttribute('data-mam-sleep', 'true')
+        expect(behavior()).toBe('sleep')
+      })
+
+      it('suppression during the sleep transform lands asleep in the settled pose', async () => {
+        vi.useFakeTimers()
+        const { rerender } = render(quiet(false))
+        await advance(60_000)
+        await advance(2800)
+        expect(behavior()).toBe('sleep')
+        rerender(quiet(true))
+        await advance(2000)
+        expect(root()).toHaveAttribute('data-mam-sleep', 'true')
+        expect(behavior()).toBe('sleep')
+        expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+      })
+    })
+
+    // MB-818: idle life and touch. The character is a stub that shows the command it got.
+    describe('idle life and touch', () => {
+      const shot = () =>
+        screen.getByTestId('mam-character').getAttribute('data-one-shot')
+      const gaze = () =>
+        screen.getByTestId('mam-character').getAttribute('data-gaze')
+      // The dock button reports the menu at once; the menu itself exits on real frames.
+      const isOpen = () => anyDock().getAttribute('aria-expanded') === 'true'
+      const IDLE = ['stretch', 'look_around', 'scratch']
+      const playDev = (query: string) =>
+        window.history.replaceState(null, '', `/dashboard?${query}`)
+      afterEach(() => window.history.replaceState(null, '', '/dashboard'))
+      // React flushes effects when an act ends: step the clock so each state change lands.
+      const steps = async (ms: number) => {
+        for (let t = 0; t < ms; t += 500) await advance(500)
+      }
+      // Motion's exit animation paints on real frames.
+      const settle = () =>
+        act(() => new Promise<void>((resolve) => realTimeout(resolve, 350)))
+
+      beforeEach(() => {
+        window.localStorage.setItem('mentalbridge_mam_tip_seen', 'true')
+        vi.useFakeTimers()
+      })
+
+      describe('poke', () => {
+        it('opens the menu and giggles on the first click, never pokes while it is open, then pokes with it closed and cools down', async () => {
+          render(living())
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(true)
+          expect(shot()).toBe('giggle')
+          await advance(300)
+          // An open menu closes on the next click at once, inside the window, with no poke.
+          const before = character.plays
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(false)
+          expect(character.plays).toBe(before)
+          await advance(300)
+          // Closed, still inside 1.5 s of the first click: pokes only, the menu stays shut.
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(false)
+          expect(character.plays).toBe(before + 1)
+          expect(shot()).toBe('giggle')
+          await advance(300)
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(false)
+          expect(shot()).toBe('tickled')
+          await advance(300)
+          // A fifth click in the same window neither toggles nor plays.
+          const afterTickle = character.plays
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(false)
+          expect(character.plays).toBe(afterTickle)
+
+          // A new window opens the menu again, but the cool-down keeps Mầm still.
+          await advance(2000)
+          expect(shot()).toBe('')
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(true)
+          expect(shot()).toBe('')
+          fireEvent.click(dockButton(), { detail: 1 })
+          await settle()
+          expect(isOpen()).toBe(false)
+          // 10 s after the tickle the next window giggles again.
+          await advance(10_000)
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(true)
+          expect(shot()).toBe('giggle')
+        })
+
+        it('closes an open menu right after opening it, and again after the window', async () => {
+          render(living())
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(true)
+          await advance(200)
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(false)
+          // Past the window the next click opens it again, and the one after closes it.
+          await advance(1500)
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(true)
+          await advance(100)
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(false)
+        })
+
+        it('works the same for coarse-pointer taps', async () => {
+          render(living())
+          const tap = () => {
+            fireEvent.pointerDown(dockButton(), {
+              pointerId: 7,
+              pointerType: 'touch',
+              isPrimary: true,
+              clientX: 40,
+              clientY: 700,
+            })
+            fireEvent.pointerUp(dockButton(), {
+              pointerId: 7,
+              pointerType: 'touch',
+              isPrimary: true,
+              clientX: 40,
+              clientY: 700,
+            })
+            fireEvent.click(dockButton(), { detail: 1 })
+          }
+          tap()
+          expect(isOpen()).toBe(true)
+          expect(shot()).toBe('giggle')
+          await advance(250)
+          const before = character.plays
+          tap()
+          expect(isOpen()).toBe(false)
+          expect(character.plays).toBe(before)
+          await advance(250)
+          tap()
+          expect(isOpen()).toBe(false)
+          expect(shot()).toBe('giggle')
+        })
+
+        it("keeps today's click under reduced motion: every click toggles, nothing plays", async () => {
+          motionStub(true)
+          render(living())
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(true)
+          fireEvent.click(dockButton(), { detail: 1 })
+          await settle()
+          expect(isOpen()).toBe(false)
+          expect(shot()).toBe('')
+          expect(gaze()).toBe('off')
+        })
+
+        it('a keyboard activation (no pointer) toggles the menu every time and never pokes', async () => {
+          render(living())
+          fireEvent.click(dockButton())
+          expect(isOpen()).toBe(true)
+          fireEvent.click(dockButton())
+          expect(isOpen()).toBe(false)
+          fireEvent.click(dockButton())
+          expect(isOpen()).toBe(true)
+          expect(shot()).toBe('')
+        })
+
+        it('never pokes before the renderer is ready', async () => {
+          character.ready = false
+          const { unmount } = render(living())
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(isOpen()).toBe(true)
+          fireEvent.click(dockButton(), { detail: 1 })
+          await settle()
+          expect(isOpen()).toBe(false)
+          expect(shot()).toBe('')
+          unmount()
+        })
+
+        it('a click on a sleeping Mầm only wakes it, with the Rive wake', async () => {
+          render(living())
+          await advance(60_000)
+          await advance(4000)
+          expect(root()).toHaveAttribute('data-mam-sleep', 'true')
+          fireEvent.click(screen.getByRole('button', { name: /đang ngủ/ }))
+          expect(isOpen()).toBe(false)
+          expect(shot()).toBe('wake')
+          expect(character.plays).toBeGreaterThan(0)
+          await advance(3500)
+          expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+          expect(isOpen()).toBe(false)
+          // Ends on the host's own looping state, with no giggle on top.
+          expect(shot()).toBe('')
+        })
+      })
+
+      describe('while the dock yields to a page action', () => {
+        it('stops gaze, idle actions and pokes, and drops a giggle in flight', async () => {
+          vi.spyOn(Math, 'random').mockReturnValue(0)
+          const setOverlap = stubOverlap()
+          setOverlap(false)
+          render(living())
+          await advance(100)
+          expect(root()).toHaveAttribute('data-yield', 'false')
+          expect(gaze()).toBe('on')
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(shot()).toBe('giggle')
+          fireEvent.click(dockButton(), { detail: 1 })
+
+          setOverlap(true)
+          fireEvent.scroll(window)
+          await advance(100)
+          expect(root()).toHaveAttribute('data-yield', 'true')
+          expect(shot()).toBe('')
+          expect(gaze()).toBe('off')
+          // No poke while yielding: a click only toggles the menu.
+          const before = character.plays
+          fireEvent.click(dockButton(), { detail: 1 })
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(character.plays).toBe(before)
+          // No idle action either (the 25 s timer would have fired).
+          await steps(40_000)
+          expect(IDLE).not.toContain(shot())
+
+          setOverlap(false)
+          fireEvent.scroll(window)
+          await advance(100)
+          expect(gaze()).toBe('on')
+        })
+      })
+
+      describe('pointer gaze', () => {
+        it('is on while Mầm is calm and docked, and one passive pointermove listener serves it', () => {
+          const add = vi.spyOn(window, 'addEventListener')
+          render(living())
+          expect(gaze()).toBe('on')
+          const own = add.mock.calls.filter(
+            ([type, , options]) =>
+              type === 'pointermove' &&
+              typeof options === 'object' &&
+              !(options as AddEventListenerOptions).capture,
+          )
+          expect(own).toHaveLength(1)
+          expect((own[0]![2] as AddEventListenerOptions).passive).toBe(true)
+        })
+
+        it.each([
+          [
+            'the menu is open',
+            () => fireEvent.click(dockButton(), { detail: 1 }),
+          ],
+          [
+            'muted',
+            () =>
+              act(() =>
+                window.sessionStorage.setItem(
+                  'mentalbridge_mam_session_muted',
+                  'true',
+                ),
+              ),
+          ],
+        ])('is off when %s', (name) => {
+          if (name === 'muted')
+            window.sessionStorage.setItem(
+              'mentalbridge_mam_session_muted',
+              'true',
+            )
+          render(living())
+          if (name !== 'muted') fireEvent.click(dockButton(), { detail: 1 })
+          expect(gaze()).toBe('off')
+        })
+
+        it('is off in a no-interrupt zone, on a still route and while dizzy', () => {
+          function Zone() {
+            useMamSuppress(true)
+            return null
+          }
+          const zone = render(
+            <>
+              <Zone />
+              {living()}
+            </>,
+          )
+          expect(gaze()).toBe('off')
+          zone.unmount()
+          character.fallback = 'error'
+          render(living())
+          expect(screen.getByTestId('mam-character')).toBeInTheDocument()
+        })
+
+        it('is off while a drag or a throw runs and back on at the dock', async () => {
+          render(living())
+          press('pointerDown', 50, 700)
+          press('pointerMove', 90, 600)
+          expect(gaze()).toBe('off')
+          press('pointerUp', 90, 600)
+          await advance(20_000)
+          expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+          expect(gaze()).toBe('on')
+        })
+      })
+
+      describe('MB-896 emphasis', () => {
+        const grown = () => root().getAttribute('data-mam-emphasis')
+
+        it('an expressive look grows her while it plays and lets go at the end', async () => {
+          playDev('mamIntent=HAPPY&mamVariation=spin')
+          render(living())
+          expect(grown()).toBe('false')
+          await steps(1500)
+          expect(root()).toHaveAttribute('data-mam-variation', 'spin')
+          expect(grown()).toBe('true')
+          await steps(2500)
+          expect(root()).toHaveAttribute('data-mam-intent', '')
+          expect(grown()).toBe('false')
+        })
+
+        it('the idle glance and the rest looks opt out of growing', async () => {
+          playDev('mamIntent=IDLE&mamVariation=look_around')
+          render(living())
+          await steps(1000)
+          expect(root()).toHaveAttribute('data-mam-variation', 'look_around')
+          expect(grown()).toBe('false')
+        })
+
+        it('a hop on the spot is not a cinematic scene: she stays clickable, in the dock layer, and a click ends it', async () => {
+          playDev('mamIntent=HAPPY&mamVariation=tiny_dance')
+          render(living())
+          await steps(1000)
+          expect(root()).toHaveAttribute('data-mam-variation', 'tiny_dance')
+          expect(root()).toHaveAttribute('data-mam-travel', 'hop')
+          expect(root()).toHaveAttribute('data-front', 'false')
+          expect(dockButton()).not.toHaveAttribute('tabindex', '-1')
+          fireEvent.click(dockButton(), { detail: 0 })
+          await steps(500)
+          expect(isOpen()).toBe(true)
+          expect(root()).toHaveAttribute('data-mam-intent', '')
+          expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+        })
+
+        it('a cinematic look with no travel scene (the plant pot) ends on a key press and leaves no prop behind', async () => {
+          playDev('mamIntent=WELCOME&mamVariation=plant_pot')
+          render(living())
+          await steps(1500)
+          expect(root()).toHaveAttribute('data-mam-variation', 'plant_pot')
+          expect(root()).toHaveAttribute('data-front', 'true')
+          expect(document.querySelectorAll('[data-mam-prop]').length).toBe(2)
+          fireEvent.keyDown(window, { key: 'a' })
+          await steps(500)
+          expect(root()).toHaveAttribute('data-mam-intent', '')
+          expect(document.querySelectorAll('[data-mam-prop]').length).toBe(0)
+        })
+
+        it('an expressive look is not ended by a key press or a height-only resize, but a width change ends it', async () => {
+          playDev('mamIntent=HAPPY&mamVariation=tiny_dance')
+          const original = Object.getOwnPropertyDescriptor(window, 'innerWidth')
+          const width = window.innerWidth
+          render(living())
+          await steps(1000)
+          fireEvent.keyDown(window, { key: 'a' })
+          await steps(500)
+          expect(root()).toHaveAttribute('data-mam-variation', 'tiny_dance')
+          // Mobile URL-bar collapse: height changes, width does not.
+          fireEvent(window, new Event('resize'))
+          await steps(100)
+          expect(root()).toHaveAttribute('data-mam-variation', 'tiny_dance')
+          try {
+            Object.defineProperty(window, 'innerWidth', {
+              configurable: true,
+              writable: true,
+              value: width - 100,
+            })
+            fireEvent(window, new Event('resize'))
+            await steps(500)
+            expect(root()).toHaveAttribute('data-mam-intent', '')
+          } finally {
+            if (original) Object.defineProperty(window, 'innerWidth', original)
+            else delete (window as { innerWidth?: number }).innerWidth
+          }
+        })
+
+        it('a micro look never grows her', async () => {
+          playDev('mamIntent=ENCOURAGE&mamVariation=nod')
+          render(living())
+          await steps(1000)
+          expect(root()).toHaveAttribute('data-mam-variation', 'nod')
+          expect(grown()).toBe('false')
+        })
+
+        it('reduced motion plays nothing, so nothing grows', async () => {
+          act(() => setMamMotionOff(true))
+          playDev('mamIntent=HAPPY&mamVariation=spin')
+          render(living())
+          await steps(1500)
+          expect(root()).toHaveAttribute('data-mam-variation', '')
+          expect(grown()).toBe('false')
+        })
+      })
+
+      describe('idle actions', () => {
+        it('plays one stretch, look-around or scratch 25–45 s into the idle, never sooner', async () => {
+          vi.spyOn(Math, 'random').mockReturnValue(0.5) // 35 s
+          render(living())
+          await steps(34_500)
+          expect(shot()).toBe('')
+          await steps(1000)
+          // The IDLE pool is stretch, look_around, scratch, butterfly (weights 3, 3, 3, 1): a roll of 0.5 lands on look_around.
+          expect(shot()).toBe('look_around')
+          // It ends with the asset; nothing else queued behind it.
+          await steps(2500)
+          expect(shot()).toBe('')
+        })
+
+        it('MB-895: on a QUIET route the idle action waits twice as long', async () => {
+          navigation.pathname = '/journal'
+          vi.spyOn(Math, 'random').mockReturnValue(0) // 25 s on FULL, 50 s on QUIET
+          render(living())
+          await steps(49_500)
+          expect(character.plays).toBe(0)
+          await steps(1000)
+          expect(IDLE).toContain(shot())
+        })
+
+        it('MB-895: stays still while a form field has focus on a QUIET route', async () => {
+          navigation.pathname = '/journal'
+          vi.spyOn(Math, 'random').mockReturnValue(0)
+          render(
+            <>
+              <form>
+                <button type="button">Lưu</button>
+              </form>
+              {living()}
+            </>,
+          )
+          screen.getByRole('button', { name: 'Lưu' }).focus()
+          await steps(58_000)
+          expect(character.plays).toBe(0)
+          expect(gaze()).toBe('off')
+        })
+
+        it('plays at most 2 in the first minute', async () => {
+          vi.spyOn(Math, 'random').mockReturnValue(0)
+          render(living())
+          await steps(58_000)
+          // 25 s, then 25 s after it ends (about 52 s); the yawn at 60 s is not an idle action.
+          expect(character.plays).toBe(2)
+        })
+
+        it('is cancelled by the menu, never queued, and starts afresh afterwards', async () => {
+          vi.spyOn(Math, 'random').mockReturnValue(0.5)
+          render(living())
+          await steps(20_000)
+          fireEvent.click(dockButton(), { detail: 1 }) // menu open: ineligible, the pending 35 s timer is dropped
+          const afterPoke = character.plays
+          await steps(120_000)
+          expect(character.plays).toBe(afterPoke)
+          fireEvent.click(dockButton(), { detail: 1 }) // a new window closes the menu and giggles
+          const afterClose = character.plays
+          await steps(32_000)
+          expect(character.plays).toBe(afterClose)
+          await steps(5000)
+          expect(IDLE).toContain(shot())
+        })
+
+        it('does not play while the user types in a field', async () => {
+          render(
+            <>
+              <input aria-label="Ghi chú" />
+              {living()}
+            </>,
+          )
+          screen.getByLabelText('Ghi chú').focus()
+          await steps(58_000)
+          expect(character.plays).toBe(0)
+        })
+
+        it.each([
+          ['reduced motion', () => motionStub(true)],
+          [
+            'motion off',
+            () =>
+              window.localStorage.setItem('mentalbridge_mam_motion', 'reduced'),
+          ],
+          [
+            'muted',
+            () =>
+              window.sessionStorage.setItem(
+                'mentalbridge_mam_session_muted',
+                'true',
+              ),
+          ],
+        ])('stays still under %s', async (_name, setup) => {
+          setup()
+          render(living())
+          await advance(120_000)
+          expect(character.plays).toBe(0)
+        })
+      })
+
+      describe('sleep sequence', () => {
+        it.each([
+          [
+            'pointer jitter',
+            () => fireEvent.pointerMove(window, { clientX: 5 }),
+          ],
+          ['a scroll', () => fireEvent.scroll(window)],
+        ])(
+          '%s during the yawn cancels it: Mầm stays up',
+          async (_name, input) => {
+            render(living())
+            await advance(60_000)
+            expect(shot()).toBe('drowsy')
+            input()
+            expect(shot()).toBe('')
+            await advance(5000)
+            expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+            expect(behavior()).not.toBe('sleep')
+          },
+        )
+
+        it('yawns first, and any input during the yawn keeps Mầm awake', async () => {
+          render(living())
+          await advance(60_000)
+          expect(shot()).toBe('drowsy')
+          fireEvent.keyDown(document.body, { key: 'a' })
+          expect(shot()).toBe('')
+          await advance(5000)
+          expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+          // The input restarted the 60 s wait: it yawns again after another minute.
+          await advance(55_000)
+          expect(shot()).toBe('drowsy')
+        })
+
+        it('suppression during the yawn cuts it and Mầm never lies down', async () => {
+          function Zone({ on }: Readonly<{ on: boolean }>) {
+            useMamSuppress(on)
+            return null
+          }
+          const view = (on: boolean) => (
+            <>
+              <Zone on={on} />
+              {living()}
+            </>
+          )
+          const { rerender } = render(view(false))
+          await advance(60_000)
+          expect(shot()).toBe('drowsy')
+          rerender(view(true))
+          await advance(5000)
+          expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+          expect(shot()).toBe('')
+        })
+      })
+
+      describe('drag', () => {
+        it('stops the page text from being selected during a drag and a throw, then restores it', async () => {
+          document.documentElement.style.userSelect = 'text'
+          render(living())
+          press('pointerDown', 50, 700)
+          press('pointerMove', 90, 600)
+          expect(document.documentElement.style.userSelect).toBe('none')
+          press('pointerUp', 90, 600)
+          expect(document.documentElement.style.userSelect).toBe('none')
+          await advance(20_000)
+          expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+          expect(document.documentElement.style.userSelect).toBe('text')
+          document.documentElement.style.userSelect = ''
+        })
+
+        it('holds dangle for the whole drag, then plays no one-shot on the throw', async () => {
+          render(living())
+          press('pointerDown', 50, 700)
+          press('pointerMove', 90, 600)
+          expect(behavior()).toBe('dangle')
+          press('pointerMove', 120, 520)
+          expect(behavior()).toBe('dangle')
+          press('pointerUp', 120, 520)
+          expect(behavior()).not.toBe('dangle')
+          expect(shot()).toBe('')
+          await advance(20_000)
+          expect(behavior()).toBe('idle')
+        })
+      })
+
+      // Codex review round 1.
+      describe('in-flight shots and presses after a gate closes', () => {
+        const yieldedDock = async (overlapping: boolean) => {
+          const setOverlap = stubOverlap()
+          setOverlap(false)
+          render(living())
+          await advance(100)
+          setOverlap(overlapping)
+          fireEvent.scroll(window)
+          await advance(100)
+          return setOverlap
+        }
+
+        it.each([
+          ['mute', () => act(() => setMamMuted(true))],
+          [
+            'the menu opening (keyboard activation)',
+            () => fireEvent.click(dockButton(), { detail: 0 }),
+          ],
+        ])(
+          'an idle action in flight stops at once on %s',
+          async (_n, close) => {
+            vi.spyOn(Math, 'random').mockReturnValue(0)
+            render(living())
+            await steps(26_000)
+            expect(IDLE).toContain(shot())
+            close()
+            expect(shot()).toBe('')
+            await advance(3000)
+            expect(shot()).toBe('')
+          },
+        )
+
+        it('an idle action in flight stops when a summon starts', async () => {
+          vi.spyOn(Math, 'random').mockReturnValue(0)
+          render(living())
+          await steps(26_000)
+          expect(IDLE).toContain(shot())
+          // Right-click on a card asks Mầm about it.
+          fireEvent.contextMenu(screen.getByLabelText('Bước tiếp theo'), {
+            clientX: 40,
+            clientY: 40,
+          })
+          expect(shot()).toBe('')
+        })
+
+        it('a poke in flight survives mute: only the autonomous motion stops', async () => {
+          render(living())
+          fireEvent.click(dockButton(), { detail: 1 })
+          expect(shot()).toBe('giggle')
+          act(() => setMamMuted(true))
+          expect(shot()).toBe('giggle')
+        })
+
+        it('a save does not nod while the dock yields to a page action', async () => {
+          navigation.pathname = '/support-plan'
+          await yieldedDock(true)
+          expect(root()).toHaveAttribute('data-yield', 'true')
+          const before = character.plays
+          act(() => dispatchMamSaved())
+          expect(shot()).toBe('')
+          expect(character.plays).toBe(before)
+        })
+
+        it('a nod in flight is cut when the dock starts to yield', async () => {
+          navigation.pathname = '/support-plan'
+          const setOverlap = await yieldedDock(false)
+          act(() => dispatchMamSaved())
+          expect(shot()).toBe('nod')
+          setOverlap(true)
+          fireEvent.scroll(window)
+          await advance(100)
+          expect(root()).toHaveAttribute('data-yield', 'true')
+          expect(shot()).toBe('')
+        })
+
+        it('a press does not drag after reduced motion turned on before the threshold', () => {
+          render(living())
+          press('pointerDown', 50, 700)
+          act(() => setMamMotionOff(true))
+          press('pointerMove', 300, 500)
+          expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+          press('pointerUp', 300, 500)
+          expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+        })
+
+        it('a press does not drag after a no-interrupt zone opened before the threshold', () => {
+          function Zone({ on }: Readonly<{ on: boolean }>) {
+            useMamSuppress(on)
+            return null
+          }
+          const view = (on: boolean) => (
+            <>
+              <Zone on={on} />
+              {living()}
+            </>
+          )
+          const { rerender } = render(view(false))
+          press('pointerDown', 50, 700)
+          rerender(view(true))
+          press('pointerMove', 300, 500)
+          expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+        })
+
+        it('never drags before the renderer is ready', () => {
+          character.ready = false
+          render(living())
+          press('pointerDown', 50, 700)
+          press('pointerMove', 300, 500)
+          expect(root()).toHaveAttribute('data-mam-travel', 'dock')
+        })
+
+        it('a click without pointer events (screen reader) during the yawn stirs Mầm', async () => {
+          render(living())
+          await advance(60_000)
+          expect(shot()).toBe('drowsy')
+          fireEvent.click(anyDock(), { detail: 0 })
+          expect(shot()).toBe('')
+          expect(isOpen()).toBe(true)
+          await advance(5000)
+          expect(root()).toHaveAttribute('data-mam-sleep', 'false')
+          expect(behavior()).not.toBe('sleep')
+        })
+      })
+    })
+  })
+})

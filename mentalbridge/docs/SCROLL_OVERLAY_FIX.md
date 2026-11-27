@@ -342,11 +342,10 @@ After fix:
 
 **Problem**: Scroll container creating opaque overlay
 **Root Cause**: Z-index stack + scrollbar track background
-**Solution**: 
+**Solution**:
 1. Fix pointer-events routing
-2. Establish clear z-index hierarchy  
+2. Establish clear z-index hierarchy
 3. Make scrollbar track transparent
 4. Add overflow control
 
 **Result**: Clean, transparent scroll with no overlays
-

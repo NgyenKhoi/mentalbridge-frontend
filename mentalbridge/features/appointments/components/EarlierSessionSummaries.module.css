@@ -1,0 +1,151 @@
+.region {
+  margin-top: 0.9rem;
+}
+
+.region h5 {
+  margin: 0 0 0.5rem;
+  color: #173f38;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.state {
+  margin: 0.6rem 0 0;
+  color: #52645d;
+  font-size: 0.85rem;
+}
+
+.list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.8rem;
+  background: #ffffff;
+}
+
+.itemHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+  color: #294b44;
+  font-size: 0.85rem;
+}
+
+.itemHead span {
+  color: #52645d;
+}
+
+.note {
+  margin: 0.4rem 0 0;
+  color: #1e332f;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.steps {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.steps li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: #1e332f;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.steps li > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.steps small {
+  flex-shrink: 0;
+  color: #52645d;
+  font-size: 0.75rem;
+}
+
+.steps small[data-state='COMPLETED'] {
+  color: #155846;
+}
+
+.itemActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.consent {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 36px;
+  color: #294b44;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.consent input {
+  width: 16px;
+  height: 16px;
+  accent-color: #155846;
+}
+
+.use,
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 36px;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid #c9d6cf;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #155846;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.use:hover:not(:disabled),
+.link:hover {
+  background: #eef5f1;
+}
+
+.use:focus-visible,
+.link:focus-visible,
+.consent input:focus-visible {
+  outline: 2px solid #155846;
+  outline-offset: 2px;
+}
+
+.use:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .use,
+  .link {
+    transition: none;
+  }
+}

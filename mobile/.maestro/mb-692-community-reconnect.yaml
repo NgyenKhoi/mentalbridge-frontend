@@ -1,0 +1,38 @@
+appId: com.mentalbridge.mobile
+name: MB-692 offline foreground and notification routing source
+---
+- runFlow: mb-692-sign-in.yaml
+- openLink: 'mentalbridge:///notifications'
+- scrollUntilVisible:
+    element:
+      text: 'Mở: ${MAESTRO_MB_COMMUNITY_NOTIFICATION_TITLE}'
+    direction: DOWN
+- tapOn:
+    text: 'Mở: ${MAESTRO_MB_COMMUNITY_NOTIFICATION_TITLE}'
+- extendedWaitUntil:
+    visible:
+      id: community-chat-composer
+    timeout: 30000
+- tapOn:
+    id: community-chat-composer
+- inputText: 'MB692 synthetic foreground draft'
+- hideKeyboard
+- pressKey: home
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: community-chat-composer
+    timeout: 30000
+- assertVisible: 'MB692 synthetic foreground draft'
+- setAirplaneMode: enabled
+- extendedWaitUntil:
+    visible: 'Chưa thể xác nhận kết nối hoặc quyền truy cập.*'
+    timeout: 30000
+- assertNotVisible: 'MB692 synthetic peer message'
+- setAirplaneMode: disabled
+- tapOn: 'Kết nối lại'
+- extendedWaitUntil:
+    visible:
+      id: community-chat-composer
+    timeout: 30000
+- assertVisible: 'MB692 synthetic foreground draft'

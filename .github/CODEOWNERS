@@ -1,0 +1,33 @@
+# MB-706: integrator-controlled shared files. Change them only in a narrow
+# prerequisite PR approved by the integrator; feature PRs keep to feature paths.
+# scripts/pr-overlap.mjs reads this file: keep patterns rooted with "/" (dir/, file or simple globs).
+
+/.github/ @NgyenKhoi
+/AGENTS.md @NgyenKhoi
+/CONTRIBUTING.md @NgyenKhoi
+/scripts/ @NgyenKhoi
+
+# Web shell, global navigation and design system
+/mentalbridge/app/layout.tsx @NgyenKhoi
+/mentalbridge/app/globals.css @NgyenKhoi
+/mentalbridge/app/theme-sync.css @NgyenKhoi
+/mentalbridge/components/ui/ @NgyenKhoi
+/mentalbridge/components/motion/ @NgyenKhoi
+/mentalbridge/components/RoleWorkspace.tsx @NgyenKhoi
+/mentalbridge/components/AuthenticatedShell.tsx @NgyenKhoi
+
+# Generated contracts: never hand-resolve; re-run `npm run contracts:sync`
+/mentalbridge/contracts/ @NgyenKhoi
+/mentalbridge/lib/realtime/contracts.generated.ts @NgyenKhoi
+
+# Dependencies
+/mentalbridge/package.json @NgyenKhoi
+/mentalbridge/package-lock.json @NgyenKhoi
+/mobile/package.json @NgyenKhoi
+/mobile/package-lock.json @NgyenKhoi
+
+# Mobile shell, routes, navigation, theme and providers
+/mobile/src/app/ @NgyenKhoi
+/mobile/src/navigation/ @NgyenKhoi
+/mobile/src/theme/ @NgyenKhoi
+/mobile/src/providers/ @NgyenKhoi

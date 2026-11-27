@@ -1,14 +1,13 @@
 import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ApiError } from '@/lib/api/api-error'
 import { ACCESS_COOKIE_NAME } from '@/lib/auth/session-cookies'
-import {
-  INITIAL_CHECK_EVALUATION_COOKIE,
-  INITIAL_CHECK_GAD7_COOKIE,
-  INITIAL_CHECK_PHQ9_COOKIE,
-} from '@/lib/care/guided-initial-check-cookies'
 
-const careMocks = vi.hoisted(() => ({ evaluateSupport: vi.fn() }))
+const careMocks = vi.hoisted(() => ({
+  currentScreeningEpisode: vi.fn(),
+  evaluateScreeningEpisode: vi.fn(),
+}))
 const sessionMocks = vi.hoisted(() => ({
   resolveSession: vi.fn(),
   ensureRole: vi.fn(),
@@ -23,24 +22,22 @@ vi.mock('@/lib/auth/session-service', () => ({
 
 import { POST } from './route'
 
-const phq9AssessmentId = '10000000-0000-4000-8000-000000000101'
-const gad7AssessmentId = '10000000-0000-4000-8000-000000000102'
 const supportEvaluationId = '20000000-0000-4000-8000-000000000101'
+const episodeId = '30000000-0000-4000-8000-000000000101'
 
-function request(cookies: string[] = []) {
+function request() {
   return new NextRequest('http://localhost/api/care/initial-check/evaluation', {
     method: 'POST',
     headers: {
-      cookie: [`${ACCESS_COOKIE_NAME}=identity-access-secret`, ...cookies].join(
-        '; ',
-      ),
+      cookie: `${ACCESS_COOKIE_NAME}=identity-access-secret`,
     },
   })
 }
 
 describe('POST /api/care/initial-check/evaluation', () => {
   beforeEach(() => {
-    careMocks.evaluateSupport.mockReset()
+    careMocks.currentScreeningEpisode.mockReset()
+    careMocks.evaluateScreeningEpisode.mockReset()
     sessionMocks.resolveSession.mockReset()
     sessionMocks.ensureRole.mockReset()
     sessionMocks.resolveSession.mockResolvedValue({
@@ -53,36 +50,38 @@ describe('POST /api/care/initial-check/evaluation', () => {
     })
   })
 
-  it('sends the exact server-held pair with a deterministic retry key', async () => {
-    careMocks.evaluateSupport.mockResolvedValue({
-      supportEvaluationId,
+  it('evaluates the exact persisted Care episode', async () => {
+    careMocks.currentScreeningEpisode.mockResolvedValue({ episodeId })
+    careMocks.evaluateScreeningEpisode.mockResolvedValue({
+      presentationEvaluation: { supportEvaluationId },
     })
 
-    const response = await POST(
-      request([
-        `${INITIAL_CHECK_PHQ9_COOKIE}=${phq9AssessmentId}`,
-        `${INITIAL_CHECK_GAD7_COOKIE}=${gad7AssessmentId}`,
-      ]),
-    )
+    const response = await POST(request())
 
-    expect(careMocks.evaluateSupport).toHaveBeenCalledWith(
+    expect(careMocks.evaluateScreeningEpisode).toHaveBeenCalledWith(
       'identity-access-secret',
-      { phq9AssessmentId, gad7AssessmentId },
-      `initial-check:${phq9AssessmentId}:${gad7AssessmentId}`,
+      episodeId,
       expect.any(String),
     )
-    expect(response.headers.get('set-cookie')).toContain(
-      `${INITIAL_CHECK_EVALUATION_COOKIE}=${supportEvaluationId}`,
+    expect(response.headers.get('set-cookie') ?? '').not.toContain(
+      'mentalbridge_initial_check',
     )
   })
 
-  it('does not accept a browser body as a substitute for missing journey IDs', async () => {
+  it('fails closed when Care says the persisted episode is incomplete', async () => {
+    careMocks.currentScreeningEpisode.mockRejectedValue(
+      new ApiError({
+        message: 'Episode incomplete',
+        code: 'SCREENING_EPISODE_INCOMPLETE',
+        status: 409,
+      }),
+    )
     const response = await POST(request())
 
     expect(response.status).toBe(409)
     await expect(response.json()).resolves.toMatchObject({
-      code: 'INITIAL_CHECK_INCOMPLETE',
+      code: 'SCREENING_EPISODE_INCOMPLETE',
     })
-    expect(careMocks.evaluateSupport).not.toHaveBeenCalled()
+    expect(careMocks.evaluateScreeningEpisode).not.toHaveBeenCalled()
   })
 })

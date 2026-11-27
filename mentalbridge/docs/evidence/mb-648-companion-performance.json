@@ -1,0 +1,97 @@
+{
+  "evidenceClass": "fixture-browser",
+  "generatedAt": "2026-10-14T02:46:16.900Z",
+  "command": "$env:MB648_WRITE_PERFORMANCE_EVIDENCE=\"true\"; node scripts/run-e2e.mjs tests/e2e/support-plan.spec.ts --workers=1 --reporter=line",
+  "measurement": {
+    "initialLoad": "wall time from production-route navigation/reload until the primary heading is visible",
+    "cpu": "Chromium Performance.getMetrics duration deltas during a 1200 ms idle window",
+    "rendering": "requestAnimationFrame pacing during the same idle window; intervals over 34 ms count as dropped-frame intervals",
+    "transition": "wall time from tab activation until destination content is visible"
+  },
+  "budgets": {
+    "mobileThrottled": {
+      "initialLoadMs": 10000,
+      "transitionMs": 1500,
+      "idleTaskDurationMs": 450,
+      "p95FrameIntervalMs": 80,
+      "droppedFrameIntervals": 12
+    },
+    "desktop": {
+      "initialLoadMs": 5000,
+      "transitionMs": 750,
+      "idleTaskDurationMs": 250,
+      "p95FrameIntervalMs": 50,
+      "droppedFrameIntervals": 8
+    }
+  },
+  "profiles": {
+    "mobileThrottled": {
+      "viewport": {
+        "width": 375,
+        "height": 667
+      },
+      "cpuThrottleRate": 4,
+      "network": {
+        "latencyMs": 150,
+        "downloadKbps": 1600,
+        "uploadKbps": 750
+      },
+      "initialLoadMs": 5173.537,
+      "transitionMs": 89.931,
+      "idleNormal": {
+        "windowMs": 1200,
+        "taskDurationMs": 313.784,
+        "scriptDurationMs": 16.676,
+        "layoutDurationMs": 0,
+        "recalcStyleDurationMs": 66.129,
+        "frames": 73,
+        "p95FrameIntervalMs": 16.7,
+        "worstFrameIntervalMs": 16.8,
+        "droppedFrameIntervals": 0
+      },
+      "idleReducedMotion": {
+        "windowMs": 1200,
+        "taskDurationMs": 79.716,
+        "scriptDurationMs": 14.042,
+        "layoutDurationMs": 0,
+        "recalcStyleDurationMs": 0,
+        "frames": 74,
+        "p95FrameIntervalMs": 16.7,
+        "worstFrameIntervalMs": 16.8,
+        "droppedFrameIntervals": 0
+      }
+    },
+    "desktop": {
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "cpuThrottleRate": 1,
+      "network": "unthrottled fixture route",
+      "initialLoadMs": 261.29,
+      "transitionMs": 443.609,
+      "idleNormal": {
+        "windowMs": 1200,
+        "taskDurationMs": 65.978,
+        "scriptDurationMs": 4.004,
+        "layoutDurationMs": 0.13,
+        "recalcStyleDurationMs": 10.881,
+        "frames": 73,
+        "p95FrameIntervalMs": 16.7,
+        "worstFrameIntervalMs": 16.8,
+        "droppedFrameIntervals": 0
+      },
+      "idleReducedMotion": {
+        "windowMs": 1200,
+        "taskDurationMs": 19.36,
+        "scriptDurationMs": 2.97,
+        "layoutDurationMs": 0,
+        "recalcStyleDurationMs": 0,
+        "frames": 74,
+        "p95FrameIntervalMs": 16.7,
+        "worstFrameIntervalMs": 16.8,
+        "droppedFrameIntervals": 0
+      }
+    }
+  }
+}

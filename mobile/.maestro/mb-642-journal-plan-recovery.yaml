@@ -1,0 +1,19 @@
+appId: com.mentalbridge.mobile
+name: MB-642 exact Journal candidate absence outage and accepted-history recovery
+---
+# AUTHOR-ONLY — NOT_RUN_MB666. No reset, credentials or private text in this flow.
+# The approved disposable harness first logs in the dedicated USER and controls
+# owner state, then supplies a closed metadata-only deep link plus expected copy.
+# Run individually for MISSING, DELETED_OPEN, DELETED_ACCEPTED, UNAVAILABLE,
+# and mismatch. Harness checks one ID-only Care POST and no raw Journal payload.
+- assertTrue: '${MAESTRO_MB642_DISPOSABLE_FIXTURE === "true"}'
+- launchApp
+- openLink: '${MAESTRO_MB642_RETURN_LINK}'
+- scrollUntilVisible:
+    element:
+      id: 'reconcile-journal-.*'
+    direction: DOWN
+- tapOn:
+    id: 'reconcile-journal-.*'
+- assertVisible: '${MAESTRO_MB642_EXPECTED_MESSAGE}'
+- assertVisible: '${MAESTRO_MB642_EXPECTED_OCCURRENCE_LABEL}'

@@ -4,6 +4,107 @@
  */
 
 export interface paths {
+    "/api/v1/ai-voice-processing-disclosure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * getVoiceDisclosure
+         * @description Care publishes the exact immutable Vietnamese ai-voice-processing-capstone-v2 title and content, including optional explicit bounded Text-to-Voice continuation. Existing v1 Voice users must accept v2 before further Voice access; AI_PROCESSING and Text consent are unchanged. Requires authenticated USER; no microphone or provider call.
+         */
+        get: operations["getVoiceDisclosure"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consents/ai-voice-processing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * getCurrentVoiceConsent
+         * @description Read only the authenticated owner current v2 voice decision. Missing/outdated v1 decision returns v2 with current=false and granted=false. current indicates policy-version freshness; an old POST replay never restores authority or enables context attachment.
+         */
+        get: operations["getCurrentVoiceConsent"];
+        put?: never;
+        /**
+         * recordVoiceConsentDecision
+         * @description Append a separate current v2 AI_VOICE_PROCESSING decision for the authenticated owner with an existing Care profile; no paid plan or text grant is required. A new v1 command is rejected with INVALID_REQUEST (422); an exact historical v1 UUID replay may return its original v1 decision with current=false, never a v2 grant. Changed intent/version under the same key returns IDEMPOTENCY_CONFLICT (409). Store only purpose/owner-scoped HMAC of the key and safe intent digest. Withdrawal preserves historical decisions. Context attachment additionally requires explicit per-call selection and Journal owner/session authorization. Unknown/invalid fields return INVALID_REQUEST (422).
+         */
+        post: operations["recordVoiceConsentDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/ai-companion/voice-consent-authorizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * checkCurrentVoiceConsents
+         * @description Dedicated Journal-only service credential and exact session-owned owner assertion with constant purpose. Care resolves both latest current grants in one repeatable-read transaction; no user JWT, cache, shadow grant or remote call. Journal validates echoed binding and applies a two-second request deadline. Worker and user credentials cannot authorize this read.
+         */
+        post: operations["checkCurrentVoiceConsents"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/support-plan-reminder-eligibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check whether the owner gets today's generic SupportPlan reminder
+         * @description MB-855 Content-to-Care service read; user JWTs never authorize it. eligible is true only when the owner's current plan is ACTIVE (PAUSED or none is false) and has a SCHEDULED occurrence whose localDate equals asOf's local date in that occurrence's own timezone, whose schedule is ACTIVE with reminderEnabled, and whose native action (v3) is ACTIVE; v2 resource plans and v3 native plans both count. It reuses the Today read, so it may idempotently generate occurrences, and never changes occurrence state. No plan, action, count or clinical detail is returned. Every refusal for a missing, wrong or disabled credential is 401 with no body.
+         */
+        post: operations["checkSupportPlanReminderEligibility"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/product-journey-metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read privacy-bounded Care product journey aggregates */
+        get: operations["getCareProductJourneyMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profile": {
         parameters: {
             query?: never;
@@ -39,10 +140,61 @@ export interface paths {
         /**
          * Read the latest explicit platform consent decisions
          * @description This lookup does not require a Care profile. A new account with no profile
-         *     and no decision receives 200 with decisions: []. A missing consent type
+         *     and no decision receives 200 with decisions: []. Returns the latest actual
+         *     PRIVACY_POLICY, AI_PROCESSING and AI_CONTEXT_PROCESSING decisions, omitting
+         *     never-decided streams. A raw granted decision is not effective authority.
+         *     A missing consent type
          *     means no decision has been recorded; it is not silently treated as a grant.
          */
         get: operations["getOwnCurrentConsents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consents/ai-processing/authorization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve the authenticated user's current AI-processing consent
+         * @description Returns effective L1 (AI trò chuyện) only. Existing current v2 grants stay
+         *     valid without reconsent. This endpoint does not authorize personal context
+         *     or Journal analysis; those consumers must use the effective L2 snapshot.
+         *     Missing, revoked or outdated L1 fails closed.
+         */
+        get: operations["authorizeOwnAiProcessing"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consents/ai-authorizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve effective L1 and dependent L2 in one current snapshot
+         * @description USER subject only; no profile is required. Both levels are read in one
+         *     repeatable-read transaction. context.authorized implies chat.authorized.
+         *     Own MISSING, REVOKED or POLICY_OUTDATED takes precedence; DEPENDENCY_REQUIRED
+         *     applies only to a current true L2 blocked by ineffective L1. Regranting L1
+         *     restores a suspended current L2 decision, without selecting new sources.
+         *     Clients must not cache this response or derive authority from raw history.
+         */
+        get: operations["authorizeOwnAiPurposes"];
         put?: never;
         post?: never;
         delete?: never;
@@ -65,7 +217,11 @@ export interface paths {
          * @description Repeating the same user-scoped idempotency key and identical request returns
          *     the original decision. Reusing the key for a different request returns a
          *     conflict. Specialist access is a separate scoped grant workflow and is not
-         *     represented by a broad platform-consent toggle.
+         *     represented by a broad platform-consent toggle. Replay lookup precedes
+         *     current-version and dependency validation; exact replay returns the original
+         *     201 decision without restoring authority. New L2 true requires current L1
+         *     under the shared profile lock; L2 false is always allowed. Historical
+         *     AI_PROCESSING v1 is parsed only for exact replay; new commands require v2.
          */
         post: operations["recordOwnConsentDecision"];
         delete?: never;
@@ -87,6 +243,49 @@ export interface paths {
          *     render this response and must not keep an independent disclosure copy.
          */
         get: operations["getCurrentPrivacyDisclosure"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-processing-disclosures/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the immutable current L1 AI-processing disclosure
+         * @description Returns the unchanged ai-processing-capstone-v2 notice. ADR 0050 narrows
+         *     its current authority to L1 AI trò chuyện; existing current grants remain
+         *     valid without reconsent. Personal context and Journal analysis require the
+         *     separate L2 grant. Clients render backend text without independent copies.
+         */
+        get: operations["getCurrentAiProcessingDisclosure"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-context-processing-disclosures/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the backend-owned current L2 notice
+         * @description Public immutable vi-VN notice; neither checkbox is preselected. New L2 grants require effective L1.
+         */
+        get: operations["getCurrentAiContextDisclosure"];
         put?: never;
         post?: never;
         delete?: never;
@@ -209,7 +408,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/support-evaluations": {
+    "/api/v1/screening-episodes": {
         parameters: {
             query?: never;
             header?: never;
@@ -217,6 +416,549 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
+        /**
+         * Start or resume the open guided screening episode for one purpose
+         * @description Care returns the existing IN_PROGRESS or READY episode for the purpose, or
+         *     creates a new one when no open episode exists. Standalone assessment history
+         *     is never attached implicitly.
+         */
+        post: operations["startScreeningEpisode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/screening-episodes/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resume the latest persisted guided screening episode for one purpose */
+        get: operations["getCurrentScreeningEpisode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/guided-journey/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resume the owner's current initial-check journey and its next authorized action
+         * @description Read-only, owner-scoped pointer derived from persisted Care facts: the latest
+         *     COMPLETED INITIAL_CHECK screening episode with its exact PHQ-9/GAD-7 pair, the
+         *     persisted Support Guide for the latestScreening episode's exact SupportEvaluation,
+         *     and the current ACTIVE/PAUSED or DRAFT SupportPlan. It never pairs independently newest
+         *     assessments, creates a Guide or plan, or reads historical episodes.
+         *     nextAction is Care's ordered decision for the step after the Guide: positive
+         *     PHQ-9 item-9 safety evidence first, then a stored professional-support pathway,
+         *     then an existing current plan or draft, then PLUS/PREMIUM plan proposal while the
+         *     episode evaluation is still current-policy compatible, otherwise the Guide's
+         *     reviewed resources. latestScreening is the newest COMPLETED screening episode of
+         *     either purpose (INITIAL_CHECK or REASSESSMENT, by completedAt then episodeId);
+         *     nextAction, stage and supportGuideId follow that episode's SupportEvaluation,
+         *     while episodeId, episodeCompletedAt and presentationEvaluationId keep the
+         *     initial-check meaning. Open episodes never become latestScreening.
+         *     Entitlement is checked only when needed; when it
+         *     cannot be verified the response fails closed to the always-available resource step
+         *     with entitlementStatus UNAVAILABLE. A missing published support policy is not
+         *     hidden: it returns 503 SUPPORT_POLICY_UNAVAILABLE so clients offer retry. Responses carry Cache-Control no-store and no
+         *     answers, scores, journal or emotion data.
+         */
+        get: operations["getCurrentGuidedJourney"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/home-next-step": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the owner's single next step for Home
+         * @description Read-only, owner-scoped Home composition over the unchanged GuidedJourney
+         *     and persisted SupportPlan facts. Clients render Care's ordered journey
+         *     action and plan focus; safety and professional-support journey actions keep
+         *     their existing precedence over plan context. No Guide, plan, lifecycle
+         *     transition, assessment answer, score, journal or emotion content is created
+         *     or returned. Entitlement uncertainty retains the journey's fail-closed
+         *     resources step with entitlementStatus UNAVAILABLE. A missing published
+         *     support policy returns 503 SUPPORT_POLICY_UNAVAILABLE.
+         *     A supplied timezone must be an IANA zone; an invalid value returns 400.
+         *     When omitted, localDate uses the plan schedule time zone. Reads carry
+         *     Cache-Control no-store and are usable directly with an owner bearer token.
+         */
+        get: operations["getOwnHomeNextStep"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/screening-episodes/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List exact saved PHQ-9/GAD-7 screening episodes
+         * @description Returns one newest-first row per authoritative guided screening episode,
+         *     ordered by completion time descending, falling back to immutable start time
+         *     for unfinished episodes, with episode ID descending as the unique tie-breaker.
+         *     Resumable IN_PROGRESS and READY rows
+         *     expose only the exact evidence already attached to that episode and use
+         *     meaningState INCOMPLETE; missing instruments never borrow a standalone result.
+         *     Each available row contains the combined meaning for that episode's exact
+         *     persisted presentation evaluation and an optional already-persisted matching
+         *     Support Guide identifier. The read never pairs standalone latest assessments,
+         *     generates a Guide, or mutates current journey state. Older incompatible rows
+         *     remain visible with meaningState UNAVAILABLE.
+         */
+        get: operations["listOwnScreeningEpisodeHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/screening-episodes/{episodeId}/assessments/{instrument}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit one assessment directly into its exact guided episode
+         * @description PHQ-9 must precede GAD-7. Submission, scoring, and attachment use the same
+         *     Care transaction, so browser cookies and latest-history inference are not
+         *     evidence authority.
+         */
+        post: operations["submitScreeningEpisodeAssessment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/screening-episodes/{episodeId}/support-evaluation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Evaluate the exact PHQ-9 and GAD-7 pair attached to a guided episode
+         * @description Care creates the immutable domain-aware SupportEvaluation used by downstream
+         *     support and the v1 presentation evaluation used by the current client. The
+         *     completed episode persists both references and replays them on retry.
+         */
+        post: operations["completeScreeningEpisodeEvaluation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reassessment-self-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record explicit current-period reassessment experience
+         * @description Creates one owner-authored, non-diagnostic self-report for a bounded current
+         *     comparison period. Optional context and checklist are private Care evidence,
+         *     never inferred from Journal, screening or activity. Omitted symptomChecklist
+         *     preserves the legacy request identity; explicit selectedCodes [] records an
+         *     empty selection and never means no symptoms. Reordered code sets replay
+         *     identically. Exact recorded replay precedes current-catalog validation.
+         */
+        post: operations["createOwnReassessmentSelfReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reassessment-self-reports/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the approved optional reassessment symptom checklist
+         * @description USER-only local immutable catalog. Mapping references are candidates, never an assertion of current Content eligibility or a clinical assessment.
+         */
+        get: operations["getReassessmentSymptomCatalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reassessment-self-reports/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the latest active self-report */
+        get: operations["getOwnCurrentReassessmentSelfReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reassessment-self-reports/{selfReportId}": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                selfReportId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace the mutable response for one owned self-report
+         * @description Omitted symptomChecklist preserves the existing checklist for older clients. A present checklist replaces it atomically with the experience and contexts; selectedCodes [] explicitly clears selections under the submitted catalog revision. Unsupported revisions return REASSESSMENT_SYMPTOM_CATALOG_UNSUPPORTED.
+         */
+        put: operations["replaceOwnReassessmentSelfReport"];
+        post?: never;
+        /**
+         * Delete mutable self-report content
+         * @description Clears the categorical response, optional contexts, checklist codes and catalog revision while retaining a minimal owner/version/period tombstone. Existing immutable summary snapshots remain unchanged; the deleted source is unavailable to future composition and cannot be resurrected.
+         */
+        delete: operations["deleteOwnReassessmentSelfReport"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reassessment-summaries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List immutable four-dimension reassessment snapshots
+         * @description Results are ordered by composedAt and summaryId descending. Every item is the exact persisted snapshot originally returned by Care.
+         */
+        get: operations["listOwnReassessmentSummaries"];
+        put?: never;
+        /**
+         * Persist one reproducible four-dimension reassessment snapshot
+         * @description Care validates two selected owned PHQ-9/GAD-7 results, calculates their
+         *     standardized trends locally, reads only the minimized Journal/AI projection,
+         *     snapshots explicitly reusable SupportPlan engagement/reflection from the
+         *     same two periods, and separately snapshots an optional explicit owner
+         *     self-report for the exact current period. Journal absence, consent denial, malformed data, timeout,
+         *     or dependency failure is persisted as an explicit UNAVAILABLE journal
+         *     dimension while the local dimensions remain available. Sparse local or
+         *     journal evidence is INSUFFICIENT_DATA. Dimensions are never collapsed into
+         *     a global improvement, recovery, or wellness score.
+         *     A request without journalJobId or journalAnalysisId is accepted only while
+         *     Care's own effective L2 AI_CONTEXT_PROCESSING consent is missing: Care then
+         *     persists a v2 snapshot whose journal dimension is UNAVAILABLE with
+         *     CONSENT_REVOKED (latest L2 decision withdrawn) or CONSENT_REQUIRED (no
+         *     current effective L2, including missing L1). With effective L2 the same
+         *     request returns 400 INVALID_JOURNAL_EVIDENCE_REFERENCE. Sending both
+         *     references is always 400. Idempotent replay is checked before consent, so an
+         *     identical retry returns the original snapshot.
+         */
+        post: operations["composeOwnReassessmentSummary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reassessment-summaries/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve the authoritative inputs and comparison periods for a new reassessment
+         * @description Care selects the latest usable owned PHQ-9 and GAD-7 evidence and issues
+         *     the two adjacent comparison periods defined by its versioned policy. The
+         *     browser displays and submits these facts; it does not infer assessment
+         *     compatibility or calculate period boundaries.
+         */
+        get: operations["getOwnReassessmentContext"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reassessment-summaries/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the latest persisted reassessment snapshot */
+        get: operations["getOwnCurrentReassessmentSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reassessment-summaries/{summaryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one owned immutable reassessment snapshot */
+        get: operations["getOwnReassessmentSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consultation-briefs/{appointmentId}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Create or replace the appointment owner's draft
+         * @description The request contains only minimized user-authored context and an exact Care-owned support-evaluation reference. Updating an existing draft requires its current version.
+         */
+        put: operations["saveConsultationBriefDraft"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consultation-briefs/screening-contexts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List bounded Care-owned screening contexts available for explicit selection */
+        get: operations["listOwnConsultationBriefScreeningContexts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consultation-briefs/{appointmentId}/ai-draft-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request an optional AI suggestion for the exact current private draft
+         * @description Care verifies effective L2 AI_CONTEXT_PROCESSING before resolving the exact saved draft and minimized screening context and before each worker attempt. Journal/AI rechecks L2 immediately before its provider attempt. A missing effective L2 returns 409 AI_CONTEXT_CONSENT_REQUIRED; current L1 alone is insufficient. The job cannot save, approve, share, or change the ConsultationBrief.
+         */
+        post: operations["createConsultationBriefAiDraftJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consultation-briefs/{appointmentId}/ai-draft-jobs/{jobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one owned AI draft job and its editable suggestion */
+        get: operations["getOwnConsultationBriefAiDraftJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consultation-briefs/{appointmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the appointment owner's current draft or approved state */
+        get: operations["getOwnConsultationBrief"];
+        put?: never;
+        post?: never;
+        /** Delete brief content and revoke any future specialist access */
+        delete: operations["deleteOwnConsultationBrief"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consultation-briefs/{appointmentId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve the exact current draft snapshot for the assigned specialist */
+        post: operations["approveConsultationBriefSnapshot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consultation-briefs/{appointmentId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke all future reads of the currently approved snapshot */
+        post: operations["revokeConsultationBriefAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist/consultation-briefs/{appointmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the immutable approved snapshot within its appointment-scoped window
+         * @description Fails closed for the wrong specialist, wrong appointment state, an early or expired window, revoked access, or a deleted brief/source. Every allowed or denied read is audited without brief content.
+         */
+        get: operations["getAssignedSpecialistConsultationBrief"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist/client-continuity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List appointment-bounded client continuity rows
+         * @description Composes Consultation-owned assigned relationships with Care-owned display identity and current brief-access provenance. It returns no brief content, raw journal, assessment answers, AI analysis, SupportPlan state, or private chat.
+         */
+        get: operations["listAssignedSpecialistClientContinuity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List immutable support evaluations owned by the authenticated caller
+         * @description Results are ordered by evaluatedAt descending and supportEvaluationId
+         *     descending. Each item contains the original evidence meanings, support
+         *     direction, current reviewed meaning copy for the stored policy, safety
+         *     guidance, and next step needed to reopen the result.
+         *     Raw assessment answers and other users' data are never returned.
+         */
+        get: operations["listOwnScreeningSupportEvaluations"];
         put?: never;
         /**
          * Resolve deterministic support from explicitly selected PHQ-9 and GAD-7 results
@@ -246,6 +988,973 @@ export interface paths {
         /** Reopen one immutable owned support evaluation */
         get: operations["getOwnScreeningSupportEvaluation"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-evaluations/{supportEvaluationId}/combined-meaning": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a versioned presentation of one exact saved screening pair
+         * @description MB-667 worktree draft for content review; not approved for deployment.
+         *     Care uses only this owned v1 evaluation's exact compatible PHQ-9/GAD-7
+         *     pair, source policy and stored support tier. It does not select newer
+         *     assessments or mutate evaluation, Guide, plan, history or events.
+         *     The twenty base meanings are neutral draft presentation copy, not
+         *     diagnoses, combined severity or new routing decisions. A positive
+         *     independent PHQ-9 safety result takes presentation precedence while
+         *     both instrument levels remain unchanged. Historical source facts are
+         *     labelled with their original evaluation time and source policy; the
+         *     draft presentation version is separate, never claimed as original copy.
+         *     Existing v1 and v2 response shapes remain unchanged for older clients.
+         */
+        get: operations["getOwnCombinedScreeningMeaning"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create or replay one deterministic paid SupportPlan draft
+         * @description The authenticated USER supplies only one owned SupportEvaluation v2 reference.
+         *     Care resolves the current Consultation-owned entitlement, revalidates current
+         *     SupportEvaluation policy compatibility, resolves exact Content-owned resource
+         *     versions, and persists at most one DRAFT. FREE entitlement, stale or ineligible
+         *     source facts, and dependency uncertainty create no plan. AI and clients do not
+         *     select resources, template families, eligibility, or safety behavior.
+         */
+        post: operations["proposeOwnSupportPlanDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plans/current-draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reload the authenticated user's same current SupportPlan draft
+         * @description Returns the persisted draft snapshot without re-running entitlement or
+         *     resource-provider decisions. The response retains the exact rationale,
+         *     choices, source versions, and safety copy used when Care created it.
+         *     The bounded system-copy encoding erratum described by SupportPlan
+         *     corrects only the two known malformed Vietnamese display literals.
+         */
+        get: operations["getOwnCurrentSupportPlanDraft"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plans/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reload the authenticated user's authoritative active or paused SupportPlan
+         * @description Returns the single Care-owned current plan from persisted state without
+         *     deriving lifecycle state in the client. A draft is not a current plan.
+         */
+        get: operations["getOwnCurrentSupportPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plans/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List immutable terminal SupportPlan snapshots
+         * @description Returns only the authenticated user's COMPLETED, SUPERSEDED, and
+         *     DISCARDED plans in stable newest-first order. This persisted history is
+         *     never rebuilt from assessments, AI output, or current eligibility.
+         */
+        get: operations["listOwnTerminalSupportPlans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plans/{supportPlanId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reload one owned SupportPlan snapshot
+         * @description Returns the persisted owner snapshot in any lifecycle state. Terminal
+         *     snapshots are immutable and are not recomputed from newer evidence.
+         */
+        get: operations["getOwnSupportPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plans/{supportPlanId}/choices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Keep, swap, or remove only server-admitted draft choices
+         * @description The complete desired selection is accepted only for an owned DRAFT.
+         *     Every CORE slot is required; an OPTIONAL slot may be omitted. Care
+         *     rejects unknown slots, injected exact versions, duplicate versions,
+         *     and stale plan versions. A changed desired selection is revalidated
+         *     against current entitlement, evaluation/template policy, and exact
+         *     resource eligibility. Replacing the current selection with the same
+         *     complete desired state is a no-op and keeps the existing version.
+         */
+        put: operations["replaceOwnSupportPlanDraftChoices"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plans/{supportPlanId}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Explicitly activate a fully revalidated paid SupportPlan draft
+         * @description The authenticated user explicitly activates the owned draft. Care
+         *     immediately revalidates current paid entitlement, SupportEvaluation,
+         *     template policy, every selected exact resource version and eligibility
+         *     role before opening the local transaction. A draft pinned to an older
+         *     personalization revision must be explicitly discarded and regenerated
+         *     before activation; Care never rewrites it silently. The normal command also
+         *     applies to safety-positive users and accepts no safety acknowledgement field.
+         */
+        post: operations["activateOwnSupportPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plans/{supportPlanId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Apply an explicit idempotent SupportPlan lifecycle state
+         * @description ACTIVE may resume PAUSED, PAUSED may pause ACTIVE, COMPLETED ends an
+         *     ACTIVE or PAUSED plan without implying recovery, and DISCARDED removes
+         *     a DRAFT from current consideration. Repeating the already-applied desired
+         *     state is a no-op. An optional stable completion reason is accepted only
+         *     for COMPLETED and becomes part of the immutable terminal snapshot.
+         *     Pausing cancels future scheduled occurrences; resuming
+         *     restores only still-future pause-cancelled occurrences and extends the
+         *     bounded horizon; completing cancels future open occurrences.
+         */
+        put: operations["replaceOwnSupportPlanStatus"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plans/{supportPlanId}/replace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Explicitly replace the current plan with a revalidated draft
+         * @description Care revalidates the owned draft before one local transaction marks the
+         *     former current plan SUPERSEDED, cancels its future occurrences, activates
+         *     the draft, and creates the replacement plan's deterministic schedules.
+         */
+        post: operations["replaceOwnCurrentSupportPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plans/{supportPlanId}/replacement-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Review the current plan against one admissible replacement draft
+         * @description Care reloads persisted owner state, requires the current canonical
+         *     ReassessmentSummary v2, and freshly revalidates entitlement, both plan
+         *     versions, evaluation/template compatibility, and exact resource
+         *     eligibility before returning one of the three governed review outcomes.
+         *     This operation never mutates either plan.
+         */
+        post: operations["reviewOwnSupportPlanReplacement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plan-occurrences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List current-plan occurrences for a bounded local-date window
+         * @description The inclusive window is at most 31 local days and is limited to the
+         *     supported recent/today/upcoming range. For an ACTIVE plan, Care safely
+         *     fills any missing logical occurrences before returning the persisted
+         *     list. Generation is deterministic and protected by a unique local-intent
+         *     key, so retries and plan reloads do not duplicate occurrences. DAILY and
+         *     WEEKLY schedules preserve the profile's IANA timezone. A daylight gap
+         *     moves to the first valid local instant; an overlap uses the earlier offset.
+         */
+        get: operations["listOwnSupportPlanOccurrences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plan-occurrences/{occurrenceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one owned occurrence with source and local-time provenance */
+        get: operations["getOwnSupportPlanOccurrence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plan-occurrences/{occurrenceId}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Mark an occurrence completed or skipped as a self-reported input
+         * @description This user action is not treatment adherence, clinical success, or
+         *     recovery evidence. Repeating the same desired state is a no-op. AI may
+         *     phrase a label but cannot call this command or select the state.
+         */
+        put: operations["replaceOwnSupportPlanOccurrenceState"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support-plan-occurrences/{occurrenceId}/engagement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace one current occurrence's user-owned engagement
+         * @description The complete desired state is naturally idempotent. SCHEDULED reopens
+         *     a completed or skipped occurrence and clears its signals. Helpfulness
+         *     belongs only to completion, while a barrier belongs only to skip.
+         *     Reflection is bounded and never published in the minimized integration
+         *     fact. Hiding is a reversible display preference. Only an occurrence in
+         *     the authenticated user's ACTIVE current plan accepts this command.
+         *     These values are self-reported wellbeing engagement, not adherence,
+         *     clinical outcome, symptom improvement, or recovery.
+         */
+        put: operations["replaceOwnSupportPlanOccurrenceEngagement"];
+        post?: never;
+        /**
+         * Delete one current occurrence's mutable engagement
+         * @description Clears completion/skip, visibility, helpfulness, barrier, reflection,
+         *     and reuse approval while retaining immutable schedule and exact source
+         *     provenance. Repeating the already-cleared desired result is a no-op.
+         *     The controlled demo retains engagement with its occurrence until this
+         *     owner command or account-deletion coordination removes it; no public
+         *     production retention duration is claimed.
+         */
+        delete: operations["deleteOwnSupportPlanOccurrenceEngagement"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the current SupportPlan through the v3 action model
+         * @description Returns the authenticated user's active or paused plan as Care-owned
+         *     focuses, typed actions, and schedules. Native v3 rows are marked
+         *     NATIVE_V3. Existing v2 resource-slot history is translated at read time
+         *     and marked V2_RESOURCE_ADAPTER; the adapter does not rewrite v2 rows or
+         *     manufacture native action history. Source-domain payloads are never
+         *     copied into this representation.
+         */
+        get: operations["getOwnCurrentSupportPlanV3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/current-draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the current draft through the v3 action model
+         * @description Returns the authenticated user's current draft, including reviewable
+         *     schedule defaults. A default is not activated until the user explicitly
+         *     activates the draft. Existing v2 resource slots are projected without
+         *     rewriting their selection history.
+         */
+        get: operations["getOwnCurrentDraftSupportPlanV3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/{supportPlanId}/actions/{actionId}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Explicitly replace or remove one action schedule
+         * @description Replaces one reviewable draft or active action schedule under strong
+         *     plan-version and idempotency checks. A null schedule removes future
+         *     workload. Changes never alter action eligibility and never classify a
+         *     lower cadence, later time, pause, or removal as failure. For an active
+         *     plan, the replacement starts no earlier than tomorrow in its requested
+         *     timezone and deterministically cancels superseded future occurrences.
+         */
+        put: operations["replaceOwnPlanActionSchedule"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/{supportPlanId}/actions/{actionId}/companion-explanation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Explicitly request a contextual Companion explanation for one owned action
+         * @description Care resolves the exact owned plan action and builds the minimized MB-647
+         *     ACTION context. The client supplies only the Today or Plan surface. The
+         *     request never mutates the SupportPlan, invokes no provider on focus or
+         *     hover, and returns a deterministic template when optional Journal/AI
+         *     phrasing is unavailable. A versioned Redis admission policy allows one
+         *     in-flight provider request per user and at most six admitted requests
+         *     per one-minute window across Care instances. Pending duplicates, bursts
+         *     beyond the cap, disabled admission and Redis failure return a bounded
+         *     deterministic template without invoking the provider.
+         */
+        post: operations["requestOwnSupportPlanActionCompanionExplanation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/{supportPlanId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one owned SupportPlan through the v3 action model
+         * @description Returns one immutable owner-scoped plan snapshot in any lifecycle state.
+         *     V2_RESOURCE_ADAPTER identifies a non-destructive projection of the
+         *     existing resource-slot model. NATIVE_V3 identifies canonical PlanAction
+         *     storage. Neither representation transfers ownership of referenced facts
+         *     from Content, Journal AI, Consultation, or Care screening.
+         */
+        get: operations["getOwnSupportPlanV3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Propose a new native Care-admitted action plan without converting v2 history
+         * @description Uses the exact owned guided screening evaluation, current paid entitlement,
+         *     approved resource admission and immutable personalization revision. Saved
+         *     EMOTION_CHECK_IN and JOURNALING activity-mode intents admit one optional
+         *     action of each corresponding type under support-plan-journal-actions-v1.
+         *     Actions have bounded purposes and reviewable budget-sharing schedule
+         *     defaults. Private Journal content and Emotion values never select actions.
+         *     Previously saved Emotion-policy plans retain their original action intent.
+         *     Required professional-support paths remain primary.
+         *     No existing v2 plan is converted, backfilled or mutated. An existing current
+         *     plan requires the separate reassessment-backed replacement command; the
+         *     draft alone never changes it. An incompatible existing draft must be
+         *     explicitly discarded before a new native proposal can be created.
+         */
+        post: operations["proposeNativeSupportPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read bounded immutable terminal plan history in the v3 action projection
+         * @description Includes native plans and explicit v2 adapters without rewriting either.
+         *     Same owner-only newest-updated cursor order as legacy plan history.
+         *     Historical source facts are not re-queried or recomposed.
+         */
+        get: operations["listOwnSupportPlanActionHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/{supportPlanId}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Explicitly activate one native draft after fresh Care admission checks
+         * @description Revalidates paid entitlement, exact screening context, policy, admitted
+         *     resource versions and snapshotted policy-specific Journal/Emotion intent outside local
+         *     locks. The owner transaction rechecks the draft version and preferences,
+         *     activates the plan/actions and cadence atomically, and records retry
+         *     identity in the existing command ledger. No second current plan is allowed.
+         *     A checklist-bound draft requires adaptive-review/confirm and returns 409
+         *     ADAPTIVE_REVIEW_CONFIRM_REQUIRED here after exact recorded ledger replay.
+         */
+        post: operations["activateNativeSupportPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/{supportPlanId}/cycle-continuation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Explicitly keep a review-due proposal plan for another 14-day cycle
+         * @description Owner-only command for an ACTIVE support-plan-proposal-v1 plan whose
+         *     cycle is REVIEW_DUE and a reassessment episode completed on or after
+         *     this cycle's review date. Requires the strong plan If-Match and a durable
+         *     Idempotency-Key. Starts cycleNumber + 1 on today's local date in the
+         *     cycle timezone, resets pausedDays and schedules a new one-time
+         *     reassessment occurrence on day 14. Preserves prior occurrence history,
+         *     action intent and plan status. No automatic renewal, completion,
+         *     entitlement change, appointment or consent mutation occurs.
+         *     An identical replay returns the plan without starting another cycle.
+         */
+        post: operations["continueNativeSupportPlanCycle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/{supportPlanId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Explicitly pause, resume, complete or discard one native plan
+         * @description Same Care-owned lifecycle rules as v2 history. No Journal/Emotion evidence changes
+         *     plan lifecycle. Natural identical-state retries preserve version. Completing
+         *     or pausing cancels only governed future open occurrences, preserving facts.
+         *     DISCARDED is draft-only; ACTIVE resumes a PAUSED plan, not draft activation.
+         */
+        put: operations["changeNativeSupportPlanStatus"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/{supportPlanId}/replacement-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Review an explicit native alternative against the current plan and latest reassessment
+         * @description Read-only review with fresh paid entitlement, current screening compatibility
+         *     and exact Content admission. Requires the latest owned canonical reassessment
+         *     with the same PHQ-9/GAD-7 pair as the proposed native draft. Existing current
+         *     v2 state is projected without conversion. A new explicit Journal/Emotion intent is an
+         *     admitted alternative, not a better clinical outcome. Four reassessment
+         *     dimensions remain separate; no automatic plan change occurs.
+         */
+        post: operations["reviewNativeSupportPlanReplacement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/{supportPlanId}/replace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Atomically accept an explicitly reviewed native replacement
+         * @description Repeats all replacement-review checks outside local locks then rechecks
+         *     current/draft validators in one owner transaction. Supersedes the old plan,
+         *     cancels only its future open occurrences and activates the NEW native draft,
+         *     its actions and schedules with an immutable command-ledger audit relation.
+         *     Old v2 rows/identities/history are retained, not converted or dual-written.
+         *     An unchanged action intent cannot replace the current valid plan. Identical
+         *     command retries do not create another activation or completion fact.
+         *     A checklist-bound draft requires adaptive-review/confirm and returns 409
+         *     ADAPTIVE_REVIEW_CONFIRM_REQUIRED here after exact recorded ledger replay.
+         */
+        post: operations["replaceWithNativeSupportPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/{supportPlanId}/adaptive-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the Care-governed adaptive review of the owner's current plan
+         * @description Owner-only, no-store, stateless read (support-plan-review-v1). Composes
+         *     the current ACTIVE or PAUSED native plan, its cycle and actual program
+         *     period, the latest owned canonical reassessment-summary-v2 (or the one
+         *     named by reassessmentSummaryId), approved engagement patterns, deterministic
+         *     contradictions and bounded Care-admitted options. Never creates a draft,
+         *     summary, cycle or schedule change. No global wellbeing, recovery or
+         *     adherence score is produced. Optional sources degrade independently;
+         *     an unavailable admission dependency makes currentAdmission UNAVAILABLE
+         *     and withholds commitment options instead of failing the whole review.
+         *     Owned review reads survive FREE or expired access; paid entitlement gates
+         *     only the mutation options (reported as ENTITLEMENT_REQUIRED).
+         */
+        get: operations["getAdaptiveSupportPlanReview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/{supportPlanId}/adaptive-review/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply exactly one explicitly chosen adaptive review option
+         * @description Requires the strong current-plan If-Match and a durable Idempotency-Key.
+         *     Care resolves identity from the JWT, replays an identical command first,
+         *     then recomputes the review context and compares reviewFingerprint. A
+         *     changed source, summary, admission, option set or period rollover returns
+         *     409 ADAPTIVE_REVIEW_STALE without mutation; the client reloads and the user
+         *     chooses again. Exactly one existing owner operation runs:
+         *     KEEP_CURRENT before due returns the validated unchanged plan (no write);
+         *     KEEP_CURRENT when REVIEW_DUE runs cycle continuation; LOWER_WORKLOAD and
+         *     DIFFERENT_TIME run one versioned schedule update; ALTERNATIVE_ACTION and
+         *     DIFFERENT_FOCUS first prepare a DRAFT (request without proposedPlanId) and,
+         *     after the user compares it, replace the current plan (request with
+         *     proposedPlanId and proposedVersion). PROFESSIONAL_SUPPORT_NEXT_STEP is
+         *     navigation only and is rejected here. A PAUSED plan is never resumed implicitly.
+         */
+        post: operations["confirmAdaptiveSupportPlanReviewOption"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plan-occurrences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List v3 action occurrences for a bounded local-date window
+         * @description Returns at most 31 local days from the authenticated user's current plan.
+         *     An occurrence links to its action and schedule without embedding source
+         *     payloads. Care orchestration state is separate from optional bounded
+         *     completion evidence owned by Care, Journal AI, or Consultation. An open
+         *     past occurrence may be displayed as OVERDUE but is never rewritten as a
+         *     failed or skipped outcome.
+         */
+        get: operations["listOwnPlanActionOccurrences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plan-occurrences/{occurrenceId}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Explicitly acknowledge a manual action or skip/reopen a native occurrence
+         * @description USER-owned native action only, with a strong occurrence version validator.
+         *     COMPLETED is permitted only for RESOURCE or ROUTINE_SELF_MANAGEMENT and
+         *     records a Care USER_ACKNOWLEDGEMENT fact; opening content is never completion.
+         *     EMOTION_CHECK_IN and JOURNAL may be SKIPPED or reopened from a user skip,
+         *     never manually completed. Accepted completion evidence cannot be erased or
+         *     reopened by this command. Cancelled, future local days, inactive plans/actions
+         *     and incompatible types fail closed. Identical desired-state retries preserve
+         *     version/history; no source-owner payload, eligibility or plan lifecycle changes.
+         */
+        put: operations["changeOwnNativeActionOccurrenceState"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plan-occurrences/{occurrenceId}/engagement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace helpfulness and private engagement metadata on an owned native occurrence
+         * @description Uses the v1 engagement request shape, but state must match the persisted
+         *     native occurrence state. This command cannot create or erase completion
+         *     evidence. Helpfulness requires COMPLETED; a barrier requires SKIPPED.
+         *     Reflection is private and excluded from integration events. Requires an
+         *     active plan/action and a non-cancelled occurrence. Exact no-op retries
+         *     preserve version and accepted evidence. V2 adapters keep the v1 command.
+         */
+        put: operations["replaceOwnNativeActionOccurrenceEngagement"];
+        post?: never;
+        /** Clear owned native engagement metadata while retaining occurrence state and evidence */
+        delete: operations["deleteOwnNativeActionOccurrenceEngagement"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plans/current/resource-actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the current plan's minimized resource actions in plan order
+         * @description Owner-only USER read for web, mobile and Content. Returns ACTIVE resource
+         *     actions of the current ACTIVE or PAUSED plan without rationale, why text,
+         *     screening data or entitlement inference. No current plan returns 200 with
+         *     planState NONE and an empty actions array. V2_RESOURCE_ADAPTER actions are
+         *     included with today null and cannot use native resource reconciliation.
+         *     localDate selects the occurrence projection; it never proves completion.
+         */
+        get: operations["getOwnCurrentPlanResourceActions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plan-occurrences/{occurrenceId}/resource/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reconcile one resource occurrence with exact Content-owned evidence
+         * @description Explicit USER command with no request body or client-supplied fact identity.
+         *     Requires an owned native RESOURCE occurrence of an ACTIVE plan. Care reads
+         *     Content outside a transaction using the action's exact resource identity
+         *     and revision and the occurrence date in the plan time zone. A qualifying
+         *     server occurredAt must fall on that date. One Content fact may complete
+         *     only one occurrence. An identical accepted retry returns the persisted
+         *     occurrence without changing its evidence, completion instant or version.
+         *     A missing fact or dependency failure leaves the occurrence unchanged.
+         *     Self-confirmation, opening content and resource_learning_completion are
+         *     never evidence. A completed occurrence cannot be reopened by state PUT.
+         */
+        post: operations["reconcileOwnResourceOccurrence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plan-occurrences/{occurrenceId}/emotion-check-in/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reconcile one native emotion action against its owner's check-in fact
+         * @description Explicit USER command with no request body or caller-supplied fact identity.
+         *     Care resolves the owned native EMOTION_CHECK_IN occurrence's local date,
+         *     timezone and action source, then reads the minimized Journal/AI evidence
+         *     outside any database transaction. Subject, local date, frozen timezone and
+         *     action/source authority must match before locked acceptance. One fact can
+         *     complete only one occurrence. Identical retries preserve accepted evidence,
+         *     completion time and version without another event or idempotency ledger.
+         *     MISSING and DELETED never create completion. A later deletion does not erase
+         *     an already accepted historical fact: sourceState and occurrenceState remain
+         *     separate. Dependency uncertainty returns 503, never false absence or success.
+         *     No emotion value, intensity, factor, note, interpretation or AI output enters
+         *     Care. This command does not create actions or change plan eligibility/lifecycle.
+         */
+        post: operations["reconcileOwnEmotionCheckInOccurrence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plan-occurrences/{occurrenceId}/journal/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reconcile a Journal writing action with an exact owned saved entry
+         * @description Explicit USER command. journalId selects a candidate, never asserts completion.
+         *     Care resolves the owned native JOURNAL action and occurrence, closes the
+         *     read transaction, then reads Journal/AI's content-free creation fact with
+         *     the verified owner bearer. Locked acceptance checks subject, exact entry,
+         *     action/source link, occurrence local date in its schedule timezone, and
+         *     creation at or after plan/action activation. Completion uses the server
+         *     creation instant, not the user-selected Journal date or an edit timestamp.
+         *     One entry creation fact may satisfy only one occurrence; repeats preserve
+         *     accepted evidence, completion time, version and the one minimized event.
+         *     MISSING and DELETED never create completion or erase accepted history.
+         *     Once completed, another entry cannot replace the accepted reference.
+         *     Dependency uncertainty returns 503 rather than absence or success.
+         *     No text, preview, tags, mood, AI reflection or analysis enters Care.
+         *     This does not grant AI-processing, specialist sharing or reflection reuse,
+         *     change plan lifecycle, or describe writing as recovery/treatment adherence.
+         */
+        post: operations["reconcileOwnJournalOccurrence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/support-plan-personalization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the authenticated user's current SupportPlan preferences
+         * @description Returns the latest immutable Care-owned preference revision. Existing
+         *     users without a saved revision receive NOT_PROVIDED at revision zero.
+         *     The fields describe practical preferences only; they are not symptoms,
+         *     diagnoses, screening evidence, or permission to bypass Care policy.
+         */
+        get: operations["getOwnSupportPlanPersonalization"];
+        /**
+         * Replace the authenticated user's bounded SupportPlan preferences
+         * @description Writes a new immutable revision only when the replacement differs from
+         *     the current value. Revision zero creates the first saved value. Empty
+         *     optional fields explicitly record SKIPPED. Saving preferences never
+         *     mutates an active or paused plan; planReview identifies the explicit
+         *     review path when the current plan used another preference revision.
+         */
+        put: operations["replaceOwnSupportPlanPersonalization"];
         post?: never;
         delete?: never;
         options?: never;
@@ -316,10 +2025,765 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/safety-directory-lookups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Return Care-owned safety fallback with optional current area-directory results
+         * @description Positive PHQ-9 item 9 and the explicit help-now action enter this same
+         *     flow. Calling this public endpoint is itself an explicit help-now action;
+         *     the trigger value is presentation provenance and never a risk label.
+         *     Care always returns local reviewed fallback even when Content is empty,
+         *     malformed, timed out, circuit-open, or unavailable.
+         */
+        post: operations["lookupReviewedSafetyDirectory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activity-dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read factual cross-feature activity aggregates for a selected recent window
+         * @description Returns zero-filled local-date buckets and summary counts assembled from authoritative
+         *     domain APIs. It never returns source record identifiers, assessment scores or answers,
+         *     journal content, emotion notes, chat content, or specialist-private data. The daily
+         *     emotion level is a five-point self-reported category used only for the owner's chart.
+         *     Counts are activity facts only and are not adherence, diagnosis, improvement, or recovery.
+         *     An unavailable source is named explicitly and makes partial true; remaining sources are
+         *     still returned. A limited source means the bounded upstream read may have older facts
+         *     outside this response.
+         */
+        get: operations["getOwnActivityDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plan-change-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create or replay a Care-reviewed plan change request
+         * @description The authenticated USER references one exact specialist proposal from a completed
+         *     consultation. Care reloads the authoritative proposal, current entitlement,
+         *     current SupportPlan, current compatible evaluation, and exact Content eligibility.
+         *     A successful review creates only a request for user decision; it does not change
+         *     the current SupportPlan.
+         */
+        post: operations["reviewOwnSpecialistResourceProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plan-change-requests/by-proposal/{proposalId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the authenticated user's reviewed request for a proposal */
+        get: operations["getOwnPlanChangeRequestByProposal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialist/plan-change-requests/by-proposal/{proposalId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Let the proposing specialist see only the user's decision status */
+        get: operations["getSpecialistPlanChangeRequestByProposal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plan-change-requests/{requestId}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Explicitly accept or reject one reviewed specialist proposal
+         * @description REJECT records a final decision without changing the plan. ACCEPT reloads the
+         *     authoritative proposal and freshly revalidates entitlement, current plan/version,
+         *     current evaluation, template constraints, and the exact resource version. Only a
+         *     still-valid request atomically supersedes the current plan and activates its replacement.
+         */
+        put: operations["decideOwnPlanChangeRequest"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        VoiceDisclosure: {
+            /** @constant */
+            consentType: "AI_VOICE_PROCESSING";
+            /** @constant */
+            consentVersion: "ai-voice-processing-capstone-v2";
+            /** @constant */
+            language: "vi-VN";
+            disclosureText: string;
+            /** Format: date-time */
+            publishedAt: string;
+        };
+        VoiceProblem: {
+            /** Format: uri */
+            type: string;
+            title: string;
+            status: number;
+            /** @enum {string} */
+            code: "UNAUTHENTICATED" | "FORBIDDEN" | "FREE_LOCKED" | "CONSENT_REQUIRED" | "VOICE_CONSENT_REQUIRED" | "SESSION_NOT_FOUND" | "SESSION_LIMIT" | "IDEMPOTENCY_CONFLICT" | "STALE_ATTEMPT" | "INVALID_SESSION_STATE" | "SESSION_EXPIRED" | "INVALID_REQUEST" | "INVALID_FINAL_TRANSCRIPT" | "GLOBAL_CAPACITY_FULL" | "QUOTA_EXHAUSTED" | "RATE_LIMITED" | "ENTITLEMENT_UNAVAILABLE" | "CONSENT_UNAVAILABLE" | "PROVIDER_UNAVAILABLE" | "PROVIDER_TIMEOUT";
+            /** Format: uuid */
+            correlationId: string;
+        } & (unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown);
+        VoiceConsent: {
+            /** @constant */
+            consentType: "AI_VOICE_PROCESSING";
+            /**
+             * @description v2 for current reads/new decisions; v1 only for an exact immutable historical POST replay, always current=false.
+             * @enum {string}
+             */
+            consentVersion: "ai-voice-processing-capstone-v1" | "ai-voice-processing-capstone-v2";
+            current: boolean;
+            granted: boolean;
+            /** Format: date-time */
+            acceptedAt?: string;
+            /** Format: date-time */
+            revokedAt?: string;
+        } & (unknown & unknown);
+        VoiceConsentCommand: {
+            /**
+             * @description New decisions require v2. v1 is accepted only when the owner-scoped idempotency key and exact historical intent already exist; it never appends/restores a grant.
+             * @enum {string}
+             */
+            consentVersion: "ai-voice-processing-capstone-v1" | "ai-voice-processing-capstone-v2";
+            granted: boolean;
+        };
+        SupportPlanReminderEligibilityQuery: {
+            /**
+             * Format: uuid
+             * @description Trusted owner asserted by Content
+             */
+            ownerAccountId: string;
+            /**
+             * Format: date-time
+             * @description Instant whose local date in each occurrence timezone is "today"
+             */
+            asOf: string;
+        };
+        SupportPlanReminderEligibility: {
+            eligible: boolean;
+        };
+        VoiceOwnerCheck: {
+            /** Format: uuid */
+            ownerId: string;
+            /** Format: uuid */
+            voiceSessionId: string;
+            /** @constant */
+            purpose: "AI_COMPANION_VOICE";
+        };
+        VoiceDualConsentDecision: {
+            /** Format: uuid */
+            ownerId: string;
+            /** Format: uuid */
+            voiceSessionId: string;
+            /** @constant */
+            purpose: "AI_COMPANION_VOICE";
+            /** @description Effective L1 AI_PROCESSING only; L2 is not required and cannot broaden Voice context. */
+            aiProcessingGranted: boolean;
+            voiceProcessingGranted: boolean;
+            /** @constant */
+            voiceConsentVersion: "ai-voice-processing-capstone-v2";
+            authorized: boolean;
+            /** Format: date-time */
+            checkedAt: string;
+        } & unknown;
+        CareProductJourneyMetrics: {
+            /** @constant */
+            source: "CARE";
+            /** @constant */
+            sourceVersion: "care-product-journey-v1";
+            /** Format: date-time */
+            asOf: string;
+            /** Format: int64 */
+            completedScreeningEpisodes: number;
+            /** Format: int64 */
+            supportGuidesGenerated: number;
+            /** Format: int64 */
+            paidSupportPlansActivated: number;
+        };
+        ConsultationBriefDraftRequest: {
+            currentSituation: string;
+            /** Format: uuid */
+            supportEvaluationId: string;
+            userGoals: string[];
+        };
+        ConsultationBriefScreeningContext: {
+            /** @enum {string} */
+            instrument: "PHQ9" | "GAD7";
+            /** @enum {string} */
+            domain: "DEPRESSIVE_SYMPTOMS" | "ANXIETY_SYMPTOMS";
+            /** @enum {string} */
+            screeningLevel: "MINIMAL" | "MILD" | "MODERATE" | "MODERATELY_SEVERE" | "SEVERE";
+            questionnaireVersion: string;
+            scoringVersion: string;
+            /** Format: date-time */
+            evaluatedAt: string;
+            policyVersion: string;
+        };
+        ConsultationBrief: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            appointmentId: string;
+            /** @enum {string} */
+            status: "DRAFT" | "APPROVED";
+            currentSituation: string;
+            /** Format: uuid */
+            supportEvaluationId: string;
+            screeningContext: components["schemas"]["ConsultationBriefScreeningContext"][];
+            userGoals: string[];
+            /** Format: uuid */
+            approvedSnapshotId: string | null;
+            /** @enum {string} */
+            sharingStatus: "NONE" | "ACTIVE" | "REVOKED";
+            /** Format: date-time */
+            accessStartAt: string | null;
+            /** Format: date-time */
+            accessEndAt: string | null;
+            /** Format: int64 */
+            version: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ConsultationBriefScreeningContextChoice: {
+            /** Format: uuid */
+            supportEvaluationId: string;
+            /** Format: date-time */
+            evaluatedAt: string;
+            screeningContext: components["schemas"]["ConsultationBriefScreeningContext"][];
+        };
+        ConsultationBriefScreeningContextList: {
+            items: components["schemas"]["ConsultationBriefScreeningContextChoice"][];
+            count: number;
+        };
+        ConsultationBriefAiDraftJob: {
+            /** Format: uuid */
+            jobId: string;
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: uuid */
+            consultationBriefId: string;
+            /** Format: int64 */
+            consultationBriefVersion: number;
+            /** Format: uuid */
+            supportEvaluationId: string;
+            /** @constant */
+            sourceSetVersion: "consultation-brief-ai-source-v1";
+            /** @enum {string} */
+            status: "RUNNING" | "SUCCEEDED" | "FAILED";
+            attemptCount: number;
+            /** @enum {string|null} */
+            terminalReason: "CONSENT_REQUIRED" | "AUTHORIZATION_REJECTED" | "SOURCE_CHANGED" | "SOURCE_DELETED" | "PROVIDER_UNAVAILABLE" | "INVALID_PROVIDER_RESULT" | null;
+            currentSituation: string | null;
+            userGoals: null | string[];
+            consentPolicyVersion: string | null;
+            /** @enum {string|null} */
+            servicePlan: "FREE" | "PLUS" | "PREMIUM" | null;
+            /** @enum {string|null} */
+            entitlementSource: "DEFAULT_FREE" | "DEMO" | "PAID" | null;
+            entitlementPolicyVersion: string | null;
+            /** Format: int64 */
+            entitlementVersion: number | null;
+            routingPolicyVersion: string | null;
+            providerApprovalVersion: string | null;
+            /** @enum {string|null} */
+            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI" | "BEDROCK" | null;
+            model: string | null;
+            /** @enum {string|null} */
+            promptVersion: "consultation-brief-draft-v1" | null;
+            /** @enum {integer|null} */
+            schemaVersion: 1 | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            completedAt: string | null;
+        };
+        SpecialistConsultationBrief: {
+            /** Format: uuid */
+            snapshotId: string;
+            /** Format: uuid */
+            appointmentId: string;
+            currentSituation: string;
+            /** Format: uuid */
+            supportEvaluationId: string;
+            screeningContext: components["schemas"]["ConsultationBriefScreeningContext"][];
+            userGoals: string[];
+            /** Format: int64 */
+            snapshotVersion: number;
+            /** Format: date-time */
+            approvedAt: string;
+            /** Format: date-time */
+            accessStartAt: string;
+            /** Format: date-time */
+            accessEndAt: string;
+            /** @constant */
+            sourceType: "CONSULTATION_BRIEF";
+        };
+        SpecialistClientContinuityItem: {
+            /** Format: uuid */
+            appointmentId: string;
+            /** Format: uuid */
+            userAccountId: string;
+            userDisplayName: string;
+            /** @enum {string} */
+            status: "CONFIRMED" | "IN_PROGRESS" | "SESSION_ENDED" | "COMPLETED";
+            /** @enum {string} */
+            modality: "IN_APP_CHAT" | "IN_APP_VIDEO";
+            /** Format: date-time */
+            scheduledStartAt: string;
+            /** Format: date-time */
+            scheduledEndAt: string;
+            /** Format: int64 */
+            appointmentVersion: number;
+            /** @enum {string} */
+            briefAccessState: "NOT_SHARED" | "REVOKED" | "STALE" | "TOO_EARLY" | "AVAILABLE" | "EXPIRED" | "UNAVAILABLE";
+            /** Format: int64 */
+            briefSnapshotVersion: number | null;
+            /** Format: date-time */
+            briefAccessStartAt: string | null;
+            /** Format: date-time */
+            briefAccessEndAt: string | null;
+        };
+        SpecialistClientContinuityList: {
+            items: components["schemas"]["SpecialistClientContinuityItem"][];
+            count: number;
+            /** Format: date-time */
+            generatedAt: string;
+            /** Format: date-time */
+            recentSince: string;
+            /** @constant */
+            policyVersion: "specialist-client-continuity-v1";
+        };
+        /** @description Half-open UTC period. Canonical v2 periods are issued by the Care reassessment context policy. */
+        ReassessmentPeriod: {
+            /** Format: date-time */
+            startAt: string;
+            /** Format: date-time */
+            endAt: string;
+        };
+        ReassessmentContext: {
+            /** @constant */
+            policyVersion: "reassessment-comparison-v1";
+            /** @enum {string} */
+            state: "READY" | "INCOMPLETE";
+            missingInstruments: components["schemas"]["Instrument"][];
+            /** Format: uuid */
+            phq9AssessmentId: string | null;
+            /** Format: uuid */
+            gad7AssessmentId: string | null;
+            previousPeriod: components["schemas"]["ReassessmentPeriod"];
+            currentPeriod: components["schemas"]["ReassessmentPeriod"];
+        };
+        /** @description At most one Journal evidence reference. Omitting both is valid only while effective L2 AI_CONTEXT_PROCESSING consent is missing (journal dimension UNAVAILABLE, CONSENT_REQUIRED or CONSENT_REVOKED); otherwise 400 INVALID_JOURNAL_EVIDENCE_REFERENCE. */
+        ReassessmentSummaryCreateRequest: {
+            /** Format: uuid */
+            phq9AssessmentId: string;
+            /** Format: uuid */
+            gad7AssessmentId: string;
+            /**
+             * Format: uuid
+             * @description Deprecated MB-386 v1 compatibility input. Never combined with journalJobId.
+             */
+            journalAnalysisId?: string;
+            /**
+             * Format: uuid
+             * @description Canonical v2 input; Care resolves the authoritative Journal job status and result.
+             */
+            journalJobId?: string;
+            previousPeriod: components["schemas"]["ReassessmentPeriod"];
+            currentPeriod: components["schemas"]["ReassessmentPeriod"];
+            /**
+             * Format: uuid
+             * @description Optional explicit owner self-report for the exact current period. Omission produces INSUFFICIENT_DATA and is never inferred from other evidence.
+             */
+            selfReportId?: string;
+        };
+        /**
+         * @description Non-diagnostic comparison of how the current period has felt to the user.
+         * @enum {string}
+         */
+        ReassessmentCurrentExperience: "BETTER" | "ABOUT_THE_SAME" | "MORE_DIFFICULT" | "UNSURE";
+        /** @enum {string} */
+        ReassessmentSymptomCode: "SLEEP_DIFFICULTY" | "LOW_ENERGY" | "PERSISTENT_WORRY" | "LOW_MOOD" | "CONCENTRATION_DIFFICULTY" | "APPETITE_CHANGE" | "SOCIAL_WITHDRAWAL" | "STRESS_OVERLOAD";
+        ReassessmentSymptomCatalogItem: {
+            code: components["schemas"]["ReassessmentSymptomCode"];
+            label: string;
+        };
+        /** @description Immutable eight-item bundle approved 2026-11-06. This local catalog makes no resource eligibility or diagnostic claim. */
+        ReassessmentSymptomCatalog: {
+            catalogRevision: string;
+            mappingRevision: string;
+            /** @constant */
+            maxSelections: 8;
+            items: components["schemas"]["ReassessmentSymptomCatalogItem"][];
+        };
+        /** @description Explicit optional self-report evidence. Empty selections never imply absence of symptoms. The released reassessment-symptoms-v1 bundle pins reassessment-symptom-resource-map-v1; unsupported submitted revisions return 409 rather than schema rejection. Codes are exact and case sensitive; duplicates, unknown or null elements and more than eight selections fail validation before sorting. */
+        ReassessmentSymptomChecklist: {
+            catalogRevision: string;
+            /** @description Care-authored pinned mapping revision, retained even for explicit empty selections. Clients submit only catalogRevision and selectedCodes. */
+            readonly mappingRevision?: string;
+            selectedCodes: components["schemas"]["ReassessmentSymptomCode"][];
+        };
+        /** @description One frozen candidate reason per selected code, never an eligible-resource offer. A code without an approved mapping has empty resourceIds. */
+        ReassessmentSymptomSelectionReason: {
+            code: components["schemas"]["ReassessmentSymptomCode"];
+            resourceIds: string[];
+            /** @enum {string} */
+            reasonCode: "SELF_REPORTED_SYMPTOM_MATCH" | "NO_APPROVED_RESOURCE_MAPPING";
+            mappingRevision: string;
+        };
+        /** @description An actually admitted selected resource with the exact Content tuple and Care slot context. Several selected codes may explain one deduplicated resource. */
+        ReassessmentSymptomResourceReason: {
+            code: components["schemas"]["ReassessmentSymptomCode"];
+            slotId: string;
+            /** Format: uuid */
+            resourceId: string;
+            contentVersion: string;
+            /** Format: uuid */
+            publicationId: string;
+            /** @enum {string} */
+            role: "PRIMARY" | "ADJUNCT";
+            eligibilityPolicyVersion: string;
+            /** @constant */
+            reasonCode: "SELF_REPORTED_SYMPTOM_MATCH";
+        };
+        /** @description Owner-only native-v3 mapping provenance. Complete sorted selections and exact admitted reasons bind the review fingerprint and confirmed draft; historical values are never hydrated from mutable sources. Omitted for historical plans, v2 adapters and options without an accepted checklist mapping. */
+        ReassessmentSymptomMapping: {
+            /** Format: uuid */
+            reassessmentSummaryId: string;
+            /** Format: uuid */
+            selfReportId: string;
+            /** Format: int64 */
+            selfReportRevision: number;
+            currentPeriod: components["schemas"]["ReassessmentPeriod"];
+            catalogRevision: string;
+            mappingRevision: string;
+            selectedCodes: components["schemas"]["ReassessmentSymptomCode"][];
+            resourceReasons: components["schemas"]["ReassessmentSymptomResourceReason"][];
+        };
+        ReassessmentSelfReportCreateRequest: {
+            currentPeriod: components["schemas"]["ReassessmentPeriod"];
+            currentExperience: components["schemas"]["ReassessmentCurrentExperience"];
+            /** @description Omission means no checklist; a present empty selection records explicit empty evidence under its catalog revision. */
+            symptomChecklist?: components["schemas"]["ReassessmentSymptomChecklist"];
+            helpfulContext?: string | null;
+            difficultContext?: string | null;
+        };
+        ReassessmentSelfReportReplaceRequest: {
+            currentExperience: components["schemas"]["ReassessmentCurrentExperience"];
+            /** @description Omission preserves the existing checklist. A present checklist atomically replaces it; selectedCodes [] clears selections. Explicit null is invalid. */
+            symptomChecklist?: components["schemas"]["ReassessmentSymptomChecklist"];
+            helpfulContext?: string | null;
+            difficultContext?: string | null;
+        };
+        ReassessmentSelfReport: {
+            /** Format: uuid */
+            selfReportId: string;
+            /** @constant */
+            sourceVersion: "reassessment-self-report-v1";
+            currentPeriod: components["schemas"]["ReassessmentPeriod"];
+            currentExperience: components["schemas"]["ReassessmentCurrentExperience"];
+            symptomChecklist?: components["schemas"]["ReassessmentSymptomChecklist"];
+            /** @description Candidate references only. Both checklist fields are omitted when no checklist was supplied. */
+            symptomSelectionReasons?: components["schemas"]["ReassessmentSymptomSelectionReason"][];
+            helpfulContext: string | null;
+            difficultContext: string | null;
+            /** Format: int64 */
+            version: number;
+            /** Format: date-time */
+            authoredAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @enum {string} */
+        ReassessmentDimensionState: "AVAILABLE" | "INSUFFICIENT_DATA" | "UNAVAILABLE";
+        ReassessmentScreeningPoint: {
+            /** Format: uuid */
+            assessmentId: string;
+            questionnaireVersion: string;
+            /** Format: date-time */
+            submittedAt: string;
+            totalScore: number;
+            screeningLevel: components["schemas"]["ScreeningLevel"];
+        } & {
+            [key: string]: unknown;
+        };
+        ReassessmentScreeningTrend: {
+            instrument: components["schemas"]["Instrument"];
+            state: components["schemas"]["ReassessmentDimensionState"];
+            scoringVersion: string;
+            previous: components["schemas"]["ReassessmentScreeningPoint"] | null;
+            current: components["schemas"]["ReassessmentScreeningPoint"];
+            rawDelta: number | null;
+            /** @enum {string} */
+            direction: "INCREASED" | "DECREASED" | "UNCHANGED" | "INSUFFICIENT_DATA";
+        } & {
+            [key: string]: unknown;
+        };
+        ReassessmentScreeningDimension: {
+            state: components["schemas"]["ReassessmentDimensionState"];
+            trends: components["schemas"]["ReassessmentScreeningTrend"][];
+        } & {
+            [key: string]: unknown;
+        };
+        ReassessmentJournalSourceRevision: {
+            /** Format: uuid */
+            journalId: string;
+            journalRevision: number;
+            /** @enum {string} */
+            period: "PREVIOUS" | "CURRENT";
+        };
+        ReassessmentJournalChange: {
+            signal: string;
+            /** @enum {string} */
+            direction: "MORE_FREQUENT" | "LESS_FREQUENT" | "SIMILAR" | "INSUFFICIENT_DATA";
+        };
+        ReassessmentJournalCoverage: {
+            previousPeriodJournalEntryCount: number;
+            currentPeriodJournalEntryCount: number;
+            sufficientForComparison: boolean;
+        };
+        ReassessmentJournalProvenance: {
+            /** @enum {string} */
+            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI" | "BEDROCK";
+            model: string;
+            promptVersion: string;
+            schemaVersion: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ReassessmentJournalDimension: {
+            state: components["schemas"]["ReassessmentDimensionState"];
+            /** @enum {string|null} */
+            unavailableReason: "SOURCE_NOT_FOUND" | "CONSENT_REQUIRED" | "CONSENT_REVOKED" | "CONSENT_UNAVAILABLE" | "ENTITLEMENT_UNAVAILABLE" | "ENTITLEMENT_CHANGED" | "AUTHORIZATION_CONTEXT_LOST" | "SOURCE_REVISION_CHANGED" | "SOURCE_DELETED" | "PROVIDER_TIMEOUT" | "PROVIDER_UNAVAILABLE" | "INVALID_PROVIDER_RESULT" | "INTERNAL_ERROR" | "DEPENDENCY_UNAVAILABLE" | "INVALID_PROJECTION" | null;
+            /**
+             * Format: uuid
+             * @description Present for canonical v2 snapshots, including failed jobs; absent when the snapshot was composed without a journal reference because L2 consent was missing.
+             */
+            jobId?: string | null;
+            /**
+             * Format: uuid
+             * @description Present only when Journal produced an analysis (or for a legacy v1 snapshot).
+             */
+            analysisId?: string | null;
+            sourceJournalRevisions: components["schemas"]["ReassessmentJournalSourceRevision"][];
+            contextSignals: string[];
+            emotionIndicators: string[];
+            recurringThemes: string[];
+            changesComparedWithPreviousPeriod: components["schemas"]["ReassessmentJournalChange"][];
+            preferences: string[];
+            barriers: string[];
+            helpfulPatterns: string[];
+            dataCoverage: components["schemas"]["ReassessmentJournalCoverage"] | null;
+            provenance: components["schemas"]["ReassessmentJournalProvenance"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        ReassessmentEngagementPeriod: {
+            completedCount: number;
+            skippedCount: number;
+        };
+        ReassessmentEngagementSource: {
+            /** Format: uuid */
+            occurrenceId: string;
+            /** Format: uuid */
+            supportPlanId: string;
+            /** Format: int64 */
+            sourcePlanVersion: number;
+            sourceSlotId: string | null;
+            /** Format: uuid */
+            sourceResourceId: string | null;
+            /** Format: int64 */
+            sourceContentVersion: number | null;
+            /** Format: date-time */
+            scheduledAt: string;
+            /** @enum {string} */
+            period: "PREVIOUS" | "CURRENT";
+            /** @enum {string} */
+            state: "COMPLETED" | "SKIPPED";
+            /** @enum {string|null} */
+            barrierCode: "LOW_ENERGY" | "NOT_ENOUGH_TIME" | "DIFFICULT_TO_START" | "NOT_A_GOOD_FIT" | "OTHER" | null;
+        };
+        ReassessmentEngagementDimension: {
+            state: components["schemas"]["ReassessmentDimensionState"];
+            previousPeriod: components["schemas"]["ReassessmentEngagementPeriod"];
+            currentPeriod: components["schemas"]["ReassessmentEngagementPeriod"];
+            sources: components["schemas"]["ReassessmentEngagementSource"][];
+        } & {
+            [key: string]: unknown;
+        };
+        ReassessmentReflectionSource: {
+            /** Format: uuid */
+            occurrenceId: string;
+            /** @enum {string} */
+            period: "PREVIOUS" | "CURRENT";
+            /** @enum {string|null} */
+            helpfulness: "NOT_HELPFUL" | "A_LITTLE_HELPFUL" | "HELPFUL" | "VERY_HELPFUL" | null;
+            reflection: string | null;
+            /** Format: date-time */
+            engagementUpdatedAt: string;
+        };
+        ReassessmentReflectionDimension: {
+            state: components["schemas"]["ReassessmentDimensionState"];
+            sources: components["schemas"]["ReassessmentReflectionSource"][];
+        } & {
+            [key: string]: unknown;
+        };
+        ReassessmentExplicitSelfReport: {
+            /** Format: uuid */
+            selfReportId: string;
+            /** @constant */
+            sourceVersion: "reassessment-self-report-v1";
+            /** Format: int64 */
+            sourceRevision: number;
+            currentPeriod: components["schemas"]["ReassessmentPeriod"];
+            currentExperience: components["schemas"]["ReassessmentCurrentExperience"];
+            symptomChecklist?: components["schemas"]["ReassessmentSymptomChecklist"];
+            /** @description Frozen alongside the exact report revision and period; no current catalog, source or Content hydration on historical reads. Omitted with symptomChecklist for old snapshots. */
+            symptomSelectionReasons?: components["schemas"]["ReassessmentSymptomSelectionReason"][];
+            helpfulContext: string | null;
+            difficultContext: string | null;
+            /** Format: date-time */
+            authoredAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ReassessmentSelfReportedExperienceDimension: {
+            state: components["schemas"]["ReassessmentDimensionState"];
+            /** @enum {string|null} */
+            unavailableReason: "NOT_PROVIDED" | "SOURCE_DELETED" | null;
+            source: components["schemas"]["ReassessmentExplicitSelfReport"] | null;
+        };
+        /** @description v1 snapshots expose userReflection; v2 snapshots expose selfReportedExperience and activityReflection as distinct sources. */
+        ReassessmentSummary: {
+            /** Format: uuid */
+            summaryId: string;
+            /** @enum {string} */
+            summaryVersion: "reassessment-summary-v1" | "reassessment-summary-v2";
+            /** Format: date-time */
+            composedAt: string;
+            previousPeriod: components["schemas"]["ReassessmentPeriod"];
+            currentPeriod: components["schemas"]["ReassessmentPeriod"];
+            screening: components["schemas"]["ReassessmentScreeningDimension"];
+            journalContext: components["schemas"]["ReassessmentJournalDimension"];
+            supportPlanEngagement: components["schemas"]["ReassessmentEngagementDimension"];
+            selfReportedExperience?: components["schemas"]["ReassessmentSelfReportedExperienceDimension"];
+            activityReflection?: components["schemas"]["ReassessmentReflectionDimension"];
+            /** @description Deprecated MB-386 v1 activity-reflection field retained only on historical snapshots. */
+            userReflection?: components["schemas"]["ReassessmentReflectionDimension"];
+            /** @constant */
+            disclaimerCode: "FOUR_DIMENSIONS_NOT_COMBINED";
+        } & {
+            [key: string]: unknown;
+        };
+        ReassessmentSummaryHistoryPage: {
+            items: components["schemas"]["ReassessmentSummary"][];
+            nextCursor: string | null;
+            hasMore: boolean;
+        };
+        /**
+         * @description Presentation provenance only; never a suicide-risk classification
+         * @enum {string}
+         */
+        SafetyDirectoryTrigger: "POSITIVE_ITEM_9" | "HELP_NOW";
+        CareSafetyDirectoryLookupRequest: {
+            trigger: components["schemas"]["SafetyDirectoryTrigger"];
+            provinceCode?: string;
+            districtCode?: string;
+            manualLocation?: string;
+        } & (unknown | unknown);
+        /** @enum {string} */
+        CareSafetyDirectoryState: "RESULTS" | "EMPTY" | "INVALID_AREA" | "UNAVAILABLE";
+        CareSafetyDirectoryEntry: {
+            /** Format: uuid */
+            directoryEntryId: string;
+            name: string;
+            /** @enum {string} */
+            type: "FACILITY" | "HOTLINE";
+            phone: string;
+            address: string | null;
+            coverage: {
+                [key: string]: unknown;
+            }[];
+            sourceName: string;
+            sourceReference: string;
+            /** Format: date-time */
+            reviewedAt: string;
+            /** Format: date-time */
+            verifiedAt: string;
+        } & {
+            [key: string]: unknown;
+        };
+        CareSafetyDirectoryLookupResponse: {
+            trigger: components["schemas"]["SafetyDirectoryTrigger"];
+            state: components["schemas"]["CareSafetyDirectoryState"];
+            /** @constant */
+            areaWording: "Cơ sở trong khu vực đã chọn";
+            /** @constant */
+            safetyGuidance: "Nếu bạn cảm thấy mình không an toàn hoặc có nguy cơ gây hại cho bản thân, hãy chủ động liên hệ dịch vụ khẩn cấp hoặc cơ sở y tế phù hợp tại khu vực của bạn.";
+            /** @constant */
+            limitation: "MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.";
+            entries: components["schemas"]["CareSafetyDirectoryEntry"][];
+        };
         ProfilePutRequest: {
             displayName: string;
             /**
@@ -365,15 +2829,39 @@ export interface components {
             version: number;
         };
         /** @enum {string} */
-        ConsentType: "PRIVACY_POLICY";
-        ConsentDecisionRequest: {
-            consentType: components["schemas"]["ConsentType"];
+        ConsentType: "PRIVACY_POLICY" | "AI_PROCESSING" | "AI_CONTEXT_PROCESSING";
+        ConsentDecisionRequest: components["schemas"]["PrivacyConsentDecisionRequest"] | components["schemas"]["AiProcessingConsentDecisionRequest"] | components["schemas"]["AiContextConsentDecisionRequest"];
+        PrivacyConsentDecisionRequest: {
             /**
-             * @description Exact approved consent text version shown to the user
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
+            consentType: "PRIVACY_POLICY";
+            /** @constant */
             policyVersion: "privacy-capstone-v3";
-            /** @description Grants or withdraws consent for future screening-data processing under this version */
+            granted: boolean;
+        };
+        AiProcessingConsentDecisionRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            consentType: "AI_PROCESSING";
+            /**
+             * @description Historical v1 is valid only for exact replay; new commands require current v2.
+             * @enum {string}
+             */
+            policyVersion: "ai-processing-capstone-v1" | "ai-processing-capstone-v2";
+            granted: boolean;
+        };
+        AiContextConsentDecisionRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            consentType: "AI_CONTEXT_PROCESSING";
+            /** @constant */
+            policyVersion: "ai-context-processing-capstone-v1";
             granted: boolean;
         };
         ConsentDecision: {
@@ -388,6 +2876,33 @@ export interface components {
         ConsentCollection: {
             decisions: components["schemas"]["ConsentDecision"][];
         };
+        AiProcessingAuthorization: {
+            authorized: boolean;
+            /** @enum {string} */
+            reason: "GRANTED" | "MISSING" | "REVOKED" | "POLICY_OUTDATED";
+            /** @constant */
+            consentType: "AI_PROCESSING";
+            policyVersion: string | null;
+            /** Format: date-time */
+            decidedAt: string | null;
+        };
+        AiContextAuthorization: {
+            authorized: boolean;
+            /** @enum {string} */
+            reason: "GRANTED" | "MISSING" | "REVOKED" | "POLICY_OUTDATED" | "DEPENDENCY_REQUIRED";
+            /** @constant */
+            consentType: "AI_CONTEXT_PROCESSING";
+            policyVersion: string | null;
+            /** Format: date-time */
+            decidedAt: string | null;
+        };
+        /** @description authorized is true iff reason is GRANTED; missing has null version/time; authorized context implies authorized chat. */
+        AiConsentAuthorizations: {
+            chat: components["schemas"]["AiProcessingAuthorization"];
+            context: components["schemas"]["AiContextAuthorization"];
+            /** Format: date-time */
+            checkedAt: string;
+        };
         PrivacyDisclosure: {
             /** @constant */
             consentType: "PRIVACY_POLICY";
@@ -396,6 +2911,31 @@ export interface components {
             /** @constant */
             locale: "vi-VN";
             title: string;
+            content: string;
+            /** @constant */
+            capstoneOnly: true;
+        };
+        AiProcessingDisclosure: {
+            /** @constant */
+            consentType: "AI_PROCESSING";
+            /** @constant */
+            version: "ai-processing-capstone-v2";
+            /** @constant */
+            locale: "vi-VN";
+            title: string;
+            content: string;
+            /** @constant */
+            capstoneOnly: true;
+        };
+        AiContextProcessingDisclosure: {
+            /** @constant */
+            consentType: "AI_CONTEXT_PROCESSING";
+            /** @constant */
+            version: "ai-context-processing-capstone-v1";
+            /** @constant */
+            locale: "vi-VN";
+            /** @constant */
+            title: "AI dùng bối cảnh";
             content: string;
             /** @constant */
             capstoneOnly: true;
@@ -442,6 +2982,190 @@ export interface components {
             privacyDisclosureAcknowledged: true;
             /** @description Exactly one answer for every question in the referenced definition; order is not authoritative */
             answers: components["schemas"]["AssessmentAnswer"][];
+        };
+        /** @enum {string} */
+        ScreeningEpisodePurpose: "INITIAL_CHECK" | "REASSESSMENT";
+        /** @enum {string} */
+        ScreeningEpisodeStatus: "IN_PROGRESS" | "READY" | "COMPLETED";
+        ScreeningEpisodeStartRequest: {
+            purpose: components["schemas"]["ScreeningEpisodePurpose"];
+        };
+        ScreeningEpisode: {
+            /** Format: uuid */
+            episodeId: string;
+            purpose: components["schemas"]["ScreeningEpisodePurpose"];
+            status: components["schemas"]["ScreeningEpisodeStatus"];
+            /** Format: uuid */
+            phq9AssessmentId?: string | null;
+            /** Format: uuid */
+            gad7AssessmentId?: string | null;
+            /** Format: uuid */
+            supportEvaluationId?: string | null;
+            /** Format: uuid */
+            presentationEvaluationId?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            completedAt?: string | null;
+            /** Format: int64 */
+            version: number;
+        };
+        GuidedJourney: {
+            /** @constant */
+            journeyPolicyVersion: "mb-guided-journey-v1";
+            /**
+             * @description ASSESSMENT_REQUIRED has no completed initial check; GUIDE_REQUIRED means the latestScreening episode's Guide is not yet persisted; GUIDE_READY has that persisted Guide.
+             * @enum {string}
+             */
+            stage: "ASSESSMENT_REQUIRED" | "GUIDE_REQUIRED" | "GUIDE_READY";
+            /** @description An IN_PROGRESS or READY initial-check episode exists; it never replaces the completed episode context below. */
+            assessmentInProgress: boolean;
+            /** Format: uuid */
+            episodeId: string | null;
+            /** Format: date-time */
+            episodeCompletedAt: string | null;
+            /** Format: uuid */
+            presentationEvaluationId: string | null;
+            /** Format: uuid */
+            supportGuideId: string | null;
+            /** @description Decided from the latestScreening episode's SupportEvaluation. With ASSESSMENT_REQUIRED it is REVIEW_SAFETY_SUPPORT when the latest completed reassessment is safety-positive, otherwise null. */
+            nextAction: ("REVIEW_SAFETY_SUPPORT" | "FIND_SPECIALIST" | "OPEN_CURRENT_PLAN" | "REVIEW_PLAN_DRAFT" | "START_PLAN_PROPOSAL" | "EXPLORE_GUIDE_RESOURCES") | null;
+            /**
+             * Format: uuid
+             * @description Current ACTIVE/PAUSED plan, otherwise the current DRAFT; never created by this read.
+             */
+            currentSupportPlanId: string | null;
+            /** @enum {string} */
+            entitlementStatus: "NOT_REQUIRED" | "VERIFIED" | "UNAVAILABLE";
+            /** @description Newest COMPLETED screening episode of either purpose; null when none is completed. Initial check and reassessment remain separate journeys (ADR 0023). */
+            latestScreening: components["schemas"]["GuidedJourneyLatestScreening"] | null;
+        };
+        GuidedJourneyLatestScreening: {
+            /** Format: uuid */
+            episodeId: string;
+            purpose: components["schemas"]["ScreeningEpisodePurpose"];
+            /** Format: date-time */
+            completedAt: string;
+            /** Format: uuid */
+            presentationEvaluationId: string;
+            /** Format: uuid */
+            supportEvaluationId: string;
+        };
+        HomeNextStep: {
+            /** @constant */
+            homePolicyVersion: "mb-home-next-step-v1";
+            journey: components["schemas"]["GuidedJourney"];
+            /** @description Present only for the owner's ACTIVE or PAUSED plan; a DRAFT remains journey.nextAction REVIEW_PLAN_DRAFT. */
+            plan: components["schemas"]["HomePlanStep"] | null;
+            /** @description Present only with no ACTIVE, PAUSED or DRAFT plan and when the newest plan in history is COMPLETED. */
+            lastCompletedPlan: components["schemas"]["HomeCompletedPlan"] | null;
+        };
+        /**
+         * @description Focus precedence is RESUME_PAUSED, then REVIEW_DUE, then DO_TODAY for
+         *     an open SCHEDULED/OVERDUE occurrence on localDate, then TODAY_DONE when
+         *     today's non-CANCELLED occurrences are all COMPLETED/SKIPPED, otherwise
+         *     NOTHING_TODAY. REVIEW_DUE changes no lifecycle state. The existing
+         *     cycle query supplies reviewDueOn. When timezone is omitted, localDate
+         *     uses the plan cycle zone, then its active/paused schedule zone, then
+         *     the existing profile-zone fallback.
+         */
+        HomePlanStep: {
+            /** Format: uuid */
+            supportPlanId: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "PAUSED";
+            /** @enum {string} */
+            focus: "RESUME_PAUSED" | "REVIEW_DUE" | "DO_TODAY" | "TODAY_DONE" | "NOTHING_TODAY";
+            /** Format: date */
+            reviewDueOn: string | null;
+            /** @description Current day from the plan cycle's currentDay; null when the plan has no cycle. */
+            cycleDay: number | null;
+            /** @description Length from the plan cycle's lengthDays; null when the plan has no cycle. */
+            cycleLengthDays: number | null;
+            /** Format: date */
+            localDate: string;
+            /** @description IANA zone used to determine localDate. */
+            timeZone: string;
+            today: components["schemas"]["HomeTodayProgress"];
+            /** @description Present only for DO_TODAY; earliest scheduledAt (null last), then plan focus and action order. */
+            nextOccurrence: components["schemas"]["HomeNextOccurrence"] | null;
+        };
+        HomeTodayProgress: {
+            /** @description Number of non-CANCELLED occurrences on localDate; includes SKIPPED. */
+            total: number;
+            /** @description Number of COMPLETED occurrences on localDate; excludes SKIPPED. */
+            completed: number;
+        };
+        HomeNextOccurrence: {
+            /** Format: uuid */
+            occurrenceId: string;
+            /** @description Native action identity or existing v2 slot identity from the adapter. */
+            actionId: string;
+            /** @enum {string} */
+            actionType: "RESOURCE" | "JOURNAL" | "EMOTION_CHECK_IN" | "ROUTINE_SELF_MANAGEMENT" | "PROFESSIONAL_SUPPORT" | "REASSESSMENT_SCREENING" | "SELF_REPORT_REVIEW";
+            title: string;
+            /** @enum {string} */
+            displayState: "SCHEDULED" | "OVERDUE";
+            /** Format: date-time */
+            scheduledAt: string | null;
+            estimatedDurationMinutes: number | null;
+        };
+        HomeCompletedPlan: {
+            /** Format: uuid */
+            supportPlanId: string;
+            /** Format: date-time */
+            completedAt: string;
+        };
+        ScreeningEpisodeEvaluationOutcome: {
+            episode: components["schemas"]["ScreeningEpisode"];
+            presentationEvaluation: components["schemas"]["SupportEvaluation"];
+        };
+        ScreeningEpisodeHistoryEvidence: {
+            instrument: components["schemas"]["Instrument"];
+            /**
+             * @description AVAILABLE is exact saved evidence; MISSING means the instrument was not attached; UNAVAILABLE means the attached historical record cannot be read safely.
+             * @enum {string}
+             */
+            state: "AVAILABLE" | "MISSING" | "UNAVAILABLE";
+            /** Format: uuid */
+            assessmentId: string | null;
+            totalScore: number | null;
+            screeningLevel: components["schemas"]["ScreeningLevel"] | null;
+            safetyStatus: components["schemas"]["SafetyStatus"] | null;
+        };
+        ScreeningEpisodeHistoryItem: {
+            /** Format: uuid */
+            episodeId: string;
+            purpose: components["schemas"]["ScreeningEpisodePurpose"];
+            status: components["schemas"]["ScreeningEpisodeStatus"];
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            completedAt: string | null;
+            /** Format: uuid */
+            presentationEvaluationId: string | null;
+            /** @enum {string} */
+            meaningState: "AVAILABLE" | "INCOMPLETE" | "UNAVAILABLE";
+            evidence: [
+                components["schemas"]["ScreeningEpisodeHistoryEvidence"] & {
+                    /** @constant */
+                    instrument?: "PHQ9";
+                },
+                components["schemas"]["ScreeningEpisodeHistoryEvidence"] & {
+                    /** @constant */
+                    instrument?: "GAD7";
+                }
+            ];
+            meaning: components["schemas"]["CombinedScreeningMeaning"] | null;
+        };
+        ScreeningEpisodeHistoryPage: {
+            items: components["schemas"]["ScreeningEpisodeHistoryItem"][];
+            nextCursor: string | null;
+            hasMore: boolean;
         };
         AssessmentAnswer: {
             /** Format: uuid */
@@ -570,6 +3294,74 @@ export interface components {
             /** @constant */
             disclaimer: "Đây là kết quả sàng lọc triệu chứng, không phải chẩn đoán y khoa. MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.";
         };
+        /** @description Versioned draft presentation of saved facts, not an original evaluation snapshot or a global health classification. */
+        CombinedScreeningMeaning: {
+            /** Format: uuid */
+            supportEvaluationId: string;
+            /** @constant */
+            sourcePolicyVersion: "mb-support-routing-capstone-v1";
+            /** Format: date-time */
+            evaluatedAt: string;
+            /** @constant */
+            presentationPolicyVersion: "mb-combined-screening-meaning-v1";
+            /** @constant */
+            contentVersion: "mb-combined-screening-meaning-vi-vn-v1-draft.3";
+            /** @constant */
+            referencePeriodDays: 14;
+            /** Format: uuid */
+            episodeId: string | null;
+            episodePurpose: components["schemas"]["ScreeningEpisodePurpose"] | null;
+            /** Format: date-time */
+            episodeCompletedAt: string | null;
+            /** Format: uuid */
+            domainSupportEvaluationId: string | null;
+            /**
+             * Format: uuid
+             * @description Existing immutable Guide for this exact episode, if already persisted; this read never creates one.
+             */
+            supportGuideId: string | null;
+            /** @description PHQ9 then GAD7; exact original pair, never current standalone history. */
+            evidence: components["schemas"]["CombinedScreeningMeaningEvidence"][];
+            supportTier: components["schemas"]["SupportTier"];
+            baseMeaning: components["schemas"]["CombinedScreeningBaseMeaning"];
+            /**
+             * @description Safety precedes ordinary meaning and CTA; this never changes an instrument level.
+             * @enum {string}
+             */
+            presentationPriority: "SAFETY" | "PROFESSIONAL_SUPPORT" | "SELF_GUIDED";
+            nextStep: components["schemas"]["SupportNextStep"];
+            /** @description Existing reviewed safety guidance for the stored safety tier; null otherwise. */
+            safetyGuidance: string | null;
+            /** @constant */
+            disclaimerCode: "SCREENING_NOT_DIAGNOSIS";
+            /** @constant */
+            disclaimer: "Đây là kết quả sàng lọc triệu chứng, không phải chẩn đoán y khoa. MentalBridge không cung cấp dịch vụ ứng cứu khẩn cấp, không giám sát con người 24/7 và không tự động liên hệ bên thứ ba.";
+        };
+        CombinedScreeningMeaningEvidence: {
+            /** Format: uuid */
+            assessmentId: string;
+            instrument: components["schemas"]["Instrument"];
+            questionnaireVersion: string;
+            scoringVersion: string;
+            totalScore: number;
+            screeningLevel: components["schemas"]["ScreeningLevel"];
+            safetyStatus: components["schemas"]["SafetyStatus"];
+        };
+        CombinedScreeningBaseMeaning: {
+            code: string;
+            text: string;
+            rationale: string;
+            /**
+             * @description Existing routing for this pair before the separate safety override; never a global severity.
+             * @enum {string}
+             */
+            supportTier: "SELF_GUIDED_SUPPORT" | "PROFESSIONAL_SUPPORT_RECOMMENDED";
+        };
+        SupportEvaluationHistoryPage: {
+            items: components["schemas"]["SupportEvaluation"][];
+            nextCursor?: string | null;
+            hasMore: boolean;
+        };
         SupportEvidence: {
             /** Format: uuid */
             assessmentId: string;
@@ -615,6 +3407,1054 @@ export interface components {
             /** Format: date-time */
             expiresAt: string;
         };
+        ProposeSupportPlanDraftRequest: {
+            /**
+             * Format: uuid
+             * @description One immutable SupportEvaluation v2 owned by the authenticated user
+             */
+            sourceSupportEvaluationId: string;
+        };
+        ReplaceSupportPlanChoicesRequest: {
+            slotSelections: components["schemas"]["SupportPlanSlotSelection"][];
+        };
+        SupportPlanSlotSelection: {
+            slotId: string;
+            /** Format: uuid */
+            resourceId: string;
+            contentVersion: string;
+        };
+        ChangeSupportPlanStatusRequest: {
+            /** @enum {string} */
+            status: "ACTIVE" | "PAUSED" | "COMPLETED" | "DISCARDED";
+            /**
+             * @description Optional user-selected reason accepted only when status is COMPLETED; it never implies recovery
+             * @enum {string}
+             */
+            completionReason?: "USER_DECISION" | "PLAN_NO_LONGER_FITS" | "OTHER";
+        };
+        ReplaceCurrentSupportPlanRequest: {
+            /** Format: uuid */
+            currentSupportPlanId: string;
+            currentVersion: number;
+            /** Format: uuid */
+            reassessmentSummaryId: string;
+        };
+        SupportPlanReplacementReview: {
+            /** @enum {string} */
+            outcome: "CURRENT_PLAN_VALID_NO_BETTER_ALTERNATIVE" | "CURRENT_PLAN_VALID_ALTERNATIVES_AVAILABLE" | "CURRENT_PLAN_NOT_ADMISSIBLE";
+            rationaleCodes: ("CURRENT_PLAN_ADMISSIBLE" | "EXACT_SELECTION_UNCHANGED" | "PROPOSED_SELECTION_DIFFERS" | "PROPOSED_PLAN_ADMISSIBLE" | "SUPPORT_EVALUATION_STALE" | "SUPPORT_PLAN_POLICY_STALE" | "RESOURCE_VERSION_STALE" | "SUPPORT_PLAN_INVALID_CHOICE" | "SUPPORT_PLAN_CORE_UNAVAILABLE")[];
+            comparison: components["schemas"]["SupportPlanReplacementComparisonItem"][];
+            currentPlan: components["schemas"]["SupportPlan"];
+            proposedPlan: components["schemas"]["SupportPlan"];
+            reassessmentSummary: components["schemas"]["ReassessmentSummary"];
+            /** Format: date-time */
+            reviewedAt: string;
+        };
+        SupportPlanReplacementComparisonItem: {
+            /** @enum {string} */
+            change: "UNCHANGED" | "CHANGED" | "ADDED" | "REMOVED";
+            currentSlotId: string | null;
+            currentResource: components["schemas"]["SupportPlanResource"] | null;
+            proposedSlotId: string | null;
+            proposedResource: components["schemas"]["SupportPlanResource"] | null;
+        };
+        SupportPlanDraft: components["schemas"]["SupportPlan"];
+        CreatePlanChangeRequest: {
+            /** Format: uuid */
+            proposalId: string;
+        };
+        PlanChangeDecision: {
+            /** @enum {string} */
+            decision: "ACCEPT" | "REJECT";
+        };
+        PlanChangeResourceSnapshot: {
+            /** Format: uuid */
+            resourceId: string;
+            resourceVersion: string;
+            title: string;
+        };
+        PlanChangeRequest: {
+            /** Format: uuid */
+            requestId: string;
+            version: number;
+            /** @enum {string} */
+            status: "READY_FOR_REVIEW" | "ACCEPTED" | "REJECTED";
+            /** @enum {string} */
+            outcomeCode: "PROPOSAL_ADMISSIBLE" | "PROPOSAL_APPLIED" | "USER_REJECTED";
+            /** Format: uuid */
+            sourceProposalId: string;
+            /** Format: uuid */
+            sourceAppointmentId: string;
+            /** Format: uuid */
+            sourceSummaryId: string;
+            /** Format: uuid */
+            specialistId: string;
+            /** @enum {string} */
+            proposalReasonCode: "POST_CONSULTATION_CONTINUITY" | "TRY_ALTERNATIVE_RESOURCE" | "ADDRESS_REPORTED_BARRIER";
+            proposalDetails: string | null;
+            targetSlotId: string;
+            currentResource: components["schemas"]["PlanChangeResourceSnapshot"] | null;
+            proposedResource: components["schemas"]["PlanChangeResourceSnapshot"];
+            /** Format: uuid */
+            currentSupportPlanId: string;
+            currentSupportPlanVersion: number;
+            /** Format: uuid */
+            replacementSupportPlanId: string | null;
+            replacementSupportPlanVersion: number | null;
+            /** Format: date-time */
+            reviewedAt: string;
+            /** Format: date-time */
+            decidedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /**
+         * @description Persisted owner snapshot. Under mb-support-plan-selection-v1, reads
+         *     present the two exact known malformed system-generated rationale and
+         *     negative-screen STANDARD_SAFETY_REMINDER literals with their original
+         *     Vietnamese characters restored. This encoding erratum changes no stored
+         *     text, identity, version, policy/source provenance, lifecycle, or safety
+         *     decision; all other copy remains unchanged.
+         */
+        SupportPlan: {
+            /** Format: uuid */
+            supportPlanId: string;
+            /** @enum {string} */
+            status: "DRAFT" | "ACTIVE" | "PAUSED" | "COMPLETED" | "SUPERSEDED" | "DISCARDED";
+            version: number;
+            source: components["schemas"]["SupportPlanSource"];
+            entitlement: components["schemas"]["SupportPlanEntitlementEvidence"];
+            rationale: components["schemas"]["SupportPlanRationale"];
+            safety: components["schemas"]["SupportPlanSafety"];
+            templateFamilies: components["schemas"]["SupportPlanTemplateFamily"][];
+            slots: components["schemas"]["SupportPlanSlot"][];
+            selectedResourceCount: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            activatedAt: string | null;
+            /** Format: date-time */
+            completedAt: string | null;
+            /**
+             * @description Optional user-selected completion reason; never evidence of recovery
+             * @enum {string|null}
+             */
+            completionReason: "USER_DECISION" | "PLAN_NO_LONGER_FITS" | "OTHER" | null;
+            /** Format: date-time */
+            supersededAt: string | null;
+            /** Format: date-time */
+            discardedAt: string | null;
+            /** @constant */
+            disclaimerCode: "WELLBEING_SUPPORT_NOT_TREATMENT";
+            disclaimer: string;
+        };
+        SupportPlanHistoryPage: {
+            items: components["schemas"]["SupportPlan"][];
+            nextCursor: string | null;
+            hasMore: boolean;
+        };
+        SupportPlanSource: {
+            /** Format: uuid */
+            supportEvaluationId: string;
+            /** @constant */
+            evaluationVersion: 2;
+            /** @constant */
+            evaluationPolicyVersion: "mb-support-routing-capstone-v2";
+            /** Format: date-time */
+            evaluatedAt: string;
+            /** @constant */
+            selectionPolicyVersion: "mb-support-plan-selection-v1";
+            /** @constant */
+            resourceEligibilityPolicyVersion: "content-eligibility-v1";
+            /** Format: date-time */
+            resourcesResolvedAt: string;
+        };
+        SupportPlanEntitlementEvidence: {
+            /** @enum {string} */
+            packageCode: "PLUS" | "PREMIUM";
+            /** @enum {string} */
+            source: "DEMO" | "PAID";
+            /** @constant */
+            policyVersion: "service-entitlement-v1";
+            version: number;
+            /** Format: date-time */
+            decidedAt: string;
+        };
+        SupportPlanRationale: {
+            /** @constant */
+            code: "DOMAIN_AWARE_WELLBEING_SUPPORT";
+            text: string;
+        };
+        SupportPlanSafety: {
+            status: components["schemas"]["SafetyStatus"];
+            reasonCode: string;
+            policyVersion: string;
+            /** @enum {string} */
+            guidanceCode: "REVIEW_SAFETY_GUIDANCE" | "STANDARD_SAFETY_REMINDER";
+            guidance: string;
+        };
+        SupportPlanTemplateFamily: {
+            /** @enum {string} */
+            family: "DEPRESSIVE_MAINTENANCE" | "DEPRESSIVE_SELF_GUIDED" | "DEPRESSIVE_PROFESSIONAL_ADJUNCT" | "ANXIETY_MAINTENANCE" | "ANXIETY_SELF_GUIDED" | "ANXIETY_PROFESSIONAL_ADJUNCT";
+            /** @constant */
+            templateVersion: 1;
+            /** @enum {string} */
+            targetDomain: "DEPRESSIVE_SYMPTOMS" | "ANXIETY_SYMPTOMS";
+        };
+        SupportPlanSlot: {
+            slotId: string;
+            /** @enum {string} */
+            kind: "CORE" | "OPTIONAL";
+            /** @enum {string} */
+            targetDomain: "DEPRESSIVE_SYMPTOMS" | "ANXIETY_SYMPTOMS";
+            purposeCode: string;
+            selectedResource: components["schemas"]["SupportPlanResource"] | null;
+            allowedAlternatives: components["schemas"]["SupportPlanResource"][];
+        };
+        SupportPlanResource: {
+            /** Format: uuid */
+            resourceId: string;
+            contentVersion: string;
+            /** Format: uuid */
+            publicationId: string;
+            /** @enum {string} */
+            role: "PRIMARY" | "ADJUNCT";
+            /** @enum {string} */
+            category: "BREATHING" | "MEDITATION" | "ARTICLE" | "VIDEO" | "JOURNALING" | "COMMUNITY";
+            title: string;
+            summary: string;
+            /** Format: uri */
+            externalUrl?: string | null;
+        };
+        ReplaceSupportPlanPersonalizationRequest: {
+            /**
+             * @description Optional non-diagnostic area the user wants to work on.
+             * @enum {string|null}
+             */
+            preferredFocus?: "ANXIETY" | "MOOD" | "SLEEP" | "MOTIVATION" | "UNDERSTANDING_EMOTIONS" | null;
+            /** @enum {string|null} */
+            desiredPace?: "GENTLE" | "BALANCED" | "ACTIVE" | null;
+            /** @enum {integer|null} */
+            dailyTimeBudgetMinutes?: 5 | 10 | 15 | 20 | 30 | null;
+            /** @enum {string|null} */
+            preferredDaypart?: "MORNING" | "AFTERNOON" | "EVENING" | "FLEXIBLE" | null;
+            preferredActivityModes: ("READING" | "GUIDED_PRACTICE" | "JOURNALING" | "EMOTION_CHECK_IN" | "ROUTINE")[];
+            commonBarriers: ("LOW_ENERGY" | "LIMITED_TIME" | "DIFFICULT_TO_START")[];
+        };
+        SupportPlanPersonalization: {
+            /** Format: uuid */
+            personalizationId: string | null;
+            /** @constant */
+            schemaVersion: "support-plan-personalization-v1";
+            revision: number;
+            /** @enum {string} */
+            status: "NOT_PROVIDED" | "PROVIDED" | "SKIPPED";
+            /**
+             * @description Optional non-diagnostic area the user wants to work on.
+             * @enum {string|null}
+             */
+            preferredFocus?: "ANXIETY" | "MOOD" | "SLEEP" | "MOTIVATION" | "UNDERSTANDING_EMOTIONS" | null;
+            /** @enum {string|null} */
+            desiredPace?: "GENTLE" | "BALANCED" | "ACTIVE" | null;
+            /** @enum {integer|null} */
+            dailyTimeBudgetMinutes?: 5 | 10 | 15 | 20 | 30 | null;
+            /** @enum {string|null} */
+            preferredDaypart?: "MORNING" | "AFTERNOON" | "EVENING" | "FLEXIBLE" | null;
+            preferredActivityModes: ("READING" | "GUIDED_PRACTICE" | "JOURNALING" | "EMOTION_CHECK_IN" | "ROUTINE")[];
+            commonBarriers: ("LOW_ENERGY" | "LIMITED_TIME" | "DIFFICULT_TO_START")[];
+            /** Format: date-time */
+            submittedAt: string | null;
+            planReview: components["schemas"]["SupportPlanPersonalizationReview"];
+        };
+        /** @description A true value asks the user to explicitly review/change the current plan; it never mutates it. */
+        SupportPlanPersonalizationReview: {
+            required: boolean;
+            /** Format: uuid */
+            supportPlanId: string | null;
+            supportPlanVersion: number | null;
+            /** @enum {string|null} */
+            reasonCode: "PREFERENCES_CHANGED_AFTER_DRAFT_CREATION" | "PREFERENCES_CHANGED_AFTER_PLAN_ACTIVATION" | null;
+        };
+        FocusPersonalizationProvenance: {
+            /** Format: uuid */
+            personalizationId: string;
+            revision: number;
+            /** @constant */
+            schemaVersion: "support-plan-personalization-v1";
+            /** @constant */
+            reasonCode: "USER_PREFERENCE_AND_CARE_POLICY";
+        };
+        SupportPlanCompanionExplanationRequest: {
+            /** @enum {string} */
+            surface: "TODAY" | "PLAN";
+        };
+        SupportPlanContextualCompanionMessage: {
+            /** @constant */
+            schemaVersion: "support-plan-companion-message-v1";
+            /** Format: uuid */
+            supportPlanId: string;
+            /** Format: uuid */
+            actionId: string;
+            /** @constant */
+            intent: "EXPLAIN_ACTION";
+            /** @enum {string} */
+            surface: "TODAY" | "PLAN";
+            text: string;
+            /** @enum {string} */
+            delivery: "GENERATED" | "TEMPLATE";
+            /** @constant */
+            policyVersion: "support-plan-companion-policy-v1";
+            /** @constant */
+            promptVersion: "support-plan-companion-prompt-v1";
+            /** @constant */
+            templateVersion: "support-plan-companion-template-v1";
+            /** @enum {string|null} */
+            provider: "DETERMINISTIC_FAKE" | "GEMINI" | "OPENAI" | "BEDROCK" | null;
+            model: string | null;
+            /** @enum {string|null} */
+            fallbackReason: "CONSENT_REQUIRED" | "CONSENT_UNAVAILABLE" | "PROVIDER_DISABLED" | "PROVIDER_TIMEOUT" | "PROVIDER_QUOTA_LIMITED" | "PROVIDER_UNAVAILABLE" | "MALFORMED_OUTPUT" | "POLICY_REJECTED" | null;
+        } & (unknown & unknown);
+        /**
+         * @description Canonical v3 representation. V2_RESOURCE_ADAPTER retains the bounded
+         *     system-copy display encoding erratum described by SupportPlan without
+         *     rewriting the v2 snapshot. Native v3 authored copy is not decoded.
+         */
+        SupportPlanV3: {
+            /** Format: uuid */
+            supportPlanId: string;
+            symptomMapping?: components["schemas"]["ReassessmentSymptomMapping"];
+            /** @constant */
+            modelVersion: 3;
+            /** @description Native v3 policy version (support-plan-proposal-v1 for new proposals) or the exact v2 selection policy exposed by the adapter. */
+            planPolicyVersion: string;
+            /**
+             * @description Identifies a non-destructive v2 read projection or canonical v3 storage.
+             * @enum {string}
+             */
+            representationMode: "V2_RESOURCE_ADAPTER" | "NATIVE_V3";
+            /** @enum {string} */
+            status: "DRAFT" | "ACTIVE" | "PAUSED" | "COMPLETED" | "SUPERSEDED" | "DISCARDED";
+            version: number;
+            safety: components["schemas"]["SupportPlanSafety"];
+            /** @description Additive optional bounded review cycle, present only on support-plan-proposal-v1 plans and omitted otherwise so existing strict clients keep reading earlier plans unchanged. Clients also accept null. */
+            cycle?: components["schemas"]["SupportPlanCycle"] | null;
+            focuses: components["schemas"]["PlanFocus"][];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            activatedAt: string | null;
+            /** Format: date-time */
+            completedAt: string | null;
+            /**
+             * @description Optional user-selected plan reason; never evidence of recovery.
+             * @enum {string|null}
+             */
+            completionReason: "USER_DECISION" | "PLAN_NO_LONGER_FITS" | "OTHER" | null;
+            /** Format: date-time */
+            supersededAt: string | null;
+            /** Format: date-time */
+            discardedAt: string | null;
+            /** @constant */
+            disclaimerCode: "WELLBEING_SUPPORT_NOT_TREATMENT";
+            disclaimer: string;
+        };
+        /**
+         * @description support-plan-cycle-v1 applies only to support-plan-proposal-v1 plans.
+         *     Day 1 is the activation or explicit continuation local date. Paused days
+         *     are calendar days from the pause date up to but excluding the resume
+         *     date, in the cycle timezone; an ongoing pause uses today's local date
+         *     as the exclusive end. These days do not advance the cycle. A pause
+         *     beginning on or after the review date does not move it or add paused days.
+         *     reviewDueOn is startedOn + 13 days + pausedDays. REVIEW_DUE pauses
+         *     ordinary activity occurrences and reminders but keeps the plan ACTIVE.
+         *     It remains until a current-cycle reassessment is completed and the user
+         *     explicitly chooses the next rhythm; it never changes lifecycle state.
+         *     NOT_STARTED is a DRAFT; CLOSED is COMPLETED, SUPERSEDED or DISCARDED.
+         */
+        SupportPlanCycle: {
+            /** @constant */
+            policyVersion: "support-plan-cycle-v1";
+            /** @constant */
+            lengthDays: 14;
+            timezone: string;
+            cycleNumber: number;
+            /** Format: date */
+            startedOn: string | null;
+            /** Format: date */
+            reviewDueOn: string | null;
+            currentDay: number | null;
+            pausedDays: number;
+            /** @enum {string} */
+            state: "NOT_STARTED" | "IN_PROGRESS" | "PAUSED" | "REVIEW_DUE" | "CLOSED";
+        };
+        PlanFocus: {
+            /** @description Native identity or stable virtual identity when adapted from v2. */
+            focusId: string;
+            title: string;
+            rationale: string | null;
+            /** @description Exact preference revision that shaped this focus; null for deterministic fallback focuses. */
+            personalizationProvenance: components["schemas"]["FocusPersonalizationProvenance"] | null;
+            ordinal: number;
+            actions: components["schemas"]["PlanAction"][];
+        };
+        PlanAction: {
+            /** @description Native identity, existing v2 slot identity, or a stable deterministic virtual identity produced by the read adapter. */
+            actionId: string;
+            /** @enum {string} */
+            actionType: "RESOURCE" | "JOURNAL" | "EMOTION_CHECK_IN" | "ROUTINE_SELF_MANAGEMENT" | "PROFESSIONAL_SUPPORT" | "REASSESSMENT_SCREENING" | "SELF_REPORT_REVIEW";
+            actionVersion: number;
+            /** @enum {string} */
+            representationMode: "V2_RESOURCE_ADAPTER" | "NATIVE_V3";
+            /** @enum {string} */
+            status: "DRAFT" | "ACTIVE" | "ENDED";
+            /**
+             * @description PRIMARY is the recommended path; ADJUNCT complements it and never replaces professional support. In a native focus, a non-ended PROFESSIONAL_SUPPORT action is primary and its sibling actions are adjunct; without that context actions are primary. purposeCode is never used to classify this role.
+             * @enum {string}
+             */
+            pathRole: "PRIMARY" | "ADJUNCT";
+            purposeCode: string;
+            rationale: string | null;
+            ordinal: number;
+            /** @description Null only when the Care-owned action has no source-domain object. */
+            source: components["schemas"]["ActionSourceReference"] | null;
+            provenance: components["schemas"]["ActionProvenance"];
+            presentation: components["schemas"]["ActionPresentationMetadata"];
+            /** @description Versioned current and ended rules; occurrence history is read separately. */
+            schedules: components["schemas"]["ActionSchedule"][];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            activatedAt: string | null;
+            /** Format: date-time */
+            endedAt: string | null;
+        } & (unknown & unknown & unknown & unknown & unknown & unknown);
+        ActionSourceReference: {
+            /** @enum {string} */
+            ownerDomain: "CONTENT" | "JOURNAL_AI" | "CONSULTATION" | "CARE";
+            /** @enum {string} */
+            sourceKind: "RESOURCE_VERSION" | "JOURNAL_TEMPLATE" | "EMOTION_CHECK_IN_CAPABILITY" | "PROFESSIONAL_SUPPORT_PATHWAY" | "APPOINTMENT" | "QUESTIONNAIRE_DEFINITION";
+            /** @description Opaque owner-domain identifier; it does not contain source payload data. */
+            sourceId: string;
+            sourceRevision: string | null;
+            sourcePolicyVersion: string | null;
+            /** Format: uuid */
+            publicationId: string | null;
+            eligibilityPolicyVersion: string | null;
+            /** Format: date-time */
+            verifiedAt: string | null;
+        } & (unknown & unknown & unknown & unknown & unknown);
+        ActionProvenance: {
+            /** @enum {string} */
+            category: "USER_SELECTED" | "SUPPORT_GUIDE" | "SPECIALIST" | "SYSTEM_POLICY";
+            referenceId: string | null;
+            referenceVersion: string | null;
+            /** Format: date-time */
+            acceptedAt: string;
+        } & ({
+            referenceId?: null;
+            referenceVersion?: null;
+        } | {
+            referenceId?: string;
+            referenceVersion?: string;
+        });
+        ActionPresentationMetadata: {
+            title: string;
+            summary: string | null;
+            instructions: string | null;
+            /**
+             * Format: uri
+             * @description Optional reviewed navigation target; visiting it never proves completion.
+             */
+            externalUrl: string | null;
+        };
+        ActionSchedule: {
+            /** Format: uuid */
+            scheduleId: string;
+            version: number;
+            schedulePolicyVersion: string;
+            /** @enum {string} */
+            recurrenceType: "ONCE" | "DAILY" | "WEEKLY";
+            recurrenceDayOfWeek: number | null;
+            daysOfWeek: number[];
+            /** @enum {string|null} */
+            preferredDaypart: "MORNING" | "AFTERNOON" | "EVENING" | "FLEXIBLE" | null;
+            estimatedDurationMinutes: number | null;
+            /** @description Local wall time without an offset; timezone supplies the IANA zone. */
+            localTime: string;
+            timezone: string;
+            /** Format: date */
+            effectiveFrom: string;
+            /** Format: date */
+            effectiveUntil: string | null;
+            reminderEnabled: boolean;
+            /** @enum {string} */
+            status: "DRAFT" | "ACTIVE" | "PAUSED" | "ENDED";
+        };
+        UpdateActionScheduleRequest: {
+            /** @description Null removes future workload without marking non-completion or failure. */
+            schedule: components["schemas"]["ActionScheduleInput"] | null;
+        };
+        ActionScheduleInput: {
+            /** @enum {string} */
+            recurrenceType: "ONCE" | "DAILY" | "WEEKLY";
+            /** @description Required and non-empty for WEEKLY; empty for ONCE and DAILY. */
+            daysOfWeek: number[];
+            /**
+             * @description Null means the user chose an exact local time instead of a daypart default.
+             * @enum {string|null}
+             */
+            preferredDaypart: "MORNING" | "AFTERNOON" | "EVENING" | "FLEXIBLE" | null;
+            /** @description Local wall time without an offset; timezone supplies the IANA zone. */
+            localTime: string;
+            estimatedDurationMinutes: number;
+            timezone: string;
+            /** Format: date */
+            effectiveFrom: string;
+            /** Format: date */
+            effectiveUntil: string | null;
+            reminderEnabled: boolean;
+        };
+        NativeSupportPlanReplacementReview: {
+            /** @enum {string} */
+            outcome: "CURRENT_PLAN_VALID_NO_BETTER_ALTERNATIVE" | "CURRENT_PLAN_VALID_ALTERNATIVES_AVAILABLE" | "CURRENT_PLAN_NOT_ADMISSIBLE";
+            rationaleCodes: string[];
+            currentPlan: components["schemas"]["SupportPlanV3"];
+            proposedPlan: components["schemas"]["SupportPlanV3"];
+            reassessmentSummary: components["schemas"]["ReassessmentSummary"];
+            /** Format: date-time */
+            reviewedAt: string;
+        };
+        /**
+         * @description support-plan-review-v1 adaptive review. Each evidence source stays separate
+         *     with its own availability, period and provenance; nothing is combined into
+         *     a wellbeing, recovery or adherence score or verdict. Options are bounded,
+         *     Care-admitted and explain their supporting and conflicting evidence.
+         */
+        AdaptiveSupportPlanReview: {
+            /** @constant */
+            schemaVersion: "adaptive-support-plan-review-v1";
+            /** @constant */
+            policyVersion: "support-plan-review-v1";
+            /** Format: uuid */
+            supportPlanId: string;
+            planVersion: number;
+            /** @enum {string} */
+            planStatus: "ACTIVE" | "PAUSED";
+            cycle: components["schemas"]["SupportPlanCycle"] | null;
+            /** Format: date-time */
+            reviewedAt: string;
+            programPeriod: components["schemas"]["AdaptiveReviewProgramPeriod"];
+            /**
+             * @description EARLY is a factual review before the cycle checkpoint or on a plan without a cycle; it never claims a full program elapsed.
+             * @enum {string}
+             */
+            reviewState: "EARLY" | "REVIEW_DUE" | "PAUSED";
+            reassessment: components["schemas"]["AdaptiveReviewReassessment"];
+            /**
+             * @description UNAVAILABLE means admission could not be checked now; it is never treated as proven inadmissible.
+             * @enum {string}
+             */
+            currentAdmission: "ADMISSIBLE" | "INADMISSIBLE" | "UNAVAILABLE";
+            /**
+             * @description Null while currentAdmission is UNAVAILABLE.
+             * @enum {string|null}
+             */
+            outcome: "CURRENT_PLAN_VALID_NO_BETTER_ALTERNATIVE" | "CURRENT_PLAN_VALID_ALTERNATIVES_AVAILABLE" | "CURRENT_PLAN_NOT_ADMISSIBLE" | null;
+            patterns: components["schemas"]["AdaptiveReviewPattern"][];
+            contradictions: components["schemas"]["AdaptiveReviewContradiction"][];
+            options: components["schemas"]["AdaptiveReviewOption"][];
+            /** @description Option kinds Care could not offer now, with a closed reason; no candidate is invented. */
+            unavailableOptions: components["schemas"]["AdaptiveReviewUnavailableOption"][];
+            /** @description Opaque hash of the decision context. Confirm compares it after recomputation. */
+            reviewFingerprint: string;
+            evidenceContext?: components["schemas"]["AdaptiveReviewEvidenceContext"];
+        };
+        /**
+         * @description Current Care evidence remains available without a composed summary. UTC comparison
+         *     windows are separate from programPeriod. Reusable sources contain exact native
+         *     action and occurrence revisions; private activity reflection text is excluded.
+         *     The embedded summary is a display projection with withdrawn sources masked;
+         *     stored immutable summaries and their history remain unchanged.
+         */
+        AdaptiveReviewEvidenceContext: {
+            comparisonPolicyVersion: string;
+            previousPeriod: components["schemas"]["ReassessmentPeriod"];
+            currentPeriod: components["schemas"]["ReassessmentPeriod"];
+            /** @constant */
+            timezone: "UTC";
+            selfReportedExperience: components["schemas"]["ReassessmentSelfReportedExperienceDimension"];
+            engagementSources: components["schemas"]["AdaptiveReviewEngagementSource"][];
+        };
+        AdaptiveReviewEngagementSource: {
+            /** Format: uuid */
+            occurrenceId: string;
+            occurrenceVersion: number;
+            /** Format: uuid */
+            actionId: string | null;
+            actionVersion: number | null;
+            /** Format: uuid */
+            supportPlanId: string;
+            sourcePlanVersion: number;
+            sourceSlotId: string | null;
+            /** Format: uuid */
+            sourceResourceId: string | null;
+            sourceContentVersion: number | null;
+            /** Format: date-time */
+            scheduledAt: string;
+            /** @enum {string} */
+            state: "COMPLETED" | "SKIPPED";
+            helpfulness: string | null;
+            barrierCode: string | null;
+            /** Format: date-time */
+            engagementUpdatedAt: string | null;
+        };
+        /** @description Actual plan participation period in the cycle timezone. Missed occurrences never move dates; only pauses do. */
+        AdaptiveReviewProgramPeriod: {
+            /** Format: date */
+            startedOn: string;
+            /** Format: date */
+            asOf: string;
+            timezone: string;
+            elapsedDays: number;
+            pausedDays: number;
+            fullCycleElapsed: boolean;
+            scheduledCount: number;
+            completedCount: number;
+            skippedCount: number;
+            /** @description Past occurrences with no recorded outcome; factual, never a failure. */
+            openCount: number;
+        };
+        AdaptiveReviewReassessment: {
+            /**
+             * @description AVAILABLE has a current canonical reassessment-summary-v2. NOT_STARTED and
+             *     INCOMPLETE mean the paired PHQ-9/GAD-7 or canonical summary is missing; self-report is optional. STALE means
+             *     the latest summary is older than the replacement window; UNAVAILABLE means a
+             *     dependency failed. Only AVAILABLE allows replacement options.
+             * @enum {string}
+             */
+            state: "AVAILABLE" | "NOT_STARTED" | "INCOMPLETE" | "STALE" | "UNAVAILABLE";
+            reasonCode: string | null;
+            /** @description The owned canonical four-dimension snapshot; null unless AVAILABLE or STALE. */
+            summary: components["schemas"]["ReassessmentSummary"] | null;
+        };
+        AdaptiveReviewEvidenceRef: {
+            /** @enum {string} */
+            source: "SCREENING_PHQ9" | "SCREENING_GAD7" | "JOURNAL_CONTEXT" | "PLAN_ENGAGEMENT" | "SELF_REPORTED_EXPERIENCE" | "ACTIVITY_REFLECTION" | "PATTERN" | "PREFERENCES";
+            /** @description Source identity (assessment, analysis, report, occurrence or pattern id) when one exists. */
+            refId: string | null;
+        };
+        /**
+         * @description Practical pattern from explicitly reusable occurrence feedback. A repeat is at
+         *     least two distinct occurrences of the same code for the same action in the
+         *     period. Never a clinical or adherence ratio.
+         */
+        AdaptiveReviewPattern: {
+            patternId: string;
+            /** @enum {string} */
+            kind: "REPEATED_BARRIER" | "REPEATED_HELPFUL";
+            /** @enum {string} */
+            code: "NOT_ENOUGH_TIME" | "LOW_ENERGY" | "NOT_A_GOOD_FIT" | "HELPFUL";
+            /** Format: uuid */
+            actionId: string;
+            actionTitle: string;
+            count: number;
+            occurrenceIds: string[];
+        };
+        /** @description Deterministic disagreement between sources, kept visible and unresolved. */
+        AdaptiveReviewContradiction: {
+            contradictionId: string;
+            /** @enum {string} */
+            kind: "INSTRUMENT_DIRECTIONS_DIFFER" | "SELF_REPORT_DIFFERS_FROM_SCREENING" | "JOURNAL_DIFFERS_FROM_SCREENING";
+            evidenceRefs: components["schemas"]["AdaptiveReviewEvidenceRef"][];
+        };
+        AdaptiveReviewChange: {
+            /** @enum {string} */
+            field: "ACTION" | "ESTIMATED_DURATION_MINUTES" | "DAYS_PER_WEEK" | "PREFERRED_DAYPART" | "LOCAL_TIME" | "FOCUS_ORDER";
+            before: string | null;
+            after: string | null;
+        };
+        AdaptiveReviewOption: {
+            symptomMapping?: components["schemas"]["ReassessmentSymptomMapping"];
+            /** @description Opaque and deterministic for the fingerprinted context. */
+            optionId: string;
+            /** @enum {string} */
+            kind: "KEEP_CURRENT" | "LOWER_WORKLOAD" | "DIFFERENT_TIME" | "ALTERNATIVE_ACTION" | "DIFFERENT_FOCUS" | "PROFESSIONAL_SUPPORT_NEXT_STEP";
+            /**
+             * @description NAVIGATE_PROFESSIONAL_SUPPORT opens existing professional routing with no
+             *     appointment, consent or plan write and is not confirmed through this API.
+             * @enum {string}
+             */
+            executionKind: "NO_CHANGE" | "CONTINUE_CYCLE" | "UPDATE_SCHEDULE" | "PREPARE_REPLACEMENT" | "NAVIGATE_PROFESSIONAL_SUPPORT";
+            /** Format: uuid */
+            actionId: string | null;
+            focusId: string | null;
+            rationaleCodes: string[];
+            evidenceRefs: components["schemas"]["AdaptiveReviewEvidenceRef"][];
+            conflictingEvidenceRefs: components["schemas"]["AdaptiveReviewEvidenceRef"][];
+            /** @description Exact before/after consequence; empty for KEEP_CURRENT and navigation. */
+            changes: components["schemas"]["AdaptiveReviewChange"][];
+        };
+        AdaptiveReviewUnavailableOption: {
+            /** @enum {string} */
+            kind: "KEEP_CURRENT" | "LOWER_WORKLOAD" | "DIFFERENT_TIME" | "ALTERNATIVE_ACTION" | "DIFFERENT_FOCUS" | "PROFESSIONAL_SUPPORT_NEXT_STEP";
+            /** @enum {string} */
+            reasonCode: "NO_SUPPORTING_PATTERN" | "NO_TIME_PREFERENCE" | "NO_ADMITTED_CANDIDATE" | "REASSESSMENT_REQUIRED" | "ADMISSION_UNAVAILABLE" | "CURRENT_PLAN_NOT_ADMISSIBLE" | "PLAN_PAUSED" | "ENTITLEMENT_REQUIRED";
+        };
+        ConfirmAdaptiveReviewOptionRequest: {
+            reviewFingerprint: string;
+            optionId: string;
+            /** Format: uuid */
+            reassessmentSummaryId?: string;
+            /**
+             * Format: uuid
+             * @description Only for PREPARE_REPLACEMENT after the prepared DRAFT was compared; omit to prepare the draft.
+             */
+            proposedPlanId?: string;
+            proposedVersion?: number;
+        };
+        AdaptiveReviewConfirmation: {
+            /** @enum {string} */
+            result: "KEPT" | "CYCLE_CONTINUED" | "SCHEDULE_UPDATED" | "DRAFT_PREPARED" | "REPLACED";
+            optionId: string;
+            /** @description The authoritative current plan after the operation. */
+            plan: components["schemas"]["SupportPlanV3"];
+            /** @description The prepared DRAFT for DRAFT_PREPARED, otherwise null. */
+            draft: components["schemas"]["SupportPlanV3"] | null;
+        };
+        PlanResourceActionsV1: {
+            /** @enum {string} */
+            planState: "ACTIVE" | "PAUSED" | "NONE";
+            /** Format: uuid */
+            supportPlanId?: string;
+            supportPlanVersion?: number;
+            /** @enum {string} */
+            representationMode?: "NATIVE_V3" | "V2_RESOURCE_ADAPTER";
+            /** @description Plan time zone used for weekly board boundaries. */
+            timeZone?: string;
+            /** @description Screening domains of the plan template families, in family order. Content uses them to pick daily resources. Omitted when the plan has no template family; consumers then cannot build a daily journey. */
+            targetDomains?: ("DEPRESSIVE_SYMPTOMS" | "ANXIETY_SYMPTOMS")[];
+            /**
+             * Format: date-time
+             * @description Start of the current plan period. For support-plan-cycle-v1 plans this is the start of the current cycle's first local day (activation or explicit continuation); otherwise the activation instant. Content counts journey days 1-14 from it.
+             */
+            activatedAt?: string;
+            /** Format: date */
+            localDate: string;
+            /** @description ACTIVE RESOURCE actions in plan order, without rationale or treatment meaning. */
+            actions: components["schemas"]["PlanResourceAction"][];
+        } & (unknown & unknown);
+        PlanResourceAction: {
+            /** @description Native action UUID or v2 adapter slot identity. */
+            actionId: string;
+            actionVersion: number;
+            title: string;
+            resource: {
+                /** Format: uuid */
+                resourceId: string;
+                resourceVersion: string;
+                /** Format: uuid */
+                publicationId: string;
+            };
+            /** @description Current action schedule, or null when no schedule applies. */
+            schedule: components["schemas"]["ActionSchedule"] | null;
+            /** @description Occurrence for localDate, or null for an unscheduled date or V2_RESOURCE_ADAPTER. */
+            today: null | {
+                /** Format: uuid */
+                occurrenceId: string;
+                occurrenceVersion: number;
+                /** @description Pinned occurrence IANA time zone used to determine its local today and reconcile evidence. */
+                timeZone?: string;
+                /** @enum {string} */
+                displayState: "SCHEDULED" | "OVERDUE" | "COMPLETED" | "SKIPPED" | "CANCELLED";
+                completionEvidence: components["schemas"]["CompletionEvidence"] | null;
+            };
+        };
+        EmotionCheckInOccurrenceReconciliation: {
+            /** @constant */
+            schemaVersion: "emotion-check-in-occurrence-reconciliation-v1";
+            /** Format: uuid */
+            occurrenceId: string;
+            /** Format: uuid */
+            actionId: string;
+            /** Format: date */
+            localDate: string;
+            /** @enum {string} */
+            sourceState: "RECORDED" | "MISSING" | "DELETED";
+            /** @enum {string} */
+            occurrenceState: "SCHEDULED" | "COMPLETED";
+            version: number;
+            /** Format: date-time */
+            completedAt: string | null;
+            completionEvidence: null | (components["schemas"]["CompletionEvidence"] & {
+                /** @constant */
+                kind?: "EMOTION_CHECK_IN";
+                /** @constant */
+                ownerDomain?: "JOURNAL_AI";
+            });
+        } & (unknown & unknown);
+        JournalOccurrenceReconciliation: {
+            /** @constant */
+            schemaVersion: "journal-entry-occurrence-reconciliation-v1";
+            /** Format: uuid */
+            occurrenceId: string;
+            /** Format: uuid */
+            actionId: string;
+            /** Format: date */
+            localDate: string;
+            /** Format: uuid */
+            journalId: string;
+            /** @enum {string} */
+            sourceState: "RECORDED" | "MISSING" | "DELETED";
+            /** @enum {string} */
+            occurrenceState: "SCHEDULED" | "COMPLETED";
+            version: number;
+            /** Format: date-time */
+            completedAt: string | null;
+            completionEvidence: null | (components["schemas"]["CompletionEvidence"] & {
+                /** @constant */
+                kind?: "JOURNAL_ENTRY";
+                /** @constant */
+                ownerDomain?: "JOURNAL_AI";
+            });
+        } & (unknown & unknown);
+        ActionOccurrenceList: {
+            /** Format: uuid */
+            supportPlanId: string;
+            /** @enum {string} */
+            supportPlanStatus: "ACTIVE" | "PAUSED";
+            /** @enum {string} */
+            representationMode: "V2_RESOURCE_ADAPTER" | "NATIVE_V3";
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            through: string;
+            occurrences: components["schemas"]["ActionOccurrence"][];
+            /** @constant */
+            interpretationCode: "SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE";
+        };
+        /**
+         * @description The six engagement fields (hidden, helpfulness, barrierCode, reflection,
+         *     summaryReuseApproved, engagementUpdatedAt) are additive and optional: they
+         *     are emitted only on native occurrences with engagement metadata or on
+         *     the native engagement command responses. Existing occurrence reads and
+         *     state commands without metadata keep their original wire shape, including
+         *     older state-only engagement timestamps.
+         */
+        ActionOccurrence: {
+            /** Format: uuid */
+            occurrenceId: string;
+            /** @description Native action identity or existing v2 slot identity from the adapter. */
+            actionId: string;
+            /** @enum {string} */
+            actionType: "RESOURCE" | "JOURNAL" | "EMOTION_CHECK_IN" | "ROUTINE_SELF_MANAGEMENT" | "PROFESSIONAL_SUPPORT" | "REASSESSMENT_SCREENING" | "SELF_REPORT_REVIEW";
+            actionVersion: number;
+            /** Format: uuid */
+            scheduleId: string;
+            scheduleVersion: number;
+            /** @enum {string} */
+            representationMode: "V2_RESOURCE_ADAPTER" | "NATIVE_V3";
+            version: number;
+            /** Format: date */
+            localDate: string;
+            /** Format: date-time */
+            scheduledAt: string;
+            /** @enum {string} */
+            state: "SCHEDULED" | "COMPLETED" | "SKIPPED" | "CANCELLED";
+            /** @enum {string} */
+            displayState: "SCHEDULED" | "OVERDUE" | "COMPLETED" | "SKIPPED" | "CANCELLED";
+            /** @enum {string|null} */
+            stateReason: "PLAN_PAUSED" | "PLAN_COMPLETED" | "PLAN_REPLACED" | "ACTION_ENDED" | "SCHEDULE_CHANGED" | "REVIEW_DUE" | null;
+            /** @description Null unless completion is backed by a bounded Care or owner-domain fact. */
+            completionEvidence: components["schemas"]["CompletionEvidence"] | null;
+            /** Format: date-time */
+            outcomeRecordedAt: string | null;
+            hidden?: boolean;
+            /** @enum {string|null} */
+            helpfulness?: "NOT_HELPFUL" | "A_LITTLE_HELPFUL" | "HELPFUL" | "VERY_HELPFUL" | null;
+            /** @enum {string|null} */
+            barrierCode?: "LOW_ENERGY" | "NOT_ENOUGH_TIME" | "DIFFICULT_TO_START" | "NOT_A_GOOD_FIT" | "OTHER" | null;
+            reflection?: string | null;
+            summaryReuseApproved?: boolean;
+            /** Format: date-time */
+            engagementUpdatedAt?: string | null;
+        } & (unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown & unknown);
+        CompletionEvidence: {
+            /** @enum {string} */
+            kind: "USER_ACKNOWLEDGEMENT" | "JOURNAL_ENTRY" | "EMOTION_CHECK_IN" | "APPOINTMENT_FULFILMENT" | "ASSESSMENT_HISTORY" | "SELF_REPORT_REVIEW" | "RESOURCE_PRACTICE_SESSION" | "RESOURCE_COMPLETION";
+            /** @enum {string} */
+            ownerDomain: "CARE" | "JOURNAL_AI" | "CONSULTATION" | "CONTENT";
+            /** @description Opaque authoritative fact identifier; never a copied source payload. */
+            factId: string;
+            factRevision: string | null;
+            /** Format: date-time */
+            occurredAt: string;
+            /** Format: date-time */
+            verifiedAt: string;
+        } & (unknown & unknown & unknown & unknown);
+        ChangeSupportPlanOccurrenceStateRequest: {
+            /** @enum {string} */
+            state: "COMPLETED" | "SKIPPED";
+        };
+        ReplaceSupportPlanOccurrenceEngagementRequest: {
+            /** @enum {string} */
+            state: "SCHEDULED" | "COMPLETED" | "SKIPPED";
+            /** @description Reversible owner display preference; it does not change engagement state. */
+            hidden: boolean;
+            /**
+             * @description Optional self-reported helpfulness, valid only with COMPLETED.
+             * @enum {string|null}
+             */
+            helpfulness: "NOT_HELPFUL" | "A_LITTLE_HELPFUL" | "HELPFUL" | "VERY_HELPFUL" | null;
+            /**
+             * @description Optional structured barrier, valid only with SKIPPED.
+             * @enum {string|null}
+             */
+            barrierCode: "LOW_ENERGY" | "NOT_ENOUGH_TIME" | "DIFFICULT_TO_START" | "NOT_A_GOOD_FIT" | "OTHER" | null;
+            /** @description Optional bounded owner reflection; excluded from minimized integration facts. */
+            reflection: string | null;
+            /** @description Explicit approval for later bounded-summary reuse; never grants live checklist access. */
+            summaryReuseApproved: boolean;
+        };
+        SupportPlanOccurrenceList: {
+            /** Format: uuid */
+            supportPlanId: string;
+            /** @enum {string} */
+            supportPlanStatus: "ACTIVE" | "PAUSED";
+            /** @constant */
+            schedulePolicyVersion: "support-plan-activity-schedule-v1";
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            through: string;
+            occurrences: components["schemas"]["SupportPlanOccurrence"][];
+            /** @constant */
+            interpretationCode: "SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE";
+        };
+        SupportPlanOccurrence: {
+            /** Format: uuid */
+            occurrenceId: string;
+            /** Format: uuid */
+            supportPlanId: string;
+            /** Format: uuid */
+            scheduleId: string;
+            scheduleVersion: number;
+            /** Format: date */
+            localDate: string;
+            /** @description Local wall time without an offset; timezone supplies the IANA zone. */
+            localTime: string;
+            timezone: string;
+            /** Format: date-time */
+            scheduledAt: string;
+            /** @enum {string} */
+            state: "SCHEDULED" | "COMPLETED" | "SKIPPED" | "CANCELLED";
+            /** @enum {string} */
+            displayState: "SCHEDULED" | "MISSED" | "COMPLETED" | "SKIPPED" | "CANCELLED";
+            /** @enum {string|null} */
+            stateReason: "PLAN_PAUSED" | "PLAN_COMPLETED" | "PLAN_REPLACED" | null;
+            version: number;
+            source: components["schemas"]["SupportPlanOccurrenceSource"];
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            completedAt: string | null;
+            /** Format: date-time */
+            skippedAt: string | null;
+            /** Format: date-time */
+            cancelledAt: string | null;
+            /** @description Owner-controlled display preference independent of completion state. */
+            hidden: boolean;
+            /** @enum {string|null} */
+            helpfulness: "NOT_HELPFUL" | "A_LITTLE_HELPFUL" | "HELPFUL" | "VERY_HELPFUL" | null;
+            /** @enum {string|null} */
+            barrierCode: "LOW_ENERGY" | "NOT_ENOUGH_TIME" | "DIFFICULT_TO_START" | "NOT_A_GOOD_FIT" | "OTHER" | null;
+            reflection: string | null;
+            /** @description Owner approval for a later bounded summary, not specialist checklist access. */
+            summaryReuseApproved: boolean;
+            /** Format: date-time */
+            engagementUpdatedAt: string | null;
+            /** @constant */
+            interpretationCode: "SELF_REPORTED_WELLBEING_ACTIVITY_NOT_TREATMENT_ADHERENCE";
+        };
+        SupportPlanOccurrenceSource: {
+            /** @enum {string} */
+            type: "RESOURCE" | "JOURNAL_PROMPT" | "EMOTION_CHECK_IN_PROMPT";
+            supportPlanVersion: number;
+            slotId: string | null;
+            /** Format: uuid */
+            resourceId: string | null;
+            contentVersion: string | null;
+            title: string;
+        };
+        ActivityDashboard: {
+            /** Format: date */
+            asOfLocalDate: string;
+            /** Format: date */
+            startLocalDate: string;
+            timezone: string;
+            summary: components["schemas"]["ActivityDashboardSummary"];
+            daily: components["schemas"]["ActivityDashboardDailyBucket"][];
+            sources: components["schemas"]["ActivityDashboardSources"];
+            partial: boolean;
+            bounded: components["schemas"]["ActivityDashboardBounds"];
+        };
+        ActivityDashboardSummary: {
+            totalActivities: number;
+            activeDays: number;
+            assessmentSubmissions: number;
+            journalEntries: number;
+            journalActiveDays: number;
+            emotionCheckIns: number;
+            emotionActiveDays: number;
+            supportCompleted: number;
+            supportSkipped: number;
+            appointmentEvents: number;
+            currentEmotionStreak: number;
+            /** @enum {string|null} */
+            latestAssessmentInstrument: "PHQ9" | "GAD7" | null;
+            /** Format: date-time */
+            latestAssessmentSubmittedAt: string | null;
+        };
+        ActivityDashboardDailyBucket: {
+            /** Format: date */
+            localDate: string;
+            assessments: number;
+            journals: number;
+            emotions: number;
+            emotionLevel: number | null;
+            supportCompleted: number;
+            supportSkipped: number;
+            appointments: number;
+            total: number;
+        };
+        ActivityDashboardSources: {
+            assessments: components["schemas"]["ActivityDashboardSourceState"];
+            journals: components["schemas"]["ActivityDashboardSourceState"];
+            emotions: components["schemas"]["ActivityDashboardSourceState"];
+            supportPlans: components["schemas"]["ActivityDashboardSourceState"];
+            appointments: components["schemas"]["ActivityDashboardSourceState"];
+        };
+        /** @enum {string} */
+        ActivityDashboardSourceState: "available" | "empty" | "limited" | "unavailable";
+        ActivityDashboardBounds: {
+            /** @enum {integer} */
+            windowDays: 7 | 30 | 90;
+            /** @constant */
+            assessmentLimit: 50;
+            /** @constant */
+            journalLimit: 50;
+            /** @constant */
+            emotionLimit: 90;
+            /** @constant */
+            appointmentLimit: 100;
+        };
         Problem: {
             /** Format: uri-reference */
             type: string;
@@ -636,6 +4476,79 @@ export interface components {
         };
     };
     responses: {
+        /** @description VALIDATION_FAILED for invalid shape, explicit null, duplicate, unknown or more than eight symptom codes. Safe field violations never echo private codes or context; nothing is written. */
+        ReassessmentSymptomValidationProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description REASSESSMENT_SYMPTOM_CATALOG_UNSUPPORTED for an unsupported/stale submitted catalog or IDEMPOTENCY_KEY_REUSED for different normalized POST content. Exact recorded replay is resolved before current-catalog validation; nothing new is written on conflict. */
+        ReassessmentSymptomConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Stable sanitized errors: UNAUTHENTICATED. No downstream payload or private identifiers. */
+        VoiceProblem401: {
+            headers: {
+                /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Stable sanitized errors: FORBIDDEN, FREE_LOCKED, CONSENT_REQUIRED, VOICE_CONSENT_REQUIRED. No downstream payload or private identifiers. */
+        VoiceProblem403: {
+            headers: {
+                /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Stable sanitized errors: ENTITLEMENT_UNAVAILABLE, CONSENT_UNAVAILABLE, PROVIDER_UNAVAILABLE. No downstream payload or private identifiers. */
+        VoiceProblem503: {
+            headers: {
+                /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Stable sanitized errors: SESSION_LIMIT, IDEMPOTENCY_CONFLICT, STALE_ATTEMPT, INVALID_SESSION_STATE. No downstream payload or private identifiers. */
+        VoiceProblem409: {
+            headers: {
+                /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
+        /** @description Stable sanitized errors: INVALID_REQUEST, INVALID_FINAL_TRANSCRIPT. No downstream payload or private identifiers. */
+        VoiceProblem422: {
+            headers: {
+                /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["VoiceProblem"];
+            };
+        };
         /** @description Request validation failed with VALIDATION_FAILED or a field violation such as INCOMPLETE_QUESTIONNAIRE or INVALID_ANSWER; no result was persisted */
         ValidationProblem: {
             headers: {
@@ -658,6 +4571,86 @@ export interface components {
                  *       ]
                  *     }
                  */
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Request validation failed (VALIDATION_FAILED or CONSENT_TYPE_UNAVAILABLE). */
+        ConsentValidationProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Missing or invalid bearer token. */
+        ConsentUnauthorizedProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Authenticated actor is not an allowed USER. */
+        ConsentForbiddenProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description CONSENT_UNAVAILABLE; current consent authority unavailable; failed closed before source or provider access. */
+        ConsentDependencyProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description PROFILE_NOT_FOUND; creating a decision requires an owned Care profile. */
+        ConsentProfileNotFoundProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Requested locale has no current disclosure (PRIVACY_DISCLOSURE_NOT_FOUND or AI_PROCESSING_DISCLOSURE_NOT_FOUND). */
+        ConsentDisclosureNotFoundProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description AI_CONTEXT_DISCLOSURE_NOT_FOUND; requested locale has no current L2 disclosure. */
+        AiContextDisclosureNotFoundProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description IDEMPOTENCY_KEY_REUSED for changed intent; AI_PROCESSING_DISCLOSURE_REQUIRED or AI_CONTEXT_DISCLOSURE_REQUIRED for a non-current new command; AI_PROCESSING_CONSENT_REQUIRED for a new L2 true decision without effective L1. */
+        ConsentConflictProblem: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
@@ -751,6 +4744,197 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description COMBINED_SCREENING_MEANING_UNAVAILABLE; the owned source policy, exact pair, stored tier or bounded presentation copy could not be trusted. No latest-pair substitution, false absence or history mutation occurs. */
+        CombinedScreeningMeaningUnavailableProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Current authoritative package is FREE (SUPPORT_PLAN_ENTITLEMENT_REQUIRED); no draft was created */
+        SupportPlanEntitlementProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Current source facts cannot produce a bounded draft (SUPPORT_EVALUATION_STALE, SUPPORT_PLAN_CORE_UNAVAILABLE, RESOURCE_VERSION_STALE, SUPPORT_PLAN_SAFETY_REVIEW_REQUIRED, SUPPORT_PLAN_TIME_BUDGET_INCOMPATIBLE, or SUPPORT_PLAN_DRAFT_EXISTS), or direct native replacement targets a checklist-bound draft (ADAPTIVE_REVIEW_CONFIRM_REQUIRED); no change was applied */
+        SupportPlanEligibilityProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Entitlement or exact resource eligibility could not be trusted (ENTITLEMENT_UNAVAILABLE or RESOURCE_ELIGIBILITY_UNAVAILABLE); no draft was created */
+        SupportPlanDependencyProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description An authoritative dependency could not be verified; access fails closed. */
+        DependencyProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The authenticated user has no current draft (SUPPORT_PLAN_DRAFT_NOT_FOUND) */
+        SupportPlanDraftNotFoundProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The authenticated user has no ACTIVE or PAUSED SupportPlan (SUPPORT_PLAN_CURRENT_NOT_FOUND) */
+        SupportPlanCurrentNotFoundProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The SupportPlan is absent or not owned by the authenticated user (SUPPORT_PLAN_NOT_FOUND) */
+        SupportPlanNotFoundProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The choice update targets a non-draft, omits a core slot, injects a version, or duplicates a version */
+        SupportPlanChoiceConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The activation command reuses a key differently, targets a non-draft, conflicts with another current plan, uses a stale personalization revision (SUPPORT_PLAN_PERSONALIZATION_REVIEW_REQUIRED), bypasses mandatory adaptive confirmation of a checklist-bound native draft (ADAPTIVE_REVIEW_CONFIRM_REQUIRED), or fails current policy or eligibility */
+        SupportPlanActivationConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description If-Match does not equal the current Care-owned SupportPlan version (SUPPORT_PLAN_VERSION_MISMATCH) */
+        SupportPlanVersionProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description If-Match does not equal the current preference revision (SUPPORT_PLAN_PERSONALIZATION_VERSION_MISMATCH) */
+        SupportPlanPersonalizationVersionProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The requested lifecycle transition is invalid, reassessment is stale or uses different screening evidence, or replacement is unchanged (SUPPORT_PLAN_TRANSITION_INVALID, REASSESSMENT_SUMMARY_STALE, REASSESSMENT_SCREENING_CONTEXT_MISMATCH, or SUPPORT_PLAN_REPLACEMENT_UNCHANGED) */
+        SupportPlanLifecycleConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The plan has no proposal cycle, is not ACTIVE and REVIEW_DUE, lacks a completed current-cycle reassessment, or reuses a key differently (SUPPORT_PLAN_MODEL_VERSION_UNSUPPORTED, SUPPORT_PLAN_CYCLE_NOT_REVIEW_DUE, SUPPORT_PLAN_REASSESSMENT_REQUIRED, or IDEMPOTENCY_KEY_REUSED); no cycle was started */
+        SupportPlanCycleConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The review context changed or the choice is not allowed (ADAPTIVE_REVIEW_STALE, ADAPTIVE_REVIEW_OPTION_UNAVAILABLE, SUPPORT_PLAN_NOT_REVIEWABLE, SUPPORT_PLAN_DRAFT_EXISTS, or IDEMPOTENCY_KEY_REUSED); nothing was applied */
+        AdaptiveReviewConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The command reuses an idempotency key differently, targets a non-mutable plan or action, or requests recurrence for a review-only action (IDEMPOTENCY_KEY_REUSED, SUPPORT_PLAN_SCHEDULE_NOT_MUTABLE, PLAN_ACTION_SCHEDULE_NOT_MUTABLE, or PLAN_ACTION_UNSCHEDULABLE) */
+        SupportPlanScheduleConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The occurrence is absent or not owned by the authenticated user (OCCURRENCE_NOT_FOUND) */
+        SupportPlanOccurrenceNotFoundProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The occurrence is cancelled, has a conflicting state, its plan/action is inactive, its model cannot take this command, or a native engagement command tries to change authoritative state (OCCURRENCE_NOT_OPEN, SUPPORT_PLAN_NOT_CURRENT, SUPPORT_PLAN_NOT_ACTIVE, SUPPORT_PLAN_MODEL_VERSION_UNSUPPORTED, or AUTHORITATIVE_COMPLETION_REQUIRED) */
+        SupportPlanOccurrenceConflictProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description If-Match does not equal the Care-owned occurrence version (OCCURRENCE_VERSION_MISMATCH) */
+        SupportPlanOccurrenceVersionProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Authoritative occurrence with local-time and source provenance */
+        SupportPlanOccurrenceResult: {
+            headers: {
+                ETag: components["headers"]["SupportPlanETag"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["SupportPlanOccurrence"];
+            };
+        };
+        /** @description Updated authoritative plan or the identical persisted command outcome */
+        SupportPlanCommandResult: {
+            headers: {
+                ETag: components["headers"]["SupportPlanETag"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["SupportPlan"];
+            };
+        };
         /** @description The selected owned result has no immediately preceding valid result with the same instrument and scoring version */
         InsufficientComparableDataProblem: {
             headers: {
@@ -778,8 +4962,17 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description If-Match is missing for an existing profile or does not match its current version (PROFILE_VERSION_MISMATCH) */
+        /** @description If-Match does not match the current resource version */
         VersionProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description A quoted current resource version is required in If-Match */
+        VersionRequiredProblem: {
             headers: {
                 [name: string]: unknown;
             };
@@ -801,7 +4994,11 @@ export interface components {
     parameters: {
         AssessmentId: string;
         DefinitionId: string;
+        AppointmentId: string;
         SupportEvaluationId: string;
+        SupportPlanId: string;
+        PlanActionId: string;
+        OccurrenceId: string;
         SessionId: string;
         Instrument: components["schemas"]["Instrument"];
         Locale: string;
@@ -809,18 +5006,203 @@ export interface components {
         CorrelationId: string;
         /** @description Retry key scoped to the authenticated account or anonymous session */
         IdempotencyKey: string;
+        ProposalId: string;
+        PlanChangeRequestId: string;
         /** @example "3" */
         OptionalIfMatch: string;
+        /** @example "3" */
+        RequiredIfMatch: string;
         /** @description Opaque cursor returned as nextCursor by the preceding page */
         AssessmentCursor: string;
+        /** @description Opaque cursor returned as nextCursor by the preceding support-evaluation page */
+        SupportEvaluationCursor: string;
         PageLimit: number;
     };
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description Strong ETag containing the Care-owned draft version */
+        SupportPlanETag: string;
+        /** @description Strong ETag containing the current preference revision; zero means no saved revision */
+        SupportPlanPersonalizationETag: string;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getVoiceDisclosure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-authorized response */
+            200: {
+                headers: {
+                    /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceDisclosure"];
+                };
+            };
+            401: components["responses"]["VoiceProblem401"];
+            403: components["responses"]["VoiceProblem403"];
+            503: components["responses"]["VoiceProblem503"];
+        };
+    };
+    getCurrentVoiceConsent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-authorized response */
+            200: {
+                headers: {
+                    /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceConsent"];
+                };
+            };
+            401: components["responses"]["VoiceProblem401"];
+            403: components["responses"]["VoiceProblem403"];
+            503: components["responses"]["VoiceProblem503"];
+        };
+    };
+    recordVoiceConsentDecision: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Scoped to authenticated owner+operation. Exact replay never reserves again; changed intent returns409. Replays of live access still reauthorize; expired tokens are never replayed as authority. Store HMAC key+safe intent hash/metadata only, never transcript. */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceConsentCommand"];
+            };
+        };
+        responses: {
+            /** @description Owner-authorized response */
+            200: {
+                headers: {
+                    /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceConsent"];
+                };
+            };
+            401: components["responses"]["VoiceProblem401"];
+            403: components["responses"]["VoiceProblem403"];
+            409: components["responses"]["VoiceProblem409"];
+            422: components["responses"]["VoiceProblem422"];
+            503: components["responses"]["VoiceProblem503"];
+        };
+    };
+    checkCurrentVoiceConsents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceOwnerCheck"];
+            };
+        };
+        responses: {
+            /** @description Owner-authorized response */
+            200: {
+                headers: {
+                    /** @description Required on success and errors. Never cache capabilities, connection tokens, transcripts or owner decisions. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceDualConsentDecision"];
+                };
+            };
+            401: components["responses"]["VoiceProblem401"];
+            403: components["responses"]["VoiceProblem403"];
+            422: components["responses"]["VoiceProblem422"];
+            503: components["responses"]["VoiceProblem503"];
+        };
+    };
+    checkSupportPlanReminderEligibility: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportPlanReminderEligibilityQuery"];
+            };
+        };
+        responses: {
+            /** @description Current reminder eligibility only */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanReminderEligibility"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            /** @description Missing, wrong or disabled service credential; empty body */
+            401: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getCareProductJourneyMetrics: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Counts only; no score, band, answer, Journal, emotion, AI, or user-level outcome is returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CareProductJourneyMetrics"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
     getOwnCareProfile: {
         parameters: {
             query?: never;
@@ -914,14 +5296,68 @@ export interface operations {
             /** @description Latest decisions returned */
             200: {
                 headers: {
+                    "Cache-Control"?: "no-store";
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["ConsentCollection"];
                 };
             };
-            401: components["responses"]["UnauthorizedProblem"];
-            403: components["responses"]["ForbiddenProblem"];
+            401: components["responses"]["ConsentUnauthorizedProblem"];
+            403: components["responses"]["ConsentForbiddenProblem"];
+        };
+    };
+    authorizeOwnAiProcessing: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authorization decision returned */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiProcessingAuthorization"];
+                };
+            };
+            401: components["responses"]["ConsentUnauthorizedProblem"];
+            403: components["responses"]["ConsentForbiddenProblem"];
+        };
+    };
+    authorizeOwnAiPurposes: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Atomic effective purpose snapshot returned */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiConsentAuthorizations"];
+                };
+            };
+            401: components["responses"]["ConsentUnauthorizedProblem"];
+            403: components["responses"]["ConsentForbiddenProblem"];
+            503: components["responses"]["ConsentDependencyProblem"];
         };
     };
     recordOwnConsentDecision: {
@@ -938,30 +5374,25 @@ export interface operations {
         };
         requestBody: {
             content: {
-                /**
-                 * @example {
-                 *       "consentType": "PRIVACY_POLICY",
-                 *       "policyVersion": "privacy-capstone-v3",
-                 *       "granted": true
-                 *     }
-                 */
                 "application/json": components["schemas"]["ConsentDecisionRequest"];
             };
         };
         responses: {
-            /** @description Consent decision appended */
+            /** @description Consent decision appended or exact original decision replayed */
             201: {
                 headers: {
+                    "Cache-Control"?: "no-store";
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["ConsentDecision"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
-            401: components["responses"]["UnauthorizedProblem"];
-            403: components["responses"]["ForbiddenProblem"];
-            409: components["responses"]["IdempotencyConflictProblem"];
+            400: components["responses"]["ConsentValidationProblem"];
+            401: components["responses"]["ConsentUnauthorizedProblem"];
+            403: components["responses"]["ConsentForbiddenProblem"];
+            404: components["responses"]["ConsentProfileNotFoundProblem"];
+            409: components["responses"]["ConsentConflictProblem"];
         };
     };
     getCurrentPrivacyDisclosure: {
@@ -981,13 +5412,68 @@ export interface operations {
             /** @description Current disclosure returned */
             200: {
                 headers: {
+                    "Cache-Control"?: "no-store";
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["PrivacyDisclosure"];
                 };
             };
-            404: components["responses"]["NotFoundProblem"];
+            404: components["responses"]["ConsentDisclosureNotFoundProblem"];
+        };
+    };
+    getCurrentAiProcessingDisclosure: {
+        parameters: {
+            query?: {
+                locale?: components["parameters"]["Locale"];
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current AI-processing disclosure returned */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiProcessingDisclosure"];
+                };
+            };
+            404: components["responses"]["ConsentDisclosureNotFoundProblem"];
+        };
+    };
+    getCurrentAiContextDisclosure: {
+        parameters: {
+            query?: {
+                locale?: components["parameters"]["Locale"];
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current L2 disclosure returned */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiContextProcessingDisclosure"];
+                };
+            };
+            404: components["responses"]["AiContextDisclosureNotFoundProblem"];
         };
     };
     getCurrentQuestionnaire: {
@@ -1166,6 +5652,863 @@ export interface operations {
             409: components["responses"]["InsufficientComparableDataProblem"];
         };
     };
+    startScreeningEpisode: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScreeningEpisodeStartRequest"];
+            };
+        };
+        responses: {
+            /** @description Guided screening episode started or resumed */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScreeningEpisode"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getCurrentScreeningEpisode: {
+        parameters: {
+            query: {
+                purpose: components["schemas"]["ScreeningEpisodePurpose"];
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest guided episode returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScreeningEpisode"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getCurrentGuidedJourney: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current journey pointer returned, including the no-completed-episode state */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuidedJourney"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            503: components["responses"]["DependencyProblem"];
+        };
+    };
+    getOwnHomeNextStep: {
+        parameters: {
+            query?: {
+                /**
+                 * @description IANA zone for today's local date; omitted uses the plan schedule time zone.
+                 * @example Asia/Ho_Chi_Minh
+                 */
+                timezone?: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current Home decision and minimized plan context */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeNextStep"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            503: components["responses"]["DependencyProblem"];
+        };
+    };
+    listOwnScreeningEpisodeHistory: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-scoped saved screening episode history */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScreeningEpisodeHistoryPage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    submitScreeningEpisodeAssessment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                episodeId: string;
+                instrument: components["schemas"]["Instrument"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssessmentSubmissionRequest"];
+            };
+        };
+        responses: {
+            /** @description Assessment persisted and attached to the episode */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Assessment"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+        };
+    };
+    completeScreeningEpisodeEvaluation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                episodeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exact episode evidence evaluated and persisted */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScreeningEpisodeEvaluationOutcome"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+        };
+    };
+    createOwnReassessmentSelfReport: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReassessmentSelfReportCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created self-report or identical idempotent replay */
+            201: {
+                headers: {
+                    ETag?: string;
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReassessmentSelfReport"];
+                };
+            };
+            400: components["responses"]["ReassessmentSymptomValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            409: components["responses"]["ReassessmentSymptomConflictProblem"];
+        };
+    };
+    getReassessmentSymptomCatalog: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approved catalog and pinned deterministic mapping revision */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReassessmentSymptomCatalog"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getOwnCurrentReassessmentSelfReport: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest active owner self-report */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReassessmentSelfReport"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    replaceOwnReassessmentSelfReport: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                "If-Match": string;
+            };
+            path: {
+                selfReportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReassessmentSelfReportReplaceRequest"];
+            };
+        };
+        responses: {
+            /** @description Replaced self-report */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReassessmentSelfReport"];
+                };
+            };
+            400: components["responses"]["ReassessmentSymptomValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ReassessmentSymptomConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+        };
+    };
+    deleteOwnReassessmentSelfReport: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                "If-Match": string;
+            };
+            path: {
+                selfReportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Self-report content deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            412: components["responses"]["VersionProblem"];
+        };
+    };
+    listOwnReassessmentSummaries: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                cursor?: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reassessment snapshot history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReassessmentSummaryHistoryPage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    composeOwnReassessmentSummary: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReassessmentSummaryCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description New snapshot or identical idempotent replay */
+            201: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReassessmentSummary"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+        };
+    };
+    getOwnReassessmentContext: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current Care-owned reassessment context */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReassessmentContext"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getOwnCurrentReassessmentSummary: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest immutable snapshot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReassessmentSummary"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getOwnReassessmentSummary: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                summaryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable snapshot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReassessmentSummary"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    saveConsultationBriefDraft: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @example "3" */
+                "If-Match"?: components["parameters"]["OptionalIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsultationBriefDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description Persisted draft */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationBrief"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    listOwnConsultationBriefScreeningContexts: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to twenty newest domain-aware screening contexts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationBriefScreeningContextList"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    createConsultationBriefAiDraftJob: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Versioned asynchronous draft job accepted or replayed */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationBriefAiDraftJob"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+            503: components["responses"]["ConsentDependencyProblem"];
+        };
+    };
+    getOwnConsultationBriefAiDraftJob: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current private job state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationBriefAiDraftJob"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getOwnConsultationBrief: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current owner view */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationBrief"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    deleteOwnConsultationBrief: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Brief content deleted and active access revoked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    approveConsultationBriefSnapshot: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable snapshot approved with an appointment-scoped access window */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationBrief"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    revokeConsultationBriefAccess: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Specialist access revoked */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultationBrief"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            428: components["responses"]["VersionRequiredProblem"];
+        };
+    };
+    getAssignedSpecialistConsultationBrief: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                appointmentId: components["parameters"]["AppointmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exact approved snapshot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistConsultationBrief"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            410: components["responses"]["ConflictProblem"];
+        };
+    };
+    listAssignedSpecialistClientContinuity: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authorized current and recent consultation relationships */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistClientContinuityList"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            503: components["responses"]["DependencyProblem"];
+        };
+    };
+    listOwnScreeningSupportEvaluations: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned as nextCursor by the preceding support-evaluation page */
+                cursor?: components["parameters"]["SupportEvaluationCursor"];
+                limit?: components["parameters"]["PageLimit"];
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owned support evaluations returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportEvaluationHistoryPage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
     evaluateOwnScreeningSupport: {
         parameters: {
             query?: never;
@@ -1221,7 +6564,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Immutable support evaluation returned with its original policy content */
+            /** @description Immutable support evaluation returned with reviewed content for its stored policy */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1233,6 +6576,1458 @@ export interface operations {
             401: components["responses"]["UnauthorizedProblem"];
             403: components["responses"]["ForbiddenProblem"];
             404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getOwnCombinedScreeningMeaning: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportEvaluationId: components["parameters"]["SupportEvaluationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Draft combined meaning with exact saved provenance and existing next step */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CombinedScreeningMeaning"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            503: components["responses"]["CombinedScreeningMeaningUnavailableProblem"];
+        };
+    };
+    proposeOwnSupportPlanDraft: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposeSupportPlanDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description The newly created draft, the existing current draft, or an identical idempotent replay */
+            201: {
+                headers: {
+                    Location?: string;
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanDraft"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["SupportPlanEntitlementProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["SupportPlanEligibilityProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    getOwnCurrentSupportPlanDraft: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current persisted draft */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanDraft"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanDraftNotFoundProblem"];
+        };
+    };
+    getOwnCurrentSupportPlan: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current authoritative plan */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlan"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanCurrentNotFoundProblem"];
+        };
+    };
+    listOwnTerminalSupportPlans: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stable terminal SupportPlan history page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanHistoryPage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getOwnSupportPlan: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owned SupportPlan snapshot */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlan"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+        };
+    };
+    replaceOwnSupportPlanDraftChoices: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceSupportPlanChoicesRequest"];
+            };
+        };
+        responses: {
+            200: components["responses"]["SupportPlanCommandResult"];
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["SupportPlanEntitlementProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["SupportPlanChoiceConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    activateOwnSupportPlan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["SupportPlanCommandResult"];
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["SupportPlanEntitlementProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["SupportPlanActivationConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    replaceOwnSupportPlanStatus: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeSupportPlanStatusRequest"];
+            };
+        };
+        responses: {
+            200: components["responses"]["SupportPlanCommandResult"];
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["SupportPlanLifecycleConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+        };
+    };
+    replaceOwnCurrentSupportPlan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceCurrentSupportPlanRequest"];
+            };
+        };
+        responses: {
+            200: components["responses"]["SupportPlanCommandResult"];
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["SupportPlanEntitlementProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["SupportPlanLifecycleConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    reviewOwnSupportPlanReplacement: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceCurrentSupportPlanRequest"];
+            };
+        };
+        responses: {
+            /** @description Truthful persisted comparison and separate reassessment context */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanReplacementReview"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["SupportPlanEntitlementProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["SupportPlanLifecycleConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    listOwnSupportPlanOccurrences: {
+        parameters: {
+            query: {
+                from: string;
+                through: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Persisted occurrence window for the current plan */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanOccurrenceList"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["SupportPlanCurrentNotFoundProblem"];
+        };
+    };
+    getOwnSupportPlanOccurrence: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["SupportPlanOccurrenceResult"];
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["SupportPlanOccurrenceNotFoundProblem"];
+        };
+    };
+    replaceOwnSupportPlanOccurrenceState: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeSupportPlanOccurrenceStateRequest"];
+            };
+        };
+        responses: {
+            200: components["responses"]["SupportPlanOccurrenceResult"];
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["SupportPlanOccurrenceNotFoundProblem"];
+            409: components["responses"]["SupportPlanOccurrenceConflictProblem"];
+            412: components["responses"]["SupportPlanOccurrenceVersionProblem"];
+        };
+    };
+    replaceOwnSupportPlanOccurrenceEngagement: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceSupportPlanOccurrenceEngagementRequest"];
+            };
+        };
+        responses: {
+            200: components["responses"]["SupportPlanOccurrenceResult"];
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanOccurrenceNotFoundProblem"];
+            409: components["responses"]["SupportPlanOccurrenceConflictProblem"];
+            412: components["responses"]["SupportPlanOccurrenceVersionProblem"];
+        };
+    };
+    deleteOwnSupportPlanOccurrenceEngagement: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["SupportPlanOccurrenceResult"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanOccurrenceNotFoundProblem"];
+            409: components["responses"]["SupportPlanOccurrenceConflictProblem"];
+            412: components["responses"]["SupportPlanOccurrenceVersionProblem"];
+        };
+    };
+    getOwnCurrentSupportPlanV3: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current SupportPlan v3 read model */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanCurrentNotFoundProblem"];
+        };
+    };
+    getOwnCurrentDraftSupportPlanV3: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current draft SupportPlan v3 read model */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanDraftNotFoundProblem"];
+        };
+    };
+    replaceOwnPlanActionSchedule: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+                actionId: components["parameters"]["PlanActionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateActionScheduleRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated authoritative SupportPlan v3 read model or identical retry result */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["SupportPlanScheduleConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+        };
+    };
+    requestOwnSupportPlanActionCompanionExplanation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+                actionId: components["parameters"]["PlanActionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportPlanCompanionExplanationRequest"];
+            };
+        };
+        responses: {
+            /** @description Generated or deterministic owner-scoped explanation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanContextualCompanionMessage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+        };
+    };
+    getOwnSupportPlanV3: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owned SupportPlan v3 read model */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+        };
+    };
+    proposeNativeSupportPlan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    sourceSupportEvaluationId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description New or replayed native draft with admitted actions and safe cadence */
+            201: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["SupportPlanEligibilityProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    listOwnSupportPlanActionHistory: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owned bounded terminal history across both supported models */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["SupportPlanV3"][];
+                        nextCursor: string | null;
+                        hasMore: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    activateNativeSupportPlan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Activated native plan or unchanged command replay */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["SupportPlanActivationConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    continueNativeSupportPlanCycle: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Plan with the explicitly continued cycle or unchanged command replay */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["SupportPlanCycleConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+        };
+    };
+    changeNativeSupportPlanStatus: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeSupportPlanStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description Native plan after explicit lifecycle command or unchanged retry */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["SupportPlanLifecycleConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+        };
+    };
+    reviewNativeSupportPlanReplacement: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceCurrentSupportPlanRequest"];
+            };
+        };
+        responses: {
+            /** @description Governed review outcome with current/proposed action models and separate reassessment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NativeSupportPlanReplacementReview"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["SupportPlanEligibilityProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    replaceWithNativeSupportPlan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceCurrentSupportPlanRequest"];
+            };
+        };
+        responses: {
+            /** @description Activated native replacement or unchanged command replay */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanV3"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["SupportPlanEligibilityProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    getAdaptiveSupportPlanReview: {
+        parameters: {
+            query?: {
+                reassessmentSummaryId?: string;
+            };
+            header?: {
+                /** @example "3" */
+                "If-Match"?: components["parameters"]["OptionalIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Adaptive review with separate sourced evidence and bounded options */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdaptiveSupportPlanReview"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["AdaptiveReviewConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+        };
+    };
+    confirmAdaptiveSupportPlanReviewOption: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                supportPlanId: components["parameters"]["SupportPlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmAdaptiveReviewOptionRequest"];
+            };
+        };
+        responses: {
+            /** @description Result of the one applied operation, or unchanged command replay */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdaptiveReviewConfirmation"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanNotFoundProblem"];
+            409: components["responses"]["AdaptiveReviewConflictProblem"];
+            412: components["responses"]["SupportPlanVersionProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    listOwnPlanActionOccurrences: {
+        parameters: {
+            query: {
+                from: string;
+                through: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded occurrence window for the current SupportPlan */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionOccurrenceList"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["SupportPlanCurrentNotFoundProblem"];
+        };
+    };
+    changeOwnNativeActionOccurrenceState: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    state: "SCHEDULED" | "COMPLETED" | "SKIPPED";
+                };
+            };
+        };
+        responses: {
+            /** @description Authoritative native action occurrence after explicit state command or unchanged retry */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionOccurrence"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanOccurrenceNotFoundProblem"];
+            409: components["responses"]["SupportPlanOccurrenceConflictProblem"];
+            412: components["responses"]["SupportPlanOccurrenceVersionProblem"];
+        };
+    };
+    replaceOwnNativeActionOccurrenceEngagement: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceSupportPlanOccurrenceEngagementRequest"];
+            };
+        };
+        responses: {
+            /** @description Native occurrence with its authoritative evidence and replaced engagement metadata */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionOccurrence"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanOccurrenceNotFoundProblem"];
+            409: components["responses"]["SupportPlanOccurrenceConflictProblem"];
+            412: components["responses"]["SupportPlanOccurrenceVersionProblem"];
+        };
+    };
+    deleteOwnNativeActionOccurrenceEngagement: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Native occurrence with cleared engagement metadata and unchanged completion evidence */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionOccurrence"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanOccurrenceNotFoundProblem"];
+            409: components["responses"]["SupportPlanOccurrenceConflictProblem"];
+            412: components["responses"]["SupportPlanOccurrenceVersionProblem"];
+        };
+    };
+    getOwnCurrentPlanResourceActions: {
+        parameters: {
+            query: {
+                localDate: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current plan resource projection, including an explicit NONE state */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "planState": "ACTIVE",
+                     *       "supportPlanId": "71000000-0000-4000-8000-000000000001",
+                     *       "supportPlanVersion": 3,
+                     *       "representationMode": "NATIVE_V3",
+                     *       "timeZone": "Asia/Ho_Chi_Minh",
+                     *       "localDate": "2026-10-21",
+                     *       "actions": [
+                     *         {
+                     *           "actionId": "72000000-0000-4000-8000-000000000001",
+                     *           "actionVersion": 1,
+                     *           "title": "Slow breathing practice",
+                     *           "resource": {
+                     *             "resourceId": "73000000-0000-4000-8000-000000000001",
+                     *             "resourceVersion": "2",
+                     *             "publicationId": "74000000-0000-4000-8000-000000000001"
+                     *           },
+                     *           "schedule": {
+                     *             "scheduleId": "75000000-0000-4000-8000-000000000001",
+                     *             "version": 1,
+                     *             "schedulePolicyVersion": "support-plan-schedule-v3",
+                     *             "recurrenceType": "DAILY",
+                     *             "recurrenceDayOfWeek": null,
+                     *             "daysOfWeek": [],
+                     *             "preferredDaypart": "EVENING",
+                     *             "estimatedDurationMinutes": 5,
+                     *             "localTime": "19:00:00",
+                     *             "timezone": "Asia/Ho_Chi_Minh",
+                     *             "effectiveFrom": "2026-10-19",
+                     *             "effectiveUntil": null,
+                     *             "reminderEnabled": false,
+                     *             "status": "ACTIVE"
+                     *           },
+                     *           "today": {
+                     *             "occurrenceId": "76000000-0000-4000-8000-000000000001",
+                     *             "timeZone": "Asia/Ho_Chi_Minh",
+                     *             "occurrenceVersion": 0,
+                     *             "displayState": "SCHEDULED",
+                     *             "completionEvidence": null
+                     *           }
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["PlanResourceActionsV1"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    reconcileOwnResourceOccurrence: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Persisted occurrence completed with Content evidence, including identical retries */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "occurrenceId": "76000000-0000-4000-8000-000000000001",
+                     *       "actionId": "72000000-0000-4000-8000-000000000001",
+                     *       "actionType": "RESOURCE",
+                     *       "actionVersion": 1,
+                     *       "scheduleId": "75000000-0000-4000-8000-000000000001",
+                     *       "scheduleVersion": 1,
+                     *       "representationMode": "NATIVE_V3",
+                     *       "version": 1,
+                     *       "localDate": "2026-10-21",
+                     *       "scheduledAt": "2026-10-21T12:00:00Z",
+                     *       "state": "COMPLETED",
+                     *       "displayState": "COMPLETED",
+                     *       "stateReason": null,
+                     *       "completionEvidence": {
+                     *         "kind": "RESOURCE_PRACTICE_SESSION",
+                     *         "ownerDomain": "CONTENT",
+                     *         "factId": "77000000-0000-4000-8000-000000000001",
+                     *         "factRevision": "2",
+                     *         "occurredAt": "2026-10-21T12:00:00Z",
+                     *         "verifiedAt": "2026-10-21T12:02:00Z"
+                     *       },
+                     *       "outcomeRecordedAt": "2026-10-21T12:00:00Z"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ActionOccurrence"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["SupportPlanOccurrenceNotFoundProblem"];
+            /** @description RESOURCE_EVIDENCE_NOT_FOUND, RESOURCE_EVIDENCE_ALREADY_USED, SUPPORT_PLAN_NOT_ACTIVE, OCCURRENCE_NOT_OPEN or RESOURCE_ACTION_REQUIRED; occurrence unchanged */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "https://mentalbridge.io/errors/RESOURCE_EVIDENCE_NOT_FOUND",
+                     *       "title": "Resource completion evidence not found",
+                     *       "status": 409,
+                     *       "detail": "No exact-version Content fact belongs to this occurrence date.",
+                     *       "code": "RESOURCE_EVIDENCE_NOT_FOUND",
+                     *       "correlationId": "78000000-0000-4000-8000-000000000001"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description OCCURRENCE_VERSION_MISMATCH; reload the occurrence and its ETag */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "https://mentalbridge.io/errors/OCCURRENCE_VERSION_MISMATCH",
+                     *       "title": "Occurrence version mismatch",
+                     *       "status": 412,
+                     *       "detail": "The occurrence changed since it was read.",
+                     *       "code": "OCCURRENCE_VERSION_MISMATCH",
+                     *       "correlationId": "78000000-0000-4000-8000-000000000001"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description RESOURCE_EVIDENCE_UNAVAILABLE; Content evidence could not be verified and occurrence is unchanged */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "https://mentalbridge.io/errors/RESOURCE_EVIDENCE_UNAVAILABLE",
+                     *       "title": "Resource evidence unavailable",
+                     *       "status": 503,
+                     *       "detail": "Content evidence could not be verified. Retry later.",
+                     *       "code": "RESOURCE_EVIDENCE_UNAVAILABLE",
+                     *       "correlationId": "78000000-0000-4000-8000-000000000001"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    reconcileOwnEmotionCheckInOccurrence: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative source state and the persisted occurrence outcome */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmotionCheckInOccurrenceReconciliation"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            /** @description Unsupported action, inactive plan, non-open occurrence, mismatched local date/timezone or evidence already used */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Emotion evidence owner unavailable or its projection invalid; no completion is recorded */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    reconcileOwnJournalOccurrence: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                occurrenceId: components["parameters"]["OccurrenceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    journalId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Current Journal source state and persisted occurrence outcome */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalOccurrenceReconciliation"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            /** @description Unsupported/inactive action, non-open/future occurrence, writing date/activation mismatch, stale link or conflicting/used evidence */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Journal evidence owner unavailable or invalid; no completion recorded */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getOwnSupportPlanPersonalization: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current preference revision or deterministic not-provided fallback */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanPersonalizationETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanPersonalization"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    replaceOwnSupportPlanPersonalization: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceSupportPlanPersonalizationRequest"];
+            };
+        };
+        responses: {
+            /** @description Persisted current preference revision */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanPersonalizationETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanPersonalization"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            412: components["responses"]["SupportPlanPersonalizationVersionProblem"];
         };
     };
     createAnonymousAssessmentSession: {
@@ -1325,6 +8120,204 @@ export interface operations {
             404: components["responses"]["NotFoundProblem"];
             410: components["responses"]["ExpiredAnonymousSessionProblem"];
             429: components["responses"]["RateLimitProblem"];
+        };
+    };
+    lookupReviewedSafetyDirectory: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CareSafetyDirectoryLookupRequest"];
+            };
+        };
+        responses: {
+            /** @description Synchronous safety response with results or explicit fallback state */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CareSafetyDirectoryLookupResponse"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+        };
+    };
+    getOwnActivityDashboard: {
+        parameters: {
+            query: {
+                /** @description IANA timezone used to place immutable timestamps into local-date buckets. */
+                timezone: string;
+                /** @description Number of recent local dates included in every aggregate and chart. */
+                range: 7 | 30 | 90;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Factual bounded activity aggregates returned */
+            200: {
+                headers: {
+                    "X-Correlation-Id"?: string;
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityDashboard"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    reviewOwnSpecialistResourceProposal: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePlanChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Proposal reviewed and awaiting the user's explicit decision */
+            201: {
+                headers: {
+                    Location?: string;
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanChangeRequest"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
+        };
+    };
+    getOwnPlanChangeRequestByProposal: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                proposalId: components["parameters"]["ProposalId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owned plan change request */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanChangeRequest"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getSpecialistPlanChangeRequestByProposal: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                proposalId: components["parameters"]["ProposalId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Proposal review and decision status */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanChangeRequest"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    decideOwnPlanChangeRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @example "3" */
+                "If-Match": components["parameters"]["RequiredIfMatch"];
+                /** @description Retry key scoped to the authenticated account or anonymous session */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                requestId: components["parameters"]["PlanChangeRequestId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanChangeDecision"];
+            };
+        };
+        responses: {
+            /** @description Final decision persisted; an accepted request includes the activated replacement plan reference */
+            200: {
+                headers: {
+                    ETag: components["headers"]["SupportPlanETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanChangeRequest"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            412: components["responses"]["VersionProblem"];
+            503: components["responses"]["SupportPlanDependencyProblem"];
         };
     };
 }

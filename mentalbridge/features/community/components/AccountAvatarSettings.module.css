@@ -1,0 +1,71 @@
+.state,
+.start {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+}
+.initials {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--teal-pale);
+  color: var(--teal-deep);
+  font-weight: 700;
+}
+.action {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 10px var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-soft);
+  color: var(--teal-deep);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+.action:hover:not(:disabled) {
+  background: var(--teal-pale);
+}
+.action:active:not(:disabled) {
+  transform: scale(var(--motion-scale-enter, 0.98));
+}
+.action:focus-visible {
+  outline: 2px solid var(--teal-deep);
+  outline-offset: 2px;
+}
+.action:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--ink);
+}
+@media (prefers-reduced-motion: reduce) {
+  .action {
+    transition: none;
+  }
+  .action:active:not(:disabled) {
+    transform: none;
+  }
+}
+/* On the account page the card is its own panel: no divider or trailing gap under it. */
+.editor > section {
+  padding-bottom: 0;
+  border-bottom: 0;
+}

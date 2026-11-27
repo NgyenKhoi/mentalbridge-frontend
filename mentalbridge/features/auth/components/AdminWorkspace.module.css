@@ -58,7 +58,7 @@
 }
 
 .main {
-  max-width: 900px;
+  max-width: 1320px;
   width: 100%;
   padding: 72px clamp(24px, 6vw, 80px);
 }
@@ -69,6 +69,12 @@
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.reviewMain {
+  max-width: none;
+  min-width: 0;
+  padding: 32px clamp(20px, 3vw, 40px);
 }
 
 .main h1 {

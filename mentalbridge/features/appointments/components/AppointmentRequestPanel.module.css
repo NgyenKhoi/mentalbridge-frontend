@@ -1,0 +1,1478 @@
+.page {
+  width: 100%;
+  max-width: 1340px;
+  margin: 0 auto;
+  padding: 24px 28px 48px;
+  color: #111827;
+  font-family:
+    var(--font-be-vietnam),
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Header Section */
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.eyebrow {
+  display: block;
+  color: #165b44 !important;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  font-family:
+    var(--font-be-vietnam),
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif !important;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-fraunces), Georgia, serif !important;
+  font-size: clamp(2rem, 3.2vw, 2.75rem);
+  font-weight: 600;
+  color: #12382c !important;
+  line-height: 1.2;
+}
+
+.subtitle {
+  max-width: 720px;
+  margin: 4px 0 0;
+  color: #4b5563 !important;
+  font-size: 14.5px;
+  line-height: 1.55;
+  font-family:
+    var(--font-be-vietnam),
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif !important;
+}
+
+/* Main 2-Column Grid */
+.mainGrid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1080px) {
+  .mainGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.leftCol {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.rightCol {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Hero Card (Next / Upcoming Spotlight) */
+.heroCard {
+  background: #12382c !important;
+  border-radius: 22px;
+  padding: 24px 28px;
+  color: #ffffff !important;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 6px 20px rgba(18, 56, 44, 0.12);
+  font-family:
+    var(--font-be-vietnam),
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif !important;
+}
+
+.heroCard :is(h1, h2, h3, h4) {
+  color: #ffffff !important;
+  font-family:
+    var(--font-be-vietnam),
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif !important;
+}
+
+.heroCard strong {
+  color: #ffffff !important;
+}
+
+.heroTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.heroPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.14) !important;
+  border: 1px solid rgba(167, 243, 208, 0.25) !important;
+  border-radius: 9999px;
+  padding: 4px 12px;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #a7f3d0 !important;
+}
+
+.heroPill :is(span, strong, small) {
+  color: #a7f3d0 !important;
+}
+
+.greenDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e !important;
+  flex-shrink: 0;
+}
+
+.heroDuration {
+  font-size: 12.5px !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.heroBody {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+@media (max-width: 640px) {
+  .heroBody {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.heroDateBox {
+  background: #164234 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 14px;
+  padding: 14px 18px;
+  text-align: center;
+  flex-shrink: 0;
+  min-width: 130px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.heroDateWeekday {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: #a7f3d0 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+.heroDateDay {
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  line-height: 1.2 !important;
+  font-family:
+    var(--font-be-vietnam),
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif !important;
+}
+
+.heroDateTime {
+  background: rgba(34, 197, 94, 0.25) !important;
+  color: #86efac !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  border-radius: 6px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+.heroInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.heroSpecialistHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.heroAvatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #ffffff !important;
+  color: #12382c !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700 !important;
+  font-size: 15px !important;
+  flex-shrink: 0;
+}
+
+.heroSpecialistMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.heroSpecialistName {
+  font-family:
+    var(--font-be-vietnam),
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  margin: 0 !important;
+  line-height: 1.3 !important;
+}
+
+.heroSpecialistRole {
+  font-size: 13px !important;
+  color: #d1fae5 !important;
+  font-weight: 400 !important;
+}
+
+.heroTopic {
+  font-size: 13px !important;
+  color: #e2f4eb !important;
+  line-height: 1.55 !important;
+  margin: 4px 0 0 !important;
+}
+
+.heroTopic strong {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+.heroFooter {
+  border-top: 1px solid rgba(255, 255, 255, 0.15) !important;
+  padding-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.heroSecureNotice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px !important;
+  color: #d1fae5 !important;
+}
+
+.heroSecureNotice svg {
+  color: #4ade80 !important;
+  flex-shrink: 0;
+}
+
+.heroSecureNotice span {
+  color: #d1fae5 !important;
+}
+
+.heroActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.heroRescheduleBtn {
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+  border-radius: 8px;
+  padding: 7px 16px;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.heroRescheduleBtn:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+}
+
+.heroEnterBtn {
+  background: #22c55e !important;
+  color: #064e3b !important;
+  border-radius: 8px;
+  padding: 7px 18px;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.heroEnterBtn :is(span, svg) {
+  color: #064e3b !important;
+}
+
+.heroEnterBtn:hover {
+  background: #16a34a !important;
+  color: #ffffff !important;
+}
+
+.heroEnterBtn:hover :is(span, svg) {
+  color: #ffffff !important;
+}
+
+/* Appointment List Card */
+.listCard {
+  background: #ffffff !important;
+  border: 1px solid #e5ede8 !important;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(18, 56, 44, 0.03);
+}
+
+.listHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.listHeaderLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.listTitle {
+  font-family:
+    var(--font-be-vietnam),
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif !important;
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+  margin: 0;
+}
+
+.listSubtitle {
+  font-size: 13px !important;
+  color: #4b5563 !important;
+  margin: 0;
+}
+
+.filterTabs {
+  display: inline-flex;
+  background: #f3f4f6;
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.filterTab {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #4b5563 !important;
+  border-radius: 8px;
+  padding: 5px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filterTabActive {
+  background: #ffffff !important;
+  color: #111827 !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+.rowsList {
+  display: flex;
+  flex-direction: column;
+}
+
+.appointmentRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 18px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.appointmentRow:last-child {
+  border-bottom: none;
+}
+
+/* Date block variants */
+.dateBlockGreen,
+.dateBlockAmber,
+.dateBlockGray {
+  width: 56px;
+  height: 64px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 1px;
+}
+
+.dateBlockGreen {
+  background: #edf7f2 !important;
+  border: 1px solid #d4e8db !important;
+}
+
+.dateBlockAmber {
+  background: #fef6ed !important;
+  border: 1px solid #fed7aa !important;
+}
+
+.dateBlockGray {
+  background: #f3f4f6 !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+.dateWeekdayGreen {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: #165b44 !important;
+  text-transform: uppercase !important;
+}
+
+.dateDayGreen {
+  font-family:
+    var(--font-be-vietnam),
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: #12382c !important;
+  line-height: 1.1 !important;
+}
+
+.dateMonthGreen {
+  font-size: 10px !important;
+  color: #165b44 !important;
+  font-weight: 500 !important;
+}
+
+.dateWeekdayAmber {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: #b45309 !important;
+  text-transform: uppercase !important;
+}
+
+.dateDayAmber {
+  font-family:
+    var(--font-be-vietnam),
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: #9a3412 !important;
+  line-height: 1.1 !important;
+}
+
+.dateMonthAmber {
+  font-size: 10px !important;
+  color: #b45309 !important;
+  font-weight: 500 !important;
+}
+
+.dateWeekdayGray {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: #4b5563 !important;
+  text-transform: uppercase !important;
+}
+
+.dateDayGray {
+  font-family:
+    var(--font-be-vietnam),
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: #1f2937 !important;
+  line-height: 1.1 !important;
+}
+
+.dateMonthGray {
+  font-size: 10px !important;
+  color: #4b5563 !important;
+  font-weight: 500 !important;
+}
+
+.rowContent {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rowTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.specialistName {
+  font-family:
+    var(--font-be-vietnam),
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif !important;
+  font-size: 14.5px !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+  margin: 0 !important;
+}
+
+.badgeGreen {
+  background: #eaf5ef !important;
+  color: #165b44 !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  border-radius: 9999px;
+  padding: 2.5px 8px;
+  border: 1px solid #c7e8d6 !important;
+}
+
+.badgeAmber {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  border-radius: 9999px;
+  padding: 2.5px 8px;
+  border: 1px solid #fde68a !important;
+}
+
+.badgeGray {
+  background: #f3f4f6 !important;
+  color: #4b5563 !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  border-radius: 9999px;
+  padding: 2.5px 8px;
+  border: 1px solid #e5e7eb !important;
+}
+
+.rowTime {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px !important;
+  color: #4b5563 !important;
+  margin: 0;
+}
+
+.rowTime svg {
+  color: #6b7280 !important;
+}
+
+.rowTime span {
+  color: #4b5563 !important;
+}
+
+.rowNote {
+  font-size: 12.5px !important;
+  color: #6b7280 !important;
+  line-height: 1.45 !important;
+  margin: 0;
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.detailLink {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #165b44 !important;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.detailLink:hover {
+  text-decoration: underline;
+  color: #12382c !important;
+}
+
+.outlineBtn {
+  border: 1px solid #d1d5db !important;
+  border-radius: 8px;
+  background: #ffffff !important;
+  color: #374151 !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  padding: 5px 12px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.outlineBtn:hover {
+  background: #f9fafb !important;
+  border-color: #9ca3af !important;
+  color: #111827 !important;
+}
+
+.mintBtn {
+  border: 1px solid #a7f3d0 !important;
+  background: #eaf5ef !important;
+  color: #165b44 !important;
+  border-radius: 8px;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  padding: 5px 12px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.mintBtn:hover {
+  background: #dcfce7 !important;
+  color: #12382c !important;
+}
+
+.textActionBtn {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #165b44 !important;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px 8px;
+  white-space: nowrap;
+}
+
+.textActionBtn:hover {
+  text-decoration: underline;
+  color: #12382c !important;
+}
+
+.listFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 16px;
+  border-top: 1px solid #f3f4f6;
+  margin-top: 4px;
+}
+
+.listFooterCount {
+  font-size: 12.5px !important;
+  color: #6b7280 !important;
+}
+
+.paginationBtns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pageBtn {
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px;
+  padding: 5px 14px;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: #374151 !important;
+  background: #ffffff !important;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pageBtn:hover:not(:disabled) {
+  background: #f9fafb;
+}
+
+.pageBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Quick Booking Widget (Card 1) */
+.quickBookingCard {
+  background: #ffffff !important;
+  border: 1px solid #e5ede8 !important;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(18, 56, 44, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.quickBookingHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.quickBookingTag {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: #165b44 !important;
+  letter-spacing: 0.5px;
+}
+
+.quickBookingTitle {
+  font-family:
+    var(--font-be-vietnam),
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif !important;
+  font-size: 15.5px !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+  margin: 2px 0 0;
+}
+
+.badge60p {
+  background: #eaf5ef !important;
+  color: #165b44 !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  border-radius: 8px;
+  padding: 4px 8px;
+  text-align: center;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.calendarBox {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #fbfdfc !important;
+  border: 1px solid #eaf2ed !important;
+  border-radius: 14px;
+}
+
+.calendarMonth {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+}
+
+.calendarNavBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6b7280 !important;
+  padding: 2px 4px;
+}
+
+.calendarNavBtn:hover {
+  color: #111827 !important;
+}
+
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+
+.calWeekday {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: #6b7280 !important;
+  padding: 4px 0;
+}
+
+.calDay {
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  color: #1f2937 !important;
+  padding: 4px 0;
+  border-radius: 50%;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 0 auto;
+  border: none;
+  background: transparent;
+}
+
+.calDayMuted {
+  color: #9ca3af !important;
+  cursor: default;
+}
+
+.calDaySelected {
+  background: #12382c !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+.calDaySelected * {
+  color: #ffffff !important;
+}
+
+.calDayDotAmber::after {
+  content: '';
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #f59e0b;
+  position: absolute;
+  bottom: 2px;
+}
+
+.calDayDotGreen::after {
+  content: '';
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #22c55e;
+  position: absolute;
+  bottom: 2px;
+}
+
+.slotSelectSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.slotSelectHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+}
+
+.slotSelectHeading small {
+  font-size: 11px !important;
+  color: #6b7280 !important;
+  font-weight: normal !important;
+}
+
+.slotOption {
+  border: 1px solid #e5e7eb !important;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #ffffff !important;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.15s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.slotOptionSelected {
+  border-color: #12382c !important;
+  background: #f6faf8 !important;
+}
+
+.radioCircle {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid #d1d5db !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.radioCircleSelected {
+  border-color: #12382c !important;
+}
+
+.radioDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #12382c !important;
+}
+
+.slotOptionInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.slotOptionTime {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+  margin: 0;
+}
+
+.slotOptionDoctor {
+  font-size: 11.5px !important;
+  color: #4b5563 !important;
+  margin: 0;
+}
+
+.slotBadgeRecommend {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: #165b44 !important;
+  background: #eaf5ef !important;
+  border-radius: 4px;
+  padding: 2px 6px;
+  flex-shrink: 0;
+}
+
+.slotBadgeMorning {
+  font-size: 11px !important;
+  color: #6b7280 !important;
+  flex-shrink: 0;
+}
+
+.slotList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Two classes beat the shell's `.ref-shell button` font rules without !important. */
+.slotSelectSection .slotMoreBtn {
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--teal-deep);
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.slotSelectSection .slotMoreBtn:hover {
+  background: var(--surface-soft);
+}
+
+.slotSelectSection .slotMoreBtn:focus-visible {
+  outline: 2px solid var(--teal-deep);
+  outline-offset: 2px;
+}
+
+.confirmSlotBtn {
+  width: 100%;
+  border: none;
+  background: #12382c !important;
+  color: #ffffff !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  border-radius: 10px;
+  padding: 11px 0;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.confirmSlotBtn :is(span, strong, small, svg) {
+  color: #ffffff !important;
+}
+
+.confirmSlotBtn:hover:not(:disabled) {
+  background: #0d2a21 !important;
+}
+
+.confirmSlotBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Benefit Card (Card 2) */
+.benefitCard {
+  background: #f2f8f5 !important;
+  border: 1px solid #dceae2 !important;
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.benefitIconBox {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #dcf0e5 !important;
+  color: #165b44 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.benefitContent {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.benefitTitle {
+  font-family:
+    var(--font-be-vietnam),
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif !important;
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  color: #12382c !important;
+  margin: 0;
+}
+
+.benefitDesc {
+  font-size: 12px !important;
+  color: #374151 !important;
+  line-height: 1.5 !important;
+  margin: 0;
+}
+
+.benefitLinks {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #165b44 !important;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.benefitLinks a {
+  color: #165b44 !important;
+  text-decoration: underline !important;
+  text-underline-offset: 2px;
+}
+
+.benefitLinks a:hover {
+  color: #12382c !important;
+}
+
+/* Crisis Card (Card 3) */
+.crisisCard {
+  background: #ffffff !important;
+  border: 1px solid #e5ede8 !important;
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.crisisHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+  letter-spacing: 0.5px;
+}
+
+.redDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ef4444 !important;
+  flex-shrink: 0;
+}
+
+.crisisText {
+  font-size: 12px !important;
+  color: #4b5563 !important;
+  line-height: 1.5 !important;
+  margin: 0;
+}
+
+.hotlineBox {
+  background: #fdf2f2 !important;
+  border-radius: 10px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.hotlineLeft {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+}
+
+.hotlineLeft svg {
+  color: #dc2626 !important;
+  flex-shrink: 0;
+}
+
+.hotlineLeft span {
+  color: #111827 !important;
+}
+
+.hotlineCallBtn {
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  border-radius: 6px;
+  padding: 4px 10px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.hotlineCallBtn:hover {
+  background: #fca5a5 !important;
+  color: #b91c1c !important;
+}
+
+/* Detail view styles for focusAppointmentId subpage */
+.detailPanel {
+  background: #ffffff !important;
+  border: 1px solid #e5ede8 !important;
+  border-radius: 20px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.detailSummary {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.detailLead h2 {
+  font-family:
+    var(--font-be-vietnam),
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+  margin: 4px 0 6px;
+}
+
+.detailFacts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  padding: 16px 0;
+  border-top: 1px solid #f3f4f6;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.detailFacts dt {
+  font-size: 12px !important;
+  color: #6b7280 !important;
+  margin-bottom: 2px;
+}
+
+.detailFacts dd {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #111827 !important;
+  margin: 0;
+}
+
+.detailActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.detailActions button,
+.detailActions a {
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.detailActions button[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.primaryAction {
+  background: #12382c;
+  color: #ffffff !important;
+  border: 1px solid #12382c;
+}
+
+.secondaryAction {
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #d1d5db;
+}
+
+/* Same shape as the neighbouring secondary/outline button; only the tone says "danger". */
+.dangerAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: #ffffff;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  white-space: nowrap;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.dialogActions .dangerAction {
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+
+.dangerAction:hover:not(:disabled):not([aria-disabled='true']) {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.dangerAction:focus-visible {
+  outline: 2px solid #b91c1c;
+  outline-offset: 2px;
+}
+
+.dangerAction:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.pageError {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Booking/reschedule and detail dialogs (classes used by the panel but never styled on the contributor branch). */
+.appointmentDialog {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.dialogContent {
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+}
+
+.dialogHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dialogHeading h2 {
+  margin: 4px 0 6px;
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+.dialogHeading p {
+  margin: 0;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.dialogClose {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.bookingNote,
+.cancellationInfo {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f3f4f6;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.bookingWarning,
+.dialogError {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #fef3c7;
+  color: #78350f;
+  line-height: 1.5;
+}
+
+.dialogError {
+  background: #fee2e2;
+  color: #7f1d1d;
+}
+
+.dialogSlotList {
+  display: grid;
+  gap: 8px;
+}
+
+/* taste-skill-ignore outlined-box: selectable slot needs a visible boundary */
+.dialogSlot,
+.dialogSlotSelected {
+  display: grid;
+  gap: 2px;
+  min-height: 56px;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #111827;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.dialogSlot span,
+.dialogSlotSelected span {
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.dialogSlotSelected {
+  border: 2px solid #165b44;
+  background: #eaf5ef;
+}
+
+.dialogClose:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+.dialogSlot:hover:not(:disabled) {
+  border-color: #165b44;
+}
+
+.dialogClose:disabled,
+.dialogSlot:disabled,
+.dialogSlotSelected:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.dialogSlot:focus-visible,
+.dialogSlotSelected:focus-visible,
+.dialogClose:focus-visible {
+  outline: 3px solid #165b44;
+  outline-offset: 2px;
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.emptyState {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .appointmentRow {
+    flex-wrap: wrap;
+  }
+
+  .rowActions {
+    flex-wrap: wrap;
+  }
+}

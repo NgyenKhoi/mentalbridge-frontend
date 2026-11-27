@@ -1,0 +1,1212 @@
+<!DOCTYPE html><html class="h-full" lang="vi"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>01 — Hợp nhất Result &amp; Meaning / Desktop 1440×900</title>
+<!-- Google Fonts: Fraunces & Be Vietnam Pro -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&amp;family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,600&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS CDN with forms & container-queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config -->
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              teal: '#1C4D43',
+              'teal-dark': '#143B33',
+              'teal-light': '#245E52',
+              mint: '#EAF2EC',
+              'mint-dark': '#D5E6D9',
+              sage: '#F1F5F2',
+              camel: '#B57D3E',
+              'camel-light': '#E8CFB0',
+              cream: '#F9FAF9',
+              surface: '#FFFFFF',
+              canvas: '#EDF3EE'
+            }
+          },
+          fontFamily: {
+            serif: ['Fraunces', 'serif'],
+            sans: ['Be Vietnam Pro', 'sans-serif'],
+          },
+          boxShadow: {
+            soft: '0 4px 20px -2px rgba(28, 77, 67, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02)',
+            card: '0 8px 30px -4px rgba(28, 77, 67, 0.07)',
+          }
+        }
+      }
+    }
+  </script>
+<!-- Custom Styles -->
+<style data-purpose="typography">
+    body {
+      font-family: 'Be Vietnam Pro', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    .font-serif-title {
+      font-family: 'Fraunces', serif;
+    }
+  </style>
+<style data-purpose="custom-scrollbars-and-accents">
+    /* Subtle custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #EDF3EE;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #CAD8CE;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #AFC2B4;
+    }
+
+    /* Smooth accordion transitions */
+    details summary::-webkit-details-marker {
+      display: none;
+    }
+    details[open] summary .accordion-chevron {
+      transform: rotate(180deg);
+    }
+
+    /* Mầm An Mascot Keyframes & Animations */
+    @keyframes mamAnFloat {
+      0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+      }
+      50% {
+        transform: translateY(-8px) rotate(1.2deg);
+      }
+    }
+
+    @keyframes mamAnLeafSway {
+      0%, 100% {
+        transform: rotate(0deg);
+      }
+      50% {
+        transform: rotate(10deg);
+      }
+    }
+
+    @keyframes mamAnBlink {
+      0%, 90%, 100% {
+        transform: scaleY(1);
+      }
+      95% {
+        transform: scaleY(0.1);
+      }
+    }
+
+    @keyframes mamAnBreathAura {
+      0%, 100% {
+        transform: scale(0.92);
+        opacity: 0.35;
+      }
+      50% {
+        transform: scale(1.15);
+        opacity: 0.75;
+      }
+    }
+
+    @keyframes mamAnBreathGuidance {
+      0%, 45% {
+        content: "Hít vào nhẹ nhàng...";
+        opacity: 1;
+      }
+      50%, 95% {
+        content: "Thở ra chậm rãi...";
+        opacity: 1;
+      }
+      100% {
+        content: "Hít vào nhẹ nhàng...";
+        opacity: 1;
+      }
+    }
+
+    @keyframes shimmerAnim {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    .shimmer-effect {
+      position: relative;
+      overflow: hidden;
+    }
+    .shimmer-effect::after {
+      content: "";
+      position: absolute;
+      top: 0; right: 0; bottom: 0; left: 0;
+      background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.65) 50%, rgba(255,255,255,0) 100%);
+      animation: shimmerAnim 1.8s infinite;
+    }
+
+    .mam-an-floating {
+      animation: mamAnFloat 4.6s ease-in-out infinite;
+    }
+
+    .mam-an-leaf {
+      transform-origin: 50% 90%;
+      animation: mamAnLeafSway 3.2s ease-in-out infinite;
+    }
+
+    .mam-an-eyes {
+      transform-origin: 50% 50%;
+      animation: mamAnBlink 4s ease-in-out infinite;
+    }
+
+    .mam-an-aura {
+      transform-origin: center center;
+      animation: mamAnBreathAura 5.5s ease-in-out infinite;
+    }
+
+    .mam-an-breath-timer::after {
+      content: "Hít vào nhẹ nhàng...";
+      animation: mamAnBreathGuidance 6s ease-in-out infinite;
+    }
+
+    /* Smooth card enter */
+    .fade-slide-up {
+      animation: fadeSlideUp 0.35s ease-out forwards;
+    }
+
+    @keyframes fadeSlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .mam-an-floating,
+      .mam-an-leaf,
+      .mam-an-eyes,
+      .mam-an-aura,
+      .mam-an-breath-timer::after,
+      .shimmer-effect::after,
+      .fade-slide-up {
+        animation: none !important;
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="h-full bg-brand-canvas text-slate-800 flex overflow-hidden">
+<!-- BEGIN: Sidebar -->
+<aside class="w-[260px] flex-shrink-0 bg-brand-sage border-r border-[#E0EBE2] flex flex-col justify-between h-full select-none z-20" data-purpose="main-sidebar">
+<!-- Top Branding & Navigation -->
+<div class="flex flex-col h-full overflow-y-auto">
+<!-- App Header / Logo -->
+<div class="px-5 py-5 flex items-center justify-between border-b border-[#E3ECE5]">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-xl bg-brand-teal text-white flex items-center justify-center shadow-sm">
+<!-- Leaf/Chat hybrid icon -->
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+<path d="M12 7c-2.5 0-4 1.5-4 4 1.5 0 3-1 4-1s2.5 1 4 1c0-2.5-1.5-4-4-4z" fill="currentColor" stroke="none"></path>
+</svg>
+</div>
+<div>
+<h1 class="font-serif-title font-semibold text-slate-900 leading-tight text-base tracking-tight">MentalBridge</h1>
+<p class="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Health Tech</p>
+</div>
+</div>
+<!-- Collapse Button -->
+<button aria-label="Thu gọn sidebar" class="w-7 h-7 rounded-lg border border-slate-200/80 bg-white/60 hover:bg-white text-slate-600 flex items-center justify-center transition-colors" type="button">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<polyline points="15 18 9 12 15 6"></polyline>
+</svg>
+</button>
+</div>
+<!-- Navigation Links -->
+<nav aria-label="Điều hướng chính" class="p-3.5 space-y-6 text-sm">
+<!-- Group: Tổng quan -->
+<div>
+<span class="px-3 text-[11px] font-semibold tracking-wider text-slate-600 uppercase">Tổng quan</span>
+<div class="mt-2 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-colors font-normal" href="#">
+<svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="">Tổng quan</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="">Nhật ký</span>
+</a>
+<!-- Active Item: Bài sàng lọc -->
+<a class="flex items-center gap-3 px-3 py-2 rounded-xl bg-brand-mint text-brand-teal font-medium shadow-xs border border-brand-mint-dark" href="#">
+<svg class="w-4 h-4 text-brand-teal" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+<polyline points="20 6 9 17 4 12"></polyline>
+</svg>
+<span class="">Bài sàng lọc</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="">Gợi ý hỗ trợ</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="">Kế hoạch hỗ trợ</span>
+</a>
+</div>
+</div>
+<!-- Group: Chăm sóc -->
+<div>
+<span class="px-3 text-[11px] font-semibold tracking-wider text-slate-600 uppercase">Chăm sóc</span>
+<div class="mt-2 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="">Chuyên gia</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<rect height="18" rx="2" ry="2" width="18" x="3" y="4"></rect>
+<line x1="16" x2="16" y1="2" y2="6"></line>
+<line x1="8" x2="8" y1="2" y2="6"></line>
+<line x1="3" x2="21" y1="10" y2="10"></line>
+</svg>
+<span class="">Lịch hẹn</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="">Tin nhắn</span>
+</a>
+</div>
+</div>
+<!-- Group: Thông tin -->
+<div>
+<span class="px-3 text-[11px] font-semibold tracking-wider text-slate-600 uppercase">Thông tin</span>
+<div class="mt-2 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="">Cộng đồng</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<circle cx="12" cy="12" r="10"></circle>
+<polyline points="12 6 12 12 16 14"></polyline>
+</svg>
+<span class="">Tài nguyên</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="">Thành tựu</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="">Phân tích</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<rect height="14" rx="2" width="20" x="2" y="5"></rect>
+<line x1="2" x2="22" y1="10" y2="10"></line>
+</svg>
+<span class="">Gói dịch vụ</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="">Thông báo</span>
+</a>
+</div>
+</div>
+</nav>
+</div>
+<!-- Bottom User Profile Card -->
+<div class="p-3 border-t border-[#E3ECE5] bg-brand-sage/80">
+<div class="flex items-center justify-between p-2 rounded-2xl bg-white/70 hover:bg-white transition-colors cursor-pointer border border-black/5" data-purpose="user-profile-badge">
+<div class="flex items-center gap-2.5">
+<div class="w-9 h-9 rounded-full bg-brand-camel/30 text-brand-camel border border-brand-camel/40 font-semibold text-xs flex items-center justify-center">
+            MA
+          </div>
+<div class="leading-tight">
+<p class="text-xs font-semibold text-slate-900">Minh An</p>
+<p class="text-[11px] text-slate-600">Tài khoản cá nhân</p>
+</div>
+</div>
+<svg class="w-4 h-4 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+<path clip-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" fill-rule="evenodd"></path>
+</svg>
+</div>
+</div>
+</aside>
+<!-- END: Sidebar -->
+<!-- BEGIN: MainContentWrapper -->
+<div class="flex-1 flex flex-col h-full overflow-hidden bg-brand-canvas">
+<!-- BEGIN: TopBar -->
+<header class="h-16 flex items-center justify-between px-8 bg-transparent flex-shrink-0" data-purpose="top-navigation">
+<!-- Left: Breadcrumb -->
+<div class="flex items-center gap-2 text-xs">
+<span class="text-slate-600">Không gian của bạn</span>
+<span class="text-slate-300">/</span>
+<span class="font-medium text-slate-800">MentalBridge</span>
+</div>
+<!-- Center: Search Bar with Shortcut -->
+<div class="w-full max-w-md mx-6">
+<div class="relative flex items-center">
+<div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+<input class="w-full py-1.5 pl-9 pr-12 bg-white/90 border border-slate-200/90 rounded-full text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal transition-all shadow-xs" placeholder="Tìm kiếm chuyên gia, nhật ký..." type="text">
+<div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+<kbd class="px-1.5 py-0.5 text-[10px] text-slate-400 bg-slate-100 rounded border border-slate-200 font-sans">⌘ K</kbd>
+</div>
+</div>
+</div>
+<!-- Right: Actions -->
+<div class="flex items-center gap-2.5">
+<button class="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white border border-slate-200/80 rounded-full text-xs font-medium text-slate-700 hover:bg-slate-50 shadow-xs transition-colors" type="button">
+<svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="">Cộng đồng</span>
+</button>
+<button aria-label="Thông báo" class="w-8 h-8 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-600 hover:text-slate-900 shadow-xs transition-colors" type="button">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<div class="w-8 h-8 rounded-full bg-brand-camel/30 border border-brand-camel/50 text-brand-camel flex items-center justify-center font-semibold text-xs ml-0.5">
+          MA
+        </div>
+</div>
+</header>
+<!-- END: TopBar -->
+<!-- BEGIN: ScrollableContent -->
+<main class="flex-1 overflow-y-auto px-8 py-5" data-purpose="viewport-container">
+<div class="max-w-4xl mx-auto space-y-6 pb-14">
+<!-- Prototype Demo Switcher Bar with 5 states -->
+<div class="bg-white/80 border border-slate-200/90 rounded-2xl p-2.5 px-4 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs select-none" data-purpose="context-mode-switcher">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-brand-teal"></span>
+<span class="font-semibold text-slate-800">Chế độ xem hợp nhất:</span>
+<span class="text-slate-500 hidden sm:inline">(Prototype tương tác ngữ cảnh)</span>
+</div>
+<div class="flex items-center gap-2 flex-wrap">
+<div class="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl flex-wrap">
+<button class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-brand-teal shadow-xs transition-all flex items-center gap-1.5" id="btn-mode-current" onclick="switchContextMode('current')" type="button">
+<span class="w-1.5 h-1.5 rounded-full bg-brand-teal"></span><span class="">Hiện tại (Vừa làm xong)</span>
+</button>
+<button class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5" id="btn-mode-historical" onclick="switchContextMode('historical')" type="button">
+<span class="">Lịch sử (Bản lưu trữ 01/01/2098)</span>
+</button>
+<button class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5" id="btn-mode-missing" onclick="switchContextMode('missing')" type="button">
+<span class="">Lịch sử thiếu điểm</span>
+</button>
+<button class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5" id="btn-mode-safety" onclick="switchContextMode('safety')" type="button">
+<span class="">Khủng hoảng (Safety Override)</span>
+</button>
+</div>
+<!-- Loading Skeleton Switcher Button -->
+<button aria-pressed="false" class="px-3 py-1.5 rounded-xl border border-brand-teal/30 bg-white text-brand-teal font-medium hover:bg-brand-mint/60 transition-all flex items-center gap-1.5 shadow-xs" id="btn-toggle-skeleton" onclick="toggleLoadingSkeleton()" title="Bật/Tắt chế độ Loading Skeleton Mầm An" type="button">
+<svg class="w-3.5 h-3.5 text-brand-teal" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="font-semibold" id="toggle-skeleton-text">Xem Loading Skeleton (Mầm An)</span>
+</button>
+</div>
+</div>
+<!-- BEGIN: LOADING SKELETON WITH ANIMATED MẦM AN (Hidden by default, toggled via prototype bar) -->
+<div class="hidden space-y-6" data-purpose="mam-an-loading-skeleton-state" id="loading-skeleton-view">
+<!-- Mầm An Active Breathing & Caring Guidance Card -->
+<section class="bg-gradient-to-r from-[#F4FAF6] via-[#EEF6F1] to-[#FBF8F3] rounded-3xl p-6 border border-[#D8E8DE] shadow-soft relative overflow-hidden">
+<div aria-hidden="true" class="absolute -right-8 -top-8 w-44 h-44 rounded-full bg-brand-mint-dark/40 blur-2xl pointer-events-none"></div>
+<div aria-hidden="true" class="absolute left-1/3 bottom-0 w-36 h-36 rounded-full bg-brand-camel-light/20 blur-xl pointer-events-none"></div>
+<div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+<div class="flex items-center gap-5">
+<!-- Animated Mascot -->
+<div class="relative flex-shrink-0 w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center">
+<div class="mam-an-aura absolute inset-0 rounded-full bg-gradient-to-tr from-brand-mint-dark to-[#CDE4D4] border border-brand-teal/15 shadow-sm"></div>
+<div class="mam-an-aura absolute -inset-1.5 rounded-full border border-brand-teal/10 pointer-events-none" style="animation-delay: 0.8s;"></div>
+<div class="mam-an-floating relative z-10 w-20 h-20 sm:w-24 sm:h-24">
+<svg class="w-full h-full filter drop-shadow-sm" fill="none" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Linh vật Mầm An đang hướng dẫn nhịp thở thư giãn">
+<defs>
+<linearGradient gradientUnits="userSpaceOnUse" id="skelBodyGrad" x1="20" x2="100" y1="20" y2="105">
+<stop offset="0%" stop-color="#FFFFFF"></stop>
+<stop offset="50%" stop-color="#EAF5EE"></stop>
+<stop offset="100%" stop-color="#D4EAD9"></stop>
+</linearGradient>
+<linearGradient gradientUnits="userSpaceOnUse" id="skelLeafGrad" x1="0" x2="24" y1="0" y2="24">
+<stop offset="0%" stop-color="#34A853"></stop>
+<stop offset="100%" stop-color="#1C4D43"></stop>
+</linearGradient>
+<radialGradient cx="50%" cy="50%" id="skelBlushGrad" r="50%">
+<stop offset="0%" stop-color="#F9A8A8" stop-opacity="0.85"></stop>
+<stop offset="100%" stop-color="#F9A8A8" stop-opacity="0"></stop>
+</radialGradient>
+</defs>
+<ellipse cx="60" cy="110" fill="#1C4D43" fill-opacity="0.12" rx="26" ry="5.5"></ellipse>
+<g class="mam-an-leaf">
+<path d="M 60 40 C 60 30, 58 22, 53 17" fill="none" stroke="#245E52" stroke-linecap="round" stroke-width="2.8"></path>
+<path d="M 53 17 C 46 10, 48 3, 58 5 C 65 6, 62 15, 53 17 Z" fill="url(#skelLeafGrad)"></path>
+<path d="M 57 24 C 64 22, 70 25, 68 31 C 64 34, 59 30, 57 24 Z" fill="#2E7D32" opacity="0.9"></path>
+<circle cx="54" cy="9" fill="#E8F5E9" opacity="0.6" r="1.5"></circle>
+</g>
+<path d="M 60 38 C 36 38, 22 56, 24 80 C 26 99, 42 108, 60 108 C 78 108, 94 99, 96 80 C 98 56, 84 38, 60 38 Z" fill="url(#skelBodyGrad)" stroke="#1C4D43" stroke-opacity="0.15" stroke-width="1.8"></path>
+<path d="M 40 50 C 48 44, 72 44, 80 50" fill="none" opacity="0.8" stroke="#FFFFFF" stroke-linecap="round" stroke-width="3"></path>
+<circle cx="39" cy="77" fill="url(#skelBlushGrad)" r="6"></circle>
+<circle cx="81" cy="77" fill="url(#skelBlushGrad)" r="6"></circle>
+<g class="mam-an-eyes">
+<path d="M 43 69 C 45 65, 49 65, 51 69" fill="none" stroke="#1C4D43" stroke-linecap="round" stroke-width="2.6"></path>
+<path d="M 69 69 C 71 65, 75 65, 77 69" fill="none" stroke="#1C4D43" stroke-linecap="round" stroke-width="2.6"></path>
+</g>
+<path d="M 56 76 C 58 79.5, 62 79.5, 64 76" fill="none" stroke="#1C4D43" stroke-linecap="round" stroke-width="2.2"></path>
+<path d="M 41 87 C 46 91, 54 91, 58 87" fill="none" stroke="#245E52" stroke-linecap="round" stroke-opacity="0.3" stroke-width="2"></path>
+<path d="M 79 87 C 74 91, 66 91, 62 87" fill="none" stroke="#245E52" stroke-linecap="round" stroke-opacity="0.3" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+<!-- Status Guidance -->
+<div class="space-y-1.5">
+<div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/90 text-brand-teal font-semibold text-[11px] border border-brand-mint-dark shadow-xs">
+<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+<span class="">Mầm An đang đồng hành</span>
+</div>
+<h3 class="font-serif-title text-base sm:text-lg font-bold text-slate-900 leading-snug">
+            Đang tải và tổng hợp kết quả của bạn...
+          </h3>
+<p class="text-xs text-slate-600 leading-relaxed max-w-lg">
+            Hãy hít thở nhẹ nhàng cùng Mầm An nhé. Hệ thống đang bảo mật đối chiếu dữ liệu tự khai của bạn.
+          </p>
+</div>
+</div>
+<!-- Right micro-breath box -->
+<div class="flex items-center gap-3 bg-white/90 p-3 px-4 rounded-2xl border border-[#D5E6D9] shadow-xs">
+<div class="relative w-8 h-8 rounded-full bg-brand-mint flex items-center justify-center border border-brand-mint-dark">
+<div class="mam-an-aura absolute inset-0 rounded-full bg-brand-teal/20"></div>
+<svg class="w-3.5 h-3.5 text-brand-teal relative z-10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<circle cx="12" cy="12" r="10"></circle>
+<path d="M12 6v6l4 2"></path>
+</svg>
+</div>
+<div>
+<p class="text-[10px] uppercase font-semibold text-slate-500">Nhịp thở vi mô</p>
+<p class="mam-an-breath-timer text-xs font-semibold text-brand-teal"></p>
+</div>
+<button class="ml-2 px-2.5 py-1 text-[11px] font-semibold text-brand-teal hover:bg-brand-mint rounded-lg transition-colors border border-brand-mint-dark" onclick="toggleLoadingSkeleton()" type="button">
+          Đóng ✕
+        </button>
+</div>
+</div>
+</section>
+<!-- Stepper Skeleton -->
+<div class="bg-white rounded-2xl border border-slate-100 p-5 px-8 shadow-soft shimmer-effect">
+<div class="flex items-center justify-between">
+<div class="w-8 h-8 rounded-full bg-slate-200"></div>
+<div class="h-1 flex-1 mx-4 bg-slate-200 rounded"></div>
+<div class="w-8 h-8 rounded-full bg-slate-200"></div>
+<div class="h-1 flex-1 mx-4 bg-slate-200 rounded"></div>
+<div class="w-8 h-8 rounded-full bg-slate-200"></div>
+<div class="h-1 flex-1 mx-4 bg-slate-200 rounded"></div>
+<div class="w-8 h-8 rounded-full bg-slate-200"></div>
+</div>
+</div>
+<!-- Two Result Cards Skeleton -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-soft space-y-4 shimmer-effect">
+<div class="flex justify-between items-center">
+<div class="h-4 w-28 bg-slate-200 rounded"></div>
+<div class="h-5 w-20 bg-slate-200 rounded-full"></div>
+</div>
+<div class="h-10 w-32 bg-slate-200 rounded"></div>
+<div class="h-2 w-full bg-slate-200 rounded"></div>
+</div>
+<div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-soft space-y-4 shimmer-effect">
+<div class="flex justify-between items-center">
+<div class="h-4 w-28 bg-slate-200 rounded"></div>
+<div class="h-5 w-20 bg-slate-200 rounded-full"></div>
+</div>
+<div class="h-10 w-32 bg-slate-200 rounded"></div>
+<div class="h-2 w-full bg-slate-200 rounded"></div>
+</div>
+</div>
+<!-- Meaning Card Skeleton -->
+<div class="bg-white rounded-3xl border border-slate-100 p-8 shadow-soft space-y-5 shimmer-effect">
+<div class="h-7 w-3/4 bg-slate-200 rounded"></div>
+<div class="h-4 w-5/6 bg-slate-200 rounded"></div>
+<div class="h-4 w-2/3 bg-slate-200 rounded"></div>
+<div class="pt-4 flex gap-3">
+<div class="h-11 w-44 bg-slate-200 rounded-xl"></div>
+<div class="h-11 w-44 bg-slate-200 rounded-xl"></div>
+</div>
+</div>
+</div>
+<!-- END: LOADING SKELETON -->
+<!-- MAIN FLOW CONTENT CONTAINER (Active view) -->
+<div class="space-y-6" id="main-flow-content">
+<!-- BEGIN: StepperHeader -->
+<div class="space-y-6" id="context-content-wrapper">
+<section class="bg-white rounded-2xl shadow-soft border border-slate-100 p-5 px-8 transition-all" id="stepper-header">
+<div class="relative flex items-center justify-between">
+<div class="absolute left-7 right-7 top-4 h-[2px] bg-brand-teal/80 z-0"></div>
+<div class="relative z-10 flex flex-col items-center group">
+<div class="w-8 h-8 rounded-full bg-brand-teal text-white flex items-center justify-center shadow-xs">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+</div>
+<span class="mt-2 text-xs font-medium text-slate-700">Sẵn sàng</span>
+</div>
+<div class="relative z-10 flex flex-col items-center group">
+<div class="w-8 h-8 rounded-full bg-brand-teal text-white flex items-center justify-center shadow-xs">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+</div>
+<span class="mt-2 text-xs font-medium text-slate-700">PHQ-9</span>
+</div>
+<div class="relative z-10 flex flex-col items-center group">
+<div class="w-8 h-8 rounded-full bg-brand-teal text-white flex items-center justify-center shadow-xs">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+</div>
+<span class="mt-2 text-xs font-medium text-slate-700">GAD-7</span>
+</div>
+<div class="relative z-10 flex flex-col items-center group">
+<div class="w-8 h-8 rounded-full bg-brand-teal text-white flex items-center justify-center ring-4 ring-brand-mint shadow-xs">
+<span class="text-xs font-semibold">4</span>
+</div>
+<span class="mt-2 text-xs font-semibold text-brand-teal">Kết quả</span>
+</div>
+</div>
+</section>
+<!-- Historical Navigation Banner -->
+<div class="hidden items-center justify-between p-4 bg-white rounded-2xl border border-slate-200/80 shadow-soft" id="historical-nav-banner">
+<button class="inline-flex items-center gap-2 text-xs font-semibold text-brand-teal hover:underline" onclick="switchContextMode('current')">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M10 19l-7-7m0 0l7-7m-7 7h18" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="">← Quay lại Lịch sử sàng lọc</span>
+</button>
+<div class="flex items-center gap-2 text-xs text-slate-500">
+<span class="w-2 h-2 rounded-full bg-slate-400"></span>
+<span class="">Bản ghi lưu trữ • Chỉ đọc</span>
+</div>
+</div>
+<!-- Safety Top Alert -->
+<div class="hidden rounded-2xl bg-amber-50 border border-brand-camel/50 p-5 shadow-soft" id="safety-top-alert">
+<div class="flex items-start justify-between gap-4">
+<div class="flex items-start gap-3.5">
+<div class="w-9 h-9 rounded-xl bg-brand-camel text-white flex items-center justify-center flex-shrink-0 shadow-xs">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+<div>
+<h3 class="text-sm font-bold text-slate-900">Phát hiện mức độ cảnh báo cần hỗ trợ an toàn ưu tiên</h3>
+<p class="text-xs text-slate-700 mt-1 leading-relaxed">Nếu bạn đang có suy nghĩ muốn làm tổn thương bản thân hoặc cảm thấy vô cùng tuyệt vọng, xin hãy liên hệ ngay hỗ trợ trực tiếp. Bạn không phải trải qua điều này một mình.</p>
+<div class="mt-3 flex flex-wrap items-center gap-2.5">
+<a class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-brand-camel text-white text-xs font-semibold rounded-lg hover:bg-[#A36E35] transition-colors shadow-xs" href="tel:19001267">
+<span class="">Gọi Đường dây nóng 24/7 (1900 1267)</span>
+</a>
+<button class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white border border-brand-camel/40 text-brand-camel text-xs font-medium rounded-lg hover:bg-white/80 transition-colors" type="button">
+<span class="">Kích hoạt Kế hoạch An toàn cá nhân</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- END: StepperHeader -->
+<!-- BEGIN: TWO REFACTORED RESULT CARDS (PHQ-9 & GAD-7) -->
+<section aria-label="Kết quả chi tiết hai thang đo" class="grid grid-cols-1 md:grid-cols-2 gap-5" data-purpose="two-result-cards-container">
+<!-- CARD 1: PHQ-9 (Dấu hiệu trầm cảm) -->
+<div class="bg-white rounded-3xl p-6 sm:p-7 border border-[#E0EBE2] shadow-soft flex flex-col justify-between transition-all duration-200 fade-slide-up hover:border-brand-teal/30" id="card-phq9">
+<div>
+<!-- Card Header -->
+<div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-4">
+<div class="flex items-center gap-2.5">
+<span class="px-2.5 py-1 rounded-lg bg-brand-teal/10 text-brand-teal font-bold text-xs tracking-wider uppercase">
+              PHQ-9
+            </span>
+<span class="text-xs font-medium text-slate-500">Dấu hiệu trầm cảm</span>
+</div>
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F3EE] text-[#1B4D3E] font-semibold text-xs border border-brand-mint-dark" id="phq9-level-badge">
+<span class="w-1.5 h-1.5 rounded-full bg-brand-teal" id="phq9-level-dot"></span>
+<span id="phq9-level-text" class="">Mức tối thiểu</span>
+</span>
+</div>
+<!-- Prominent Score Display (Fraunces & Be Vietnam Pro) -->
+<div class="py-5" id="phq9-score-container">
+<div class="flex items-baseline gap-1.5">
+<span class="font-serif-title text-4xl sm:text-5xl font-bold text-slate-900 tracking-tight leading-none" id="phq9-score-number">2</span>
+<span class="text-base sm:text-lg font-medium text-slate-500" id="phq9-score-denom">/27 điểm</span>
+</div>
+<p class="text-xs text-slate-500 mt-2 leading-relaxed" id="phq9-desc-text">
+            Các biểu hiện cảm xúc buồn chán hoặc mệt mỏi xuất hiện rất ít trong 14 ngày qua.
+          </p>
+</div>
+</div>
+<!-- 4-Segment Scale Bar (0-4 Tối thiểu | 5-9 Nhẹ | 10-14 Vừa | 15-27 Nặng) -->
+<div class="pt-4 border-t border-slate-100 space-y-2">
+<div class="grid grid-cols-4 gap-1.5 h-2" id="phq9-scale-bars">
+<!-- Segment 1: Tối thiểu (Active) -->
+<div class="rounded-full bg-brand-teal transition-colors" id="phq9-bar-0" title="Tối thiểu: 0-4 điểm"></div>
+<!-- Segment 2: Nhẹ -->
+<div class="rounded-full bg-slate-200 transition-colors" id="phq9-bar-1" title="Nhẹ: 5-9 điểm"></div>
+<!-- Segment 3: Vừa -->
+<div class="rounded-full bg-slate-200 transition-colors" id="phq9-bar-2" title="Vừa: 10-14 điểm"></div>
+<!-- Segment 4: Nặng -->
+<div class="rounded-full bg-slate-200 transition-colors" id="phq9-bar-3" title="Nặng: 15-27 điểm"></div>
+</div>
+<div class="flex justify-between items-center text-[10px] text-slate-500 font-medium">
+<span class="">Tối thiểu (0-4)</span>
+<span class="">Nhẹ (5-9)</span>
+<span class="">Vừa (10-14)</span>
+<span class="">Nặng (15-27)</span>
+</div>
+</div>
+</div>
+<!-- CARD 2: GAD-7 (Dấu hiệu lo âu) -->
+<div class="bg-white rounded-3xl p-6 sm:p-7 border border-[#E0EBE2] shadow-soft flex flex-col justify-between transition-all duration-200 fade-slide-up hover:border-brand-teal/30" id="card-gad7">
+<div>
+<!-- Card Header -->
+<div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-4">
+<div class="flex items-center gap-2.5">
+<span class="px-2.5 py-1 rounded-lg bg-brand-teal/10 text-brand-teal font-bold text-xs tracking-wider uppercase">
+              GAD-7
+            </span>
+<span class="text-xs font-medium text-slate-500">Dấu hiệu lo âu</span>
+</div>
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F3EE] text-[#1B4D3E] font-semibold text-xs border border-brand-mint-dark" id="gad7-level-badge">
+<span class="w-1.5 h-1.5 rounded-full bg-brand-teal" id="gad7-level-dot"></span>
+<span id="gad7-level-text" class="">Mức tối thiểu</span>
+</span>
+</div>
+<!-- Prominent Score Display -->
+<div class="py-5" id="gad7-score-container">
+<div class="flex items-baseline gap-1.5">
+<span class="font-serif-title text-4xl sm:text-5xl font-bold text-slate-900 tracking-tight leading-none" id="gad7-score-number">1</span>
+<span class="text-base sm:text-lg font-medium text-slate-500" id="gad7-score-denom">/21 điểm</span>
+</div>
+<p class="text-xs text-slate-500 mt-2 leading-relaxed" id="gad7-desc-text">
+            Dấu hiệu bồn chồn lo lắng chỉ xuất hiện hiếm hoi, khả năng tự điều hòa ổn định.
+          </p>
+</div>
+</div>
+<!-- 4-Segment Scale Bar (0-4 Tối thiểu | 5-9 Nhẹ | 10-14 Vừa | 15-21 Nặng) -->
+<div class="pt-4 border-t border-slate-100 space-y-2">
+<div class="grid grid-cols-4 gap-1.5 h-2" id="gad7-scale-bars">
+<!-- Segment 1: Tối thiểu (Active) -->
+<div class="rounded-full bg-brand-teal transition-colors" id="gad7-bar-0" title="Tối thiểu: 0-4 điểm"></div>
+<!-- Segment 2: Nhẹ -->
+<div class="rounded-full bg-slate-200 transition-colors" id="gad7-bar-1" title="Nhẹ: 5-9 điểm"></div>
+<!-- Segment 3: Vừa -->
+<div class="rounded-full bg-slate-200 transition-colors" id="gad7-bar-2" title="Vừa: 10-14 điểm"></div>
+<!-- Segment 4: Nặng -->
+<div class="rounded-full bg-slate-200 transition-colors" id="gad7-bar-3" title="Nặng: 15-21 điểm"></div>
+</div>
+<div class="flex justify-between items-center text-[10px] text-slate-500 font-medium">
+<span class="">Tối thiểu (0-4)</span>
+<span class="">Nhẹ (5-9)</span>
+<span class="">Vừa (10-14)</span>
+<span class="">Nặng (15-21)</span>
+</div>
+</div>
+</div>
+</section>
+<!-- END: TWO REFACTORED RESULT CARDS -->
+<!-- BEGIN: ConciseCombinedMeaningCard -->
+<section class="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden" data-purpose="concise-combined-result-card">
+<div class="p-8 sm:p-10 space-y-7">
+<!-- Historical Metadata Bar (When in historical mode) -->
+<div class="hidden rounded-2xl bg-[#F9FAF8] border border-slate-200/80 p-4 space-y-2" id="historical-metadata-bar">
+<div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-semibold text-[10px] uppercase tracking-wider">Bản ghi lưu trữ</span>
+<span class="font-medium text-slate-800">Thời điểm: 01/01/2098 • 07:00</span>
+<span class="text-slate-300">|</span>
+<span class="text-slate-600">Loại lượt: Đánh giá định kỳ</span>
+</div>
+<div class="flex items-center gap-2">
+<label class="flex items-center gap-1.5 text-[11px] text-slate-600 cursor-pointer select-none">
+<input checked="" class="rounded text-brand-teal focus:ring-brand-teal h-3.5 w-3.5" id="toggle-saved-guide" onchange="handleHistoricalGuideToggle(this.checked)" type="checkbox">
+<span class="">Đã có SupportGuide</span>
+</label>
+</div>
+</div>
+<p class="text-[11px] text-slate-500 italic">Bản ghi lưu trữ • Chỉ đọc — Phản ánh câu trả lời tự khai trong 14 ngày trước thời điểm làm bài. Không phải chẩn đoán y khoa.</p>
+</div>
+<!-- Missing Guide Warning (Hidden unless triggered in missing/historical) -->
+<div class="hidden p-3.5 rounded-xl bg-amber-50 border border-brand-camel/40 text-xs text-slate-700" id="historical-missing-guide-alert">
+<div class="flex items-start justify-between gap-3">
+<div class="flex items-center gap-2">
+<svg class="w-4 h-4 text-brand-camel flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<circle cx="12" cy="12" r="10"></circle>
+<line x1="12" x2="12" y1="8" y2="12"></line>
+<line x1="12" x2="12.01" y1="16" y2="16"></line>
+</svg>
+<span class="">Lần đánh giá này chưa có gợi ý đã lưu. MentalBridge không tự tạo lại gợi ý cũ để bảo toàn tính xác thực dữ liệu lâm sàng.</span>
+</div>
+<a class="text-brand-teal font-semibold hover:underline flex-shrink-0" href="#recommendations">Xem hỗ trợ hiện tại →</a>
+</div>
+</div>
+<!-- Headline & Actionable Meaning -->
+<div class="space-y-3.5 max-w-2xl">
+<div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500" id="meaning-kicker">
+<span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-800">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+<polyline points="20 6 9 17 4 12"></polyline>
+</svg>
+</span>
+<span class="">Ý nghĩa kết quả tổng hợp</span>
+</div>
+<h2 class="font-serif-title text-2xl sm:text-[28px] text-slate-900 font-bold leading-snug tracking-tight" id="result-main-headline">
+          Hai nhóm dấu hiệu được ghi nhận rất ít trong lần sàng lọc này.
+        </h2>
+<p class="text-base text-slate-600 font-normal leading-relaxed" id="result-meaning-paragraph">
+          Bạn có thể bắt đầu với những gợi ý tự hỗ trợ nhẹ nhàng để tiếp tục duy trì trạng thái cân bằng.
+        </p>
+<!-- Subtle Boundary Disclaimer -->
+<div class="flex items-center gap-2 pt-1 text-xs text-slate-500">
+<svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<circle cx="12" cy="12" r="10"></circle>
+<line x1="12" x2="12" y1="16" y2="12"></line>
+<line x1="12" x2="12.01" y1="8" y2="8"></line>
+</svg>
+<span class="">Dựa trên câu trả lời trong 14 ngày qua, không phải chẩn đoán y khoa.</span>
+</div>
+</div>
+<!-- Call-to-Actions (Clear primary + subtle secondary) -->
+<div class="flex flex-wrap items-center gap-3 pt-2" id="result-cta-group">
+<a class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-brand-teal text-white font-medium text-sm hover:bg-brand-teal-dark active:scale-[0.99] transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-teal focus:ring-offset-2" href="#recommendations">
+<span class="">Xem gợi ý hỗ trợ</span>
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+<button class="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-50 text-slate-700 hover:text-slate-900 hover:bg-slate-100 font-medium text-sm border border-slate-200/80 transition-colors focus:ring-brand-teal focus:ring-2" onclick="switchContextMode('historical')" type="button">
+<svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<circle cx="12" cy="12" r="10"></circle>
+<polyline points="12 6 12 12 16 14"></polyline>
+</svg>
+<span class="">Xem lịch sử sàng lọc</span>
+</button>
+<button class="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-50 text-slate-700 hover:text-slate-900 hover:bg-slate-100 font-medium text-sm border border-slate-200/80 transition-colors focus:ring-brand-teal focus:ring-2" type="button">
+<svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M1 4v6h6" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M3.51 15a9 9 0 102.13-9.36L1 10" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="">Làm lại bài sàng lọc</span>
+</button>
+</div>
+<!-- BEGIN: Progressive Disclosures -->
+<div class="pt-5 border-t border-slate-100 space-y-3">
+<!-- Disclosure 1: Rationale (Vì sao có gợi ý này?) -->
+<details class="group bg-[#F9FAF8] rounded-xl border border-slate-200/70 overflow-hidden transition-colors hover:border-[#CAD8CE]">
+<summary aria-controls="disclosure-panel-rationale" aria-expanded="false" class="flex items-center justify-between p-4 cursor-pointer list-none select-none text-sm font-medium text-slate-800 focus:ring-brand-teal focus:ring-2">
+<div class="flex items-center gap-2.5">
+<span class="w-5 h-5 rounded-md bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+<path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</span>
+<span class="">Vì sao có gợi ý này?</span>
+</div>
+<svg class="w-4 h-4 text-slate-400 accordion-chevron transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<polyline points="6 9 12 15 18 9"></polyline>
+</svg>
+</summary>
+<div class="px-5 pb-4.5 pt-1 text-xs text-slate-600 leading-relaxed border-t border-slate-100/60 bg-white/50" id="disclosure-panel-rationale">
+<p id="rationale-text" class="">Hệ thống tự động liên kết hai thang đo độc lập: PHQ-9 (mức tối thiểu: 2/27 điểm) và GAD-7 (mức tối thiểu: 1/21 điểm) đã hoàn thành hôm nay. Điểm số cho thấy các biểu hiện cảm xúc và lo âu hiện nằm trong biên độ thích ứng bình thường. Do đó, khuyến nghị được cá nhân hóa tập trung vào thư viện bài viết tự rèn luyện thói quen thư giãn và giấc ngủ chất lượng, không kích hoạt can thiệp y tế.</p>
+</div>
+</details>
+<!-- Disclosure 2: Clinical Details & Boundaries (Xem chi tiết điểm số & giới hạn công cụ) -->
+<details class="group bg-[#F9FAF8] rounded-xl border border-slate-200/70 overflow-hidden transition-colors hover:border-[#CAD8CE]">
+<summary aria-controls="disclosure-panel-details" aria-expanded="false" class="flex items-center justify-between p-4 cursor-pointer list-none select-none text-sm font-medium text-slate-800 focus:ring-brand-teal focus:ring-2">
+<div class="flex items-center gap-2.5">
+<span class="w-5 h-5 rounded-md bg-slate-200 text-slate-700 flex items-center justify-center flex-shrink-0">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+<path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</span>
+<span class="">Xem chi tiết điểm số &amp; giới hạn công cụ</span>
+</div>
+<svg class="w-4 h-4 text-slate-400 accordion-chevron transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<polyline points="6 9 12 15 18 9"></polyline>
+</svg>
+</summary>
+<div class="px-5 pb-5 pt-2 text-xs text-slate-600 border-t border-slate-100/60 bg-white/50 space-y-3" id="disclosure-panel-details">
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+<div class="p-3 bg-white rounded-lg border border-slate-200/60">
+<div class="flex justify-between items-center mb-1">
+<span class="font-semibold text-slate-900">PHQ-9 (Trầm cảm)</span>
+<span class="text-brand-teal font-semibold" id="detail-phq9-score">2 / 27 điểm</span>
+</div>
+<p class="text-slate-500 leading-normal" id="detail-phq9-desc">Mức tối thiểu (0-4 điểm). Không có chỉ báo nguy cơ về an toàn bản thân tại câu hỏi số 9.</p>
+</div>
+<div class="p-3 bg-white rounded-lg border border-slate-200/60">
+<div class="flex justify-between items-center mb-1">
+<span class="font-semibold text-slate-900">GAD-7 (Lo âu)</span>
+<span class="text-brand-teal font-semibold" id="detail-gad7-score">1 / 21 điểm</span>
+</div>
+<p class="text-slate-500 leading-normal" id="detail-gad7-desc">Mức tối thiểu (0-4 điểm). Dấu hiệu lo lắng xuất hiện hiếm hoi và không ảnh hưởng sinh hoạt.</p>
+</div>
+</div>
+<p class="text-[11px] italic text-slate-600">
+              * Lưu ý: Kết quả sàng lọc chỉ phản ánh trạng thái tự báo cáo trong 14 ngày qua và không có giá trị thay thế chẩn đoán chuyên sâu từ bác sĩ hoặc chuyên viên tâm lý.
+            </p>
+</div>
+</details>
+</div>
+<!-- END: Progressive Disclosures -->
+</div>
+</section>
+<!-- END: ConciseCombinedMeaningCard -->
+<!-- BEGIN: SupportSafetyBanner (Subtle & Non-intrusive) -->
+<section class="p-4 rounded-2xl bg-brand-sage/60 border border-[#E0EBE2] flex items-center justify-between text-xs text-slate-600" data-purpose="safety-assurance">
+<div class="flex items-center gap-2.5">
+<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+<span class="">Cần trợ giúp khẩn cấp hoặc đang gặp khủng hoảng tâm lý?</span>
+</div>
+<a class="font-medium text-brand-teal hover:underline flex items-center gap-1" href="#">
+<span class="">Xem đường dây nóng an toàn</span>
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</a>
+</section>
+<!-- END: SupportSafetyBanner -->
+</div>
+<!-- END: MAIN FLOW CONTENT CONTAINER -->
+</div>
+</main>
+<!-- END: ScrollableContent -->
+</div>
+<!-- END: MainContentWrapper -->
+<!-- BEGIN: FloatingEmergencyOrHelpButton -->
+<aside class="fixed bottom-6 right-6 z-30" data-purpose="floating-help-widget">
+<button aria-label="Hỗ trợ &amp; đồng hành tâm lý" class="w-13 h-13 p-3.5 rounded-full bg-brand-camel hover:bg-[#A36E35] text-white shadow-card flex items-center justify-center transition-transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-brand-camel/30" type="button">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
+</svg>
+</button>
+</aside>
+<!-- Prototype Controller Script -->
+<script data-purpose="context-mode-controller">
+let isSkeletonActive = false;
+
+function toggleLoadingSkeleton() {
+  const skeletonView = document.getElementById('loading-skeleton-view');
+  const mainFlow = document.getElementById('main-flow-content');
+  const btn = document.getElementById('btn-toggle-skeleton');
+  const btnText = document.getElementById('toggle-skeleton-text');
+
+  isSkeletonActive = !isSkeletonActive;
+
+  if (isSkeletonActive) {
+    if (skeletonView) skeletonView.classList.remove('hidden');
+    if (mainFlow) mainFlow.classList.add('hidden');
+    if (btn) {
+      btn.className = 'px-3 py-1.5 rounded-xl border border-brand-teal bg-brand-teal text-white font-medium shadow-xs transition-all flex items-center gap-1.5';
+      btn.setAttribute('aria-pressed', 'true');
+    }
+    if (btnText) btnText.textContent = 'Trở lại Màn hình chính ⇄';
+  } else {
+    if (skeletonView) skeletonView.classList.add('hidden');
+    if (mainFlow) mainFlow.classList.remove('hidden');
+    if (btn) {
+      btn.className = 'px-3 py-1.5 rounded-xl border border-brand-teal/30 bg-white text-brand-teal font-medium hover:bg-brand-mint/60 transition-all flex items-center gap-1.5 shadow-xs';
+      btn.setAttribute('aria-pressed', 'false');
+    }
+    if (btnText) btnText.textContent = 'Xem Loading Skeleton (Mầm An)';
+  }
+}
+
+function setButtonActive(id) {
+  ['btn-mode-current', 'btn-mode-historical', 'btn-mode-missing', 'btn-mode-safety'].forEach(btnId => {
+    const el = document.getElementById(btnId);
+    if (!el) return;
+    if (btnId === id) {
+      el.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-brand-teal shadow-xs transition-all flex items-center gap-1.5';
+    } else {
+      el.className = 'px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5';
+    }
+  });
+}
+
+function updateScaleBars(prefix, activeIndex, colorClass) {
+  for (let i = 0; i < 4; i++) {
+    const bar = document.getElementById(`${prefix}-bar-${i}`);
+    if (!bar) continue;
+    if (activeIndex === -1) {
+      bar.className = 'rounded-full bg-slate-200 transition-colors';
+    } else if (i === activeIndex) {
+      bar.className = `rounded-full ${colorClass || 'bg-brand-teal'} transition-colors`;
+    } else {
+      bar.className = 'rounded-full bg-slate-200 transition-colors';
+    }
+  }
+}
+
+function switchContextMode(mode) {
+  // If in skeleton, return to main view first
+  if (isSkeletonActive) toggleLoadingSkeleton();
+
+  const stepper = document.getElementById('stepper-header');
+  const histNav = document.getElementById('historical-nav-banner');
+  const histMeta = document.getElementById('historical-metadata-bar');
+  const missingAlert = document.getElementById('historical-missing-guide-alert');
+  const safetyAlert = document.getElementById('safety-top-alert');
+  const headline = document.getElementById('result-main-headline');
+  const meaning = document.getElementById('result-meaning-paragraph');
+  const ctaGroup = document.getElementById('result-cta-group');
+  const rationaleText = document.getElementById('rationale-text');
+
+  // PHQ-9 Elements
+  const phq9Badge = document.getElementById('phq9-level-badge');
+  const phq9LevelText = document.getElementById('phq9-level-text');
+  const phq9ScoreNum = document.getElementById('phq9-score-number');
+  const phq9ScoreDenom = document.getElementById('phq9-score-denom');
+  const phq9Desc = document.getElementById('phq9-desc-text');
+
+  // GAD-7 Elements
+  const gad7Badge = document.getElementById('gad7-level-badge');
+  const gad7LevelText = document.getElementById('gad7-level-text');
+  const gad7ScoreNum = document.getElementById('gad7-score-number');
+  const gad7ScoreDenom = document.getElementById('gad7-score-denom');
+  const gad7Desc = document.getElementById('gad7-desc-text');
+
+  // Details panel elements
+  const detailPhq9Score = document.getElementById('detail-phq9-score');
+  const detailPhq9Desc = document.getElementById('detail-phq9-desc');
+  const detailGad7Score = document.getElementById('detail-gad7-score');
+  const detailGad7Desc = document.getElementById('detail-gad7-desc');
+
+  if (mode === 'current') {
+    setButtonActive('btn-mode-current');
+    if (stepper) stepper.classList.remove('hidden');
+    if (histNav) { histNav.classList.remove('flex'); histNav.classList.add('hidden'); }
+    if (histMeta) histMeta.classList.add('hidden');
+    if (missingAlert) missingAlert.classList.add('hidden');
+    if (safetyAlert) safetyAlert.classList.add('hidden');
+
+    // PHQ-9 Card Update
+    if (phq9Badge) phq9Badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F3EE] text-[#1B4D3E] font-semibold text-xs border border-brand-mint-dark';
+    if (phq9LevelText) phq9LevelText.textContent = 'Mức tối thiểu';
+    if (phq9ScoreNum) phq9ScoreNum.textContent = '2';
+    if (phq9ScoreDenom) phq9ScoreDenom.textContent = '/27 điểm';
+    if (phq9Desc) phq9Desc.textContent = 'Các biểu hiện cảm xúc buồn chán hoặc mệt mỏi xuất hiện rất ít trong 14 ngày qua.';
+    updateScaleBars('phq9', 0, 'bg-brand-teal');
+
+    // GAD-7 Card Update
+    if (gad7Badge) gad7Badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F3EE] text-[#1B4D3E] font-semibold text-xs border border-brand-mint-dark';
+    if (gad7LevelText) gad7LevelText.textContent = 'Mức tối thiểu';
+    if (gad7ScoreNum) gad7ScoreNum.textContent = '1';
+    if (gad7ScoreDenom) gad7ScoreDenom.textContent = '/21 điểm';
+    if (gad7Desc) gad7Desc.textContent = 'Dấu hiệu bồn chồn lo lắng chỉ xuất hiện hiếm hoi, khả năng tự điều hòa ổn định.';
+    updateScaleBars('gad7', 0, 'bg-brand-teal');
+
+    if (headline) headline.textContent = 'Hai nhóm dấu hiệu được ghi nhận rất ít trong lần sàng lọc này.';
+    if (meaning) meaning.textContent = 'Bạn có thể bắt đầu với những gợi ý tự hỗ trợ nhẹ nhàng để tiếp tục duy trì trạng thái cân bằng.';
+
+    if (ctaGroup) {
+      ctaGroup.innerHTML = `
+        <a class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-brand-teal text-white font-medium text-sm hover:bg-brand-teal-dark active:scale-[0.99] transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-teal focus:ring-offset-2" href="#recommendations">
+          <span>Xem gợi ý hỗ trợ</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </a>
+        <button onclick="switchContextMode('historical')" class="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-50 text-slate-700 hover:text-slate-900 hover:bg-slate-100 font-medium text-sm border border-slate-200/80 transition-colors focus:ring-brand-teal focus:ring-2" type="button">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          <span>Xem lịch sử sàng lọc</span>
+        </button>
+        <button class="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-50 text-slate-700 hover:text-slate-900 hover:bg-slate-100 font-medium text-sm border border-slate-200/80 transition-colors focus:ring-brand-teal focus:ring-2" type="button">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 4v6h6" stroke-linecap="round" stroke-linejoin="round"></path><path d="M3.51 15a9 9 0 102.13-9.36L1 10" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          <span>Làm lại bài sàng lọc</span>
+        </button>
+      `;
+    }
+
+    if (rationaleText) rationaleText.textContent = 'Hệ thống tự động liên kết hai thang đo độc lập: PHQ-9 (mức tối thiểu: 2/27 điểm) và GAD-7 (mức tối thiểu: 1/21 điểm) đã hoàn thành hôm nay. Điểm số cho thấy các biểu hiện cảm xúc và lo âu hiện nằm trong biên độ thích ứng bình thường. Do đó, khuyến nghị được cá nhân hóa tập trung vào thư viện bài viết tự rèn luyện thói quen thư giãn và giấc ngủ chất lượng, không kích hoạt can thiệp y tế.';
+
+    if (detailPhq9Score) detailPhq9Score.textContent = '2 / 27 điểm';
+    if (detailPhq9Desc) detailPhq9Desc.textContent = 'Mức tối thiểu (0-4 điểm). Không có chỉ báo nguy cơ về an toàn bản thân tại câu hỏi số 9.';
+    if (detailGad7Score) detailGad7Score.textContent = '1 / 21 điểm';
+    if (detailGad7Desc) detailGad7Desc.textContent = 'Mức tối thiểu (0-4 điểm). Dấu hiệu lo lắng xuất hiện hiếm hoi và không ảnh hưởng sinh hoạt.';
+
+  } else if (mode === 'historical') {
+    setButtonActive('btn-mode-historical');
+    if (stepper) stepper.classList.add('hidden');
+    if (histNav) { histNav.classList.remove('hidden'); histNav.classList.add('flex'); }
+    if (histMeta) histMeta.classList.remove('hidden');
+    if (safetyAlert) safetyAlert.classList.add('hidden');
+
+    // PHQ-9 Card Update (8/27 - Mức nhẹ)
+    if (phq9Badge) phq9Badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 font-semibold text-xs border border-emerald-200';
+    if (phq9LevelText) phq9LevelText.textContent = 'Mức nhẹ';
+    if (phq9ScoreNum) phq9ScoreNum.textContent = '8';
+    if (phq9ScoreDenom) phq9ScoreDenom.textContent = '/27 điểm';
+    if (phq9Desc) phq9Desc.textContent = 'Tâm trạng trầm thoáng qua theo chu kỳ, chưa ảnh hưởng sâu tới sinh hoạt.';
+    updateScaleBars('phq9', 1, 'bg-emerald-600');
+
+    // GAD-7 Card Update (7/21 - Mức nhẹ)
+    if (gad7Badge) gad7Badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 font-semibold text-xs border border-emerald-200';
+    if (gad7LevelText) gad7LevelText.textContent = 'Mức nhẹ';
+    if (gad7ScoreNum) gad7ScoreNum.textContent = '7';
+    if (gad7ScoreDenom) gad7ScoreDenom.textContent = '/21 điểm';
+    if (gad7Desc) gad7Desc.textContent = 'Cảm giác bồn chồn lo âu liên quan tới căng thẳng công việc trong giai đoạn đó.';
+    updateScaleBars('gad7', 1, 'bg-emerald-600');
+
+    if (headline) headline.textContent = 'Mức độ ảnh hưởng nhẹ được ghi nhận trong đợt đánh giá này.';
+    if (meaning) meaning.textContent = 'Bản ghi lịch sử cho thấy cảm xúc và mức căng thẳng thời điểm đó có biến động nhẹ nhưng vẫn kiểm soát tốt qua các bài tập thở và điều chỉnh giấc ngủ.';
+
+    handleHistoricalGuideToggle(document.getElementById('toggle-saved-guide') ? document.getElementById('toggle-saved-guide').checked : true);
+
+    if (rationaleText) rationaleText.textContent = 'Dữ liệu được lưu trữ nguyên trạng từ lượt kiểm tra ngày 01/01/2098. Điểm PHQ-9 (8/27) và GAD-7 (7/21) đã được phân tích theo tiêu chuẩn y khoa thời điểm đó nhằm cung cấp gợi ý rèn luyện điều hòa nhịp sinh hoạt.';
+
+    if (detailPhq9Score) detailPhq9Score.textContent = '8 / 27 điểm';
+    if (detailPhq9Desc) detailPhq9Desc.textContent = 'Mức độ nhẹ (5-9 điểm). Không có chỉ báo nguy cơ an toàn.';
+    if (detailGad7Score) detailGad7Score.textContent = '7 / 21 điểm';
+    if (detailGad7Desc) detailGad7Desc.textContent = 'Mức độ nhẹ (5-9 điểm). Mức lo âu kiểm soát được.';
+
+  } else if (mode === 'missing') {
+    setButtonActive('btn-mode-missing');
+    if (stepper) stepper.classList.add('hidden');
+    if (histNav) { histNav.classList.remove('hidden'); histNav.classList.add('flex'); }
+    if (histMeta) histMeta.classList.remove('hidden');
+    if (missingAlert) missingAlert.classList.remove('hidden');
+    if (safetyAlert) safetyAlert.classList.add('hidden');
+
+    // PHQ-9 Incomplete
+    if (phq9Badge) phq9Badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-semibold text-xs border border-slate-200';
+    if (phq9LevelText) phq9LevelText.textContent = 'Không đủ dữ liệu điểm';
+    if (phq9ScoreNum) phq9ScoreNum.textContent = '—';
+    if (phq9ScoreDenom) phq9ScoreDenom.textContent = 'chưa hoàn tất';
+    if (phq9Desc) phq9Desc.textContent = 'Lượt đánh giá này bị gián đoạn giữa chừng nên không ghi nhận đủ 9 câu hỏi PHQ-9.';
+    updateScaleBars('phq9', -1);
+
+    // GAD-7 Complete but solitary
+    if (gad7Badge) gad7Badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F3EE] text-[#1B4D3E] font-semibold text-xs border border-brand-mint-dark';
+    if (gad7LevelText) gad7LevelText.textContent = 'Mức tối thiểu';
+    if (gad7ScoreNum) gad7ScoreNum.textContent = '2';
+    if (gad7ScoreDenom) gad7ScoreDenom.textContent = '/21 điểm';
+    if (gad7Desc) gad7Desc.textContent = 'Điểm GAD-7 được lưu độc lập nhưng không thể tổng hợp kết quả chung do thiếu bài PHQ-9.';
+    updateScaleBars('gad7', 0, 'bg-brand-teal');
+
+    if (headline) headline.textContent = 'Dữ liệu đợt sàng lọc này chưa hoàn thiện để kết luận.';
+    if (meaning) meaning.textContent = 'MentalBridge không tự suy đoán điểm số khi dữ liệu tự khai chưa đầy đủ để đảm bảo tính chuẩn xác y khoa. Bạn có thể làm lại bài mới khi sẵn sàng.';
+
+    if (ctaGroup) {
+      ctaGroup.innerHTML = `
+        <button class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-brand-teal text-white font-medium text-sm hover:bg-brand-teal-dark active:scale-[0.99] transition-all shadow-sm" type="button">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 4v6h6" stroke-linecap="round" stroke-linejoin="round"></path><path d="M3.51 15a9 9 0 102.13-9.36L1 10" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          <span>Làm bài sàng lọc mới</span>
+        </button>
+        <button onclick="switchContextMode('current')" class="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-50 text-slate-700 hover:text-slate-900 hover:bg-slate-100 font-medium text-sm border border-slate-200/80 transition-colors" type="button">
+          <span>← Quay lại bản gần nhất</span>
+        </button>
+      `;
+    }
+
+    if (rationaleText) rationaleText.textContent = 'Bản ghi lịch sử bị thiếu một phần thang đo PHQ-9. Hệ thống bảo lưu tính trung thực của hồ sơ cá nhân và không suy diễn kết quả.';
+    if (detailPhq9Score) detailPhq9Score.textContent = 'Chưa hoàn tất';
+    if (detailPhq9Desc) detailPhq9Desc.textContent = 'Thiếu câu trả lời câu 4 - câu 9.';
+    if (detailGad7Score) detailGad7Score.textContent = '2 / 21 điểm';
+    if (detailGad7Desc) detailGad7Desc.textContent = 'Thang đo hoàn thành đầy đủ ở mức tối thiểu.';
+
+  } else if (mode === 'safety') {
+    setButtonActive('btn-mode-safety');
+    if (stepper) stepper.classList.remove('hidden');
+    if (histNav) { histNav.classList.remove('flex'); histNav.classList.add('hidden'); }
+    if (histMeta) histMeta.classList.add('hidden');
+    if (missingAlert) missingAlert.classList.add('hidden');
+    if (safetyAlert) safetyAlert.classList.remove('hidden');
+
+    // PHQ-9 Alert
+    if (phq9Badge) phq9Badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 text-brand-camel font-bold text-xs border border-brand-camel/40';
+    if (phq9LevelText) phq9LevelText.textContent = 'Mức trung bình nặng';
+    if (phq9ScoreNum) phq9ScoreNum.textContent = '15';
+    if (phq9ScoreDenom) phq9ScoreDenom.textContent = '/27 điểm';
+    if (phq9Desc) phq9Desc.textContent = 'Nhiều triệu chứng mệt mỏi, khó khăn tập trung kéo dài, cần sự lắng nghe hỗ trợ chuyên nghiệp.';
+    updateScaleBars('phq9', 3, 'bg-brand-camel');
+
+    // GAD-7 Alert
+    if (gad7Badge) gad7Badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 text-brand-camel font-bold text-xs border border-brand-camel/40';
+    if (gad7LevelText) gad7LevelText.textContent = 'Mức trung bình';
+    if (gad7ScoreNum) gad7ScoreNum.textContent = '11';
+    if (gad7ScoreDenom) gad7ScoreDenom.textContent = '/21 điểm';
+    if (gad7Desc) gad7Desc.textContent = 'Cảm giác lo âu bồn chồn thường xuyên, gây ảnh hưởng đáng kể tới công việc và giấc ngủ.';
+    updateScaleBars('gad7', 2, 'bg-brand-camel');
+
+    if (headline) headline.textContent = 'Chúng tôi ghi nhận dấu hiệu cho thấy bạn đang trải qua nhiều áp lực.';
+    if (meaning) meaning.textContent = 'Sự an toàn và sức khỏe tinh thần của bạn là ưu tiên hàng đầu. Hãy kết nối với người bạn tin cậy hoặc chuyên gia để nhận sự đồng hành kịp thời.';
+
+    if (ctaGroup) {
+      ctaGroup.innerHTML = `
+        <a class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-brand-camel text-white font-semibold text-sm hover:bg-[#A36E35] active:scale-[0.99] transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-camel" href="tel:19001267">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+          <span>Kết nối hỗ trợ khẩn cấp 24/7</span>
+        </a>
+        <a class="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-50 text-slate-700 hover:text-slate-900 hover:bg-slate-100 font-medium text-sm border border-slate-200/80 transition-colors focus:ring-brand-teal focus:ring-2" href="#recommendations">
+          <span>Xem hướng dẫn an toàn cá nhân</span>
+        </a>
+      `;
+    }
+
+    if (rationaleText) rationaleText.textContent = 'Điểm PHQ-9 (15/27) và GAD-7 (11/21) kích hoạt quy trình ưu tiên an toàn. Hệ thống khuyến khích liên hệ nguồn hỗ trợ trực tiếp từ nhân sự y tế hoặc đường dây trợ giúp.';
+    if (detailPhq9Score) detailPhq9Score.textContent = '15 / 27 điểm';
+    if (detailPhq9Desc) detailPhq9Desc.textContent = 'Mức trung bình nặng (15-19 điểm). Cần thăm vấn chuyên môn.';
+    if (detailGad7Score) detailGad7Score.textContent = '11 / 21 điểm';
+    if (detailGad7Desc) detailGad7Desc.textContent = 'Mức trung bình (10-14 điểm). Lo âu mức độ cần điều hòa tích cực.';
+  }
+}
+
+function handleHistoricalGuideToggle(hasGuide) {
+  const missingAlert = document.getElementById('historical-missing-guide-alert');
+  const ctaGroup = document.getElementById('result-cta-group');
+  if (!ctaGroup) return;
+
+  if (hasGuide) {
+    if (missingAlert) missingAlert.classList.add('hidden');
+    ctaGroup.innerHTML = `
+      <a class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-brand-teal text-white font-medium text-sm hover:bg-brand-teal-dark active:scale-[0.99] transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-teal" href="#saved-guide">
+        <span>Xem gợi ý của lần này →</span>
+      </a>
+      <button onclick="switchContextMode('current')" class="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-50 text-slate-700 hover:text-slate-900 hover:bg-slate-100 font-medium text-sm border border-slate-200/80 transition-colors" type="button">
+        <span>← Quay lại Lịch sử sàng lọc</span>
+      </button>
+    `;
+  } else {
+    if (missingAlert) missingAlert.classList.remove('hidden');
+    ctaGroup.innerHTML = `
+      <a class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-brand-teal text-white font-medium text-sm hover:bg-brand-teal-dark active:scale-[0.99] transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-teal" href="#current-support">
+        <span>Xem hỗ trợ hiện tại</span>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </a>
+      <button onclick="switchContextMode('current')" class="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-50 text-slate-700 hover:text-slate-900 hover:bg-slate-100 font-medium text-sm border border-slate-200/80 transition-colors" type="button">
+        <span>← Quay lại Lịch sử sàng lọc</span>
+      </button>
+    `;
+  }
+}
+</script>
+<!-- END: FloatingEmergencyOrHelpButton -->
+
+
+</body></html>

@@ -1,0 +1,257 @@
+import { NextRequest } from 'next/server'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { ContentServiceError } from '@/lib/content/content-client'
+import { ACCESS_COOKIE_NAME } from '@/lib/auth/session-cookies'
+
+const contentMocks = vi.hoisted(() => ({ get: vi.fn(), update: vi.fn() }))
+const sessionMocks = vi.hoisted(() => ({
+  resolveSession: vi.fn(),
+}))
+
+vi.mock('@/lib/content/content-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/content/content-client')>()),
+  contentPreferenceClient: contentMocks,
+}))
+vi.mock('@/lib/auth/session-service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth/session-service')>()),
+  resolveSession: sessionMocks.resolveSession,
+}))
+
+import { GET, PATCH } from './route'
+
+const preferences = {
+  notificationsEnabled: true,
+  channels: { inApp: true, email: false, push: false },
+  contentGroups: {
+    journalReminder: true,
+    emotionCheckIn: true,
+    streakMilestone: true,
+    screeningReassessment: true,
+    appointmentMessage: true,
+    resourceSystem: true,
+    communityInteraction: true,
+    supportPlanReminder: true,
+  },
+  quietHours: {
+    enabled: false,
+    start: '22:00',
+    end: '07:00',
+    timeZone: 'Asia/Ho_Chi_Minh',
+  },
+  email: {
+    cadence: 'IMMEDIATE' as const,
+    wellbeingDigestEnabled: false,
+    resourceRemindersEnabled: false,
+    appointmentRemindersEnabled: false,
+    dailyDigestTime: '19:00',
+    resourceReminderTime: '18:30',
+  },
+  dailyReminderTime: '20:00',
+  version: 0,
+  updatedAt: '2026-09-26T00:00:00.000Z',
+}
+
+function request(method: 'GET' | 'PATCH', body?: unknown, ifMatch?: string) {
+  return new NextRequest('http://localhost/api/notifications/preferences', {
+    method,
+    headers: {
+      cookie: `${ACCESS_COOKIE_NAME}=identity-access-secret`,
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...(ifMatch ? { 'If-Match': ifMatch } : {}),
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  })
+}
+
+describe('/api/notifications/preferences', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    sessionMocks.resolveSession.mockResolvedValue({
+      account: {
+        accountId: '10000000-0000-4000-8000-000000000009',
+        roles: ['USER'],
+      },
+    })
+  })
+
+  it('loads owner preferences and preserves the upstream ETag', async () => {
+    contentMocks.get.mockResolvedValue({ preferences, etag: '"0"' })
+    const response = await GET(request('GET'))
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('etag')).toBe('"0"')
+    expect(await response.json()).toEqual(preferences)
+    expect(contentMocks.get).toHaveBeenCalledWith(
+      'identity-access-secret',
+      expect.any(String),
+    )
+  })
+
+  it('allows a specialist to load and update owner-scoped preferences', async () => {
+    sessionMocks.resolveSession.mockResolvedValue({
+      account: {
+        accountId: '10000000-0000-4000-8000-000000000010',
+        roles: ['SPECIALIST'],
+      },
+    })
+    contentMocks.get.mockResolvedValue({ preferences, etag: '"0"' })
+    contentMocks.update.mockResolvedValue({
+      preferences: { ...preferences, version: 1 },
+      etag: '"1"',
+    })
+
+    expect((await GET(request('GET'))).status).toBe(200)
+    expect(
+      (
+        await PATCH(
+          request(
+            'PATCH',
+            {
+              contentGroups: { appointmentMessage: false },
+            },
+            '"0"',
+          ),
+        )
+      ).status,
+    ).toBe(200)
+    expect(contentMocks.update).toHaveBeenCalledWith(
+      'identity-access-secret',
+      { contentGroups: { appointmentMessage: false } },
+      '"0"',
+      expect.any(String),
+    )
+  })
+
+  it('forwards an exact partial update and optimistic version', async () => {
+    const patch = {
+      channels: { email: true, push: true },
+      quietHours: { timeZone: 'Europe/Paris' },
+    }
+    contentMocks.update.mockResolvedValue({
+      preferences: { ...preferences, version: 1 },
+      etag: '"1"',
+    })
+
+    const response = await PATCH(request('PATCH', patch, '"0"'))
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('etag')).toBe('"1"')
+    expect(contentMocks.update).toHaveBeenCalledWith(
+      'identity-access-secret',
+      patch,
+      '"0"',
+      expect.any(String),
+    )
+  })
+
+  it('passes the daily reminder time and plan group through unchanged', async () => {
+    const patch = {
+      dailyReminderTime: '07:30',
+      contentGroups: { supportPlanReminder: false },
+    }
+    contentMocks.update.mockResolvedValue({
+      preferences: {
+        ...preferences,
+        dailyReminderTime: '07:30',
+        contentGroups: {
+          ...preferences.contentGroups,
+          supportPlanReminder: false,
+        },
+        version: 1,
+      },
+      etag: '"1"',
+    })
+    const response = await PATCH(request('PATCH', patch, '"0"'))
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      dailyReminderTime: '07:30',
+      contentGroups: { supportPlanReminder: false },
+    })
+    expect(contentMocks.update).toHaveBeenCalledWith(
+      'identity-access-secret',
+      patch,
+      '"0"',
+      expect.any(String),
+    )
+  })
+
+  it('accepts a separate appointment reminder preference', async () => {
+    const patch = { email: { appointmentRemindersEnabled: true } }
+    contentMocks.update.mockResolvedValue({
+      preferences: {
+        ...preferences,
+        email: { ...preferences.email, appointmentRemindersEnabled: true },
+        version: 1,
+      },
+      etag: '"1"',
+    })
+    const response = await PATCH(request('PATCH', patch, '"0"'))
+    expect(response.status).toBe(200)
+    expect(contentMocks.update).toHaveBeenCalledWith(
+      'identity-access-secret',
+      patch,
+      '"0"',
+      expect.any(String),
+    )
+  })
+
+  it('works against old backends that omit appointmentRemindersEnabled (MB-517 rollout)', async () => {
+    // Old backend response: email object without appointmentRemindersEnabled.
+    const oldEmail = { ...preferences.email }
+    delete (oldEmail as { appointmentRemindersEnabled?: boolean })
+      .appointmentRemindersEnabled
+    const oldPreferences = { ...preferences, email: oldEmail }
+    contentMocks.get.mockResolvedValue({
+      preferences: oldPreferences,
+      etag: '"0"',
+    })
+
+    const getResponse = await GET(request('GET'))
+    expect(getResponse.status).toBe(200)
+    const body = await getResponse.json()
+    expect(body.email.appointmentRemindersEnabled).toBeUndefined()
+  })
+
+  it.each([
+    [{ channels: { sms: true } }, '"0"'],
+    [{ quietHours: { start: '25:00' } }, '"0"'],
+    [{ dailyReminderTime: '7h' }, '"0"'],
+    [{ email: { appointmentRemindersEnabled: 'yes' } }, '"0"'],
+    [{ channels: { email: true } }, undefined],
+  ])(
+    'rejects invalid input before Content is called',
+    async (body, ifMatch) => {
+      const response = await PATCH(request('PATCH', body, ifMatch))
+      expect(response.status).toBe(400)
+      expect(contentMocks.update).not.toHaveBeenCalled()
+    },
+  )
+
+  it('preserves a safe stale-version response', async () => {
+    contentMocks.update.mockRejectedValue(
+      new ContentServiceError({
+        type: 'https://mentalbridge.io/errors/NOTIFICATION_PREFERENCE_VERSION_MISMATCH',
+        title: 'Preferences changed elsewhere',
+        status: 412,
+        code: 'NOTIFICATION_PREFERENCE_VERSION_MISMATCH',
+      }),
+    )
+    const response = await PATCH(
+      request('PATCH', { channels: { email: true } }, '"0"'),
+    )
+    expect(response.status).toBe(412)
+    expect((await response.json()).code).toBe(
+      'NOTIFICATION_PREFERENCE_VERSION_MISMATCH',
+    )
+  })
+
+  it('returns a bounded dependency failure', async () => {
+    contentMocks.get.mockRejectedValue(new Error('private upstream details'))
+    const response = await GET(request('GET'))
+    expect(response.status).toBe(502)
+    expect(JSON.stringify(await response.json())).not.toContain(
+      'private upstream details',
+    )
+  })
+})

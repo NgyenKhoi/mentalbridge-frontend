@@ -57,6 +57,21 @@ export function createSubscribeCommand(
   })
 }
 
+export function createCheckInCommand(
+  conversationId: string,
+  identity?: CommandIdentity,
+  clock: CommandClock = browserClock,
+): CommandEnvelopeV1 {
+  return checked({
+    schemaVersion: 1,
+    commandId: identity?.commandId ?? clock.uuid(),
+    commandType: 'conversation.check-in',
+    correlationId: identity?.correlationId ?? clock.uuid(),
+    sentAt: clock.now().toISOString(),
+    payload: { conversationId },
+  })
+}
+
 export function createMessageCommand(
   conversationId: string,
   content: string,

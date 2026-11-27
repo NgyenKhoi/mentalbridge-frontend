@@ -1,176 +1,1382 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { motion } from 'framer-motion'
-import './specialist-earnings-manager.css'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import {
+  ArrowDownToLine,
+  ArrowRight,
+  Banknote,
+  CheckCircle2,
+  Clock3,
+  CreditCard,
+  Info,
+  RefreshCw,
+  Wallet,
+  X,
+} from 'lucide-react'
+import Link from 'next/link'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { FormEvent } from 'react'
+import { specialistEarningsBrowserClient } from '@/features/specialist-earnings/api/browser-client'
+import {
+  BankCombobox,
+  type BankOption,
+} from '@/features/specialist-earnings/BankCombobox'
+import {
+  maskedHint,
+  payoutProviderName,
+} from '@/features/specialist-earnings/payout-labels'
+import { ApiError } from '@/lib/api/api-error'
+import type {
+  SavePayoutDestinationInput,
+  SpecialistEarnings,
+} from '@/lib/consultation/consultation-validation'
+import { Dialog } from './ui/Dialog'
+import { useFeedback } from './ui/FeedbackProvider'
+import { Skeleton } from './ui/Skeleton'
+import styles from './SpecialistEarningsManager.module.css'
 
-type TabKey = 'overview' | 'transactions' | 'payouts'
-type TransactionStatus = 'completed' | 'pending' | 'refunded'
-
-type Transaction = {
-  id: string
-  date: string
-  clientName: string
-  sessionType: string
-  duration: string
-  amount: number
-  status: TransactionStatus
+type DialogName = 'destination' | 'withdraw' | null
+type Payout = SpecialistEarnings['payouts'][number]
+const earningLabels: Record<
+  SpecialistEarnings['earnings'][number]['status'],
+  string
+> = {
+  PENDING_SETTLEMENT: 'Đang chờ đối soát',
+  AVAILABLE: 'Có thể rút',
+  PROCESSING: 'Đang chi trả',
+  PAID: 'Đã thanh toán',
+  REVERSED: 'Đã điều chỉnh',
 }
-
-const transactions: Transaction[] = [
-  { id: 'MB-0826-041', date: '2026-08-26', clientName: 'Nguyễn Minh Anh', sessionType: 'Video call', duration: '45 phút', amount: 400000, status: 'completed' },
-  { id: 'MB-0826-039', date: '2026-08-26', clientName: 'Phạm Thảo Vy', sessionType: 'Video call', duration: '45 phút', amount: 400000, status: 'completed' },
-  { id: 'MB-0825-034', date: '2026-08-25', clientName: 'Lê Hoàng Nam', sessionType: 'Tại phòng tư vấn', duration: '60 phút', amount: 500000, status: 'completed' },
-  { id: 'MB-0824-028', date: '2026-08-24', clientName: 'Trần Gia Hân', sessionType: 'Video call', duration: '45 phút', amount: 400000, status: 'completed' },
-  { id: 'MB-0823-022', date: '2026-08-23', clientName: 'Nguyễn Thu Hương', sessionType: 'Video call', duration: '45 phút', amount: 400000, status: 'pending' },
-  { id: 'MB-0821-017', date: '2026-08-21', clientName: 'Võ Bảo Ngọc', sessionType: 'Tại phòng tư vấn', duration: '60 phút', amount: 500000, status: 'completed' },
+const WAITING_FOR_OPERATOR = [
+  'PAYOUT_INSUFFICIENT_BALANCE',
+  'PAYOUT_SERVICE_CREDITS_INSUFFICIENT',
 ]
-
-const chartData = [
-  { label: '20/08', value: 800000 },
-  { label: '21/08', value: 1300000 },
-  { label: '22/08', value: 400000 },
-  { label: '23/08', value: 900000 },
-  { label: '24/08', value: 1200000 },
-  { label: '25/08', value: 1500000 },
-  { label: '26/08', value: 2100000 },
+const NOT_OPEN_CODES = [
+  'REAL_PAYOUT_DISABLED',
+  'PAYOUT_PROVIDER_UNAVAILABLE',
+  'PAYOUT_CONFIGURATION_UNAVAILABLE',
 ]
-
-const payouts = [
-  { id: 'PO-0826-2014', period: '01–15/08/2026', amount: 8400000, sessions: 21, status: 'available', date: 'Dự kiến 29/08/2026' },
-  { id: 'PO-0726-1842', period: '16–31/07/2026', amount: 6800000, sessions: 17, status: 'paid', date: '02/08/2026' },
-  { id: 'PO-0706-2184', period: '01–15/07/2026', amount: 7200000, sessions: 18, status: 'paid', date: '18/07/2026' },
+const NOT_OPEN = 'Rút tiền tạm thời chưa mở. Vui lòng quay lại sau.'
+const STEPS = [
+  'Đã gửi yêu cầu',
+  'Ngân hàng đang xác nhận',
+  'Đã nhận tiền',
 ] as const
 
-const statusLabel: Record<TransactionStatus, string> = {
-  completed: 'Đã ghi nhận',
-  pending: 'Chờ đối soát',
-  refunded: 'Đã hoàn tiền',
-}
-
-function Icon({ name }: { name: 'wallet' | 'trend' | 'clock' | 'calendar' | 'bank' | 'download' | 'search' | 'check' }) {
-  const paths = {
-    wallet: <><path d="M4 7.5h15a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a3 3 0 0 1-3-3v-11a3 3 0 0 1 3-3h12v5"/><path d="M16 12h5v4h-5a2 2 0 0 1 0-4Z"/></>,
-    trend: <><path d="m3 17 6-6 4 4 8-9"/><path d="M15 6h6v6"/></>,
-    clock: <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>,
-    calendar: <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/></>,
-    bank: <><path d="m3 9 9-6 9 6M5 10v8M9 10v8M15 10v8M19 10v8M3 21h18"/></>,
-    download: <><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></>,
-    search: <><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></>,
-    check: <path d="m5 12 4 4L19 6"/>,
+// Safe specialist copy per server state; raw failure codes never reach the screen.
+function payoutView(payout: Payout): {
+  label: string
+  tone: string
+  note: string | null
+  active: boolean
+} {
+  const { status, failureCode, reconciliationStatus, closedAt } = payout
+  if (status === 'FAILED' && closedAt)
+    return {
+      label: 'Đã đóng',
+      tone: 'CLOSED',
+      note: 'Số tiền đã trở lại số dư. Bạn có thể rút về tài khoản mới khi tài khoản được xác nhận.',
+      active: false,
+    }
+  if (status === 'PENDING' || status === 'PROCESSING')
+    return {
+      label: 'Đang chuyển',
+      tone: 'PROCESSING',
+      note: null,
+      active: true,
+    }
+  if (status === 'SUCCEEDED')
+    return {
+      label: 'Đã thanh toán',
+      tone: 'SUCCEEDED',
+      note: null,
+      active: false,
+    }
+  if (status === 'UNKNOWN') {
+    if (reconciliationStatus === undefined)
+      return {
+        label: 'Chưa rõ kết quả',
+        tone: 'UNKNOWN',
+        note: 'Đang đối soát kết quả. Chưa thể xác nhận thanh toán thành công.',
+        active: false,
+      }
+    return reconciliationStatus === 'NEEDS_REVIEW'
+      ? {
+          label: 'Đang kiểm tra',
+          tone: 'UNKNOWN',
+          note: 'Chúng tôi đang xác minh với ngân hàng. Số tiền vẫn được giữ cho bạn; bạn không cần làm gì.',
+          active: false,
+        }
+      : {
+          label: 'Đang xác nhận',
+          tone: 'UNKNOWN',
+          note: 'Ngân hàng chưa trả kết quả. Số tiền vẫn được giữ cho bạn.',
+          active: false,
+        }
   }
-  return <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>
+  if (failureCode && WAITING_FOR_OPERATOR.includes(failureCode))
+    return {
+      label: 'Chờ chuyển lại',
+      tone: 'WAITING',
+      note: 'Giao dịch được hoãn từ phía MentalBridge. Số tiền vẫn được giữ và sẽ được chuyển lại; bạn không cần làm gì.',
+      active: false,
+    }
+  return {
+    label: 'Chưa thành công',
+    tone: 'FAILED',
+    note:
+      failureCode === 'PAYOUT_PROVIDER_REJECTED'
+        ? 'Ngân hàng chưa nhận giao dịch. Số tiền vẫn được giữ cho bạn; đội vận hành sẽ kiểm tra và liên hệ nếu cần.'
+        : 'Số tiền vẫn được giữ cho bạn; đội vận hành sẽ kiểm tra và chuyển lại.',
+    active: false,
+  }
+}
+// Exact short hold (staging demo) in plain minutes/hours; whole days otherwise.
+function formatHold(days: number, seconds?: number) {
+  if (seconds === undefined) return `${days} ngày`
+  if (seconds % 86400 === 0) return `${seconds / 86400} ngày`
+  if (seconds % 3600 === 0) return `${seconds / 3600} giờ`
+  if (seconds % 60 === 0) return `${seconds / 60} phút`
+  return `${seconds} giây`
 }
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(amount)
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    maximumFractionDigits: 0,
+  }).format(value)
 }
-
-function formatDate(date: string) {
-  return new Date(`${date}T00:00:00`).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(value))
+}
+function denied(error: unknown) {
+  return (
+    error instanceof ApiError && (error.status === 401 || error.status === 403)
+  )
+}
+function requestError(
+  error: unknown,
+  action: 'load' | 'destination' | 'withdraw',
+) {
+  if (error instanceof ApiError) {
+    if (error.status === 401)
+      return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+    if (error.status === 403)
+      return 'Tài khoản hiện tại chưa có quyền quản lý thu nhập.'
+    if (error.code === 'PAYOUT_DAILY_LIMIT_REACHED')
+      return 'Bạn đã gửi yêu cầu rút tiền hôm nay. Hãy làm mới để xem trạng thái yêu cầu.'
+    if (error.code === 'PAYOUT_MINIMUM_NOT_REACHED')
+      return 'Số dư khả dụng hiện tại chưa đạt mức rút tối thiểu. Hãy làm mới số dư.'
+    if (error.code === 'PAYOUT_DESTINATION_NOT_FOUND')
+      return 'Nơi nhận tiền không còn khả dụng. Hãy làm mới và kiểm tra lại thông tin nhận tiền.'
+    if (error.code === 'PAYOUT_DESTINATION_INVALID')
+      return 'Thông tin nhận tiền chưa hợp lệ. Hãy kiểm tra tên, số tài khoản và ngân hàng.'
+    if (error.code === 'PAYOUT_DESTINATION_CONFIRMATION_REQUIRED')
+      return 'Tài khoản đang chờ xác nhận. Bạn có thể rút tiền khi tài khoản được xác nhận.'
+    if (error.code === 'PAYOUT_DESTINATION_PROVIDER_MISMATCH')
+      return 'Cần thêm tài khoản ngân hàng để rút tiền. Hãy làm mới để xem tài khoản hiện tại.'
+    if (error.code && NOT_OPEN_CODES.includes(error.code)) return NOT_OPEN
+  }
+  if (action === 'load')
+    return 'Chưa thể cập nhật thu nhập. Vui lòng thử kết nối lại.'
+  if (action === 'destination')
+    return 'Chưa thể xác nhận thông tin đã được lưu. Nội dung bạn nhập vẫn ở đây để kiểm tra và thử lại.'
+  return 'Chưa nhận được kết quả yêu cầu rút tiền. Đừng tạo yêu cầu mới; thử lại tại đây để kiểm tra cùng yêu cầu.'
+}
+function Amount({ value }: { value: number }) {
+  const reduced = useReducedMotion()
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.strong
+        key={value}
+        initial={reduced ? false : { opacity: 0, y: 5 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={reduced ? undefined : { opacity: 0, y: -5 }}
+        transition={{ duration: reduced ? 0 : 0.15 }}
+      >
+        {formatCurrency(value)}
+      </motion.strong>
+    </AnimatePresence>
+  )
+}
+// Badge text cross-fades when the state changes (240 ms; instant under reduced motion).
+function FadeText({ value }: { value: string }) {
+  const reduced = useReducedMotion()
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.span
+        key={value}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: reduced ? 0 : 0.12 }}
+      >
+        {value}
+      </motion.span>
+    </AnimatePresence>
+  )
+}
+// Key moment: three steps; on success the last check draws in and the list collapses.
+function PayoutSteps({ complete }: { complete: boolean }) {
+  const reduced = useReducedMotion()
+  return (
+    <motion.ol
+      className={styles.steps}
+      aria-label="Tiến trình chuyển tiền"
+      initial={reduced ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: reduced ? 0 : 0.24 }}
+    >
+      {STEPS.map((step, index) => {
+        const state =
+          complete || index === 0 ? 'done' : index === 1 ? 'current' : 'next'
+        return (
+          <li
+            key={step}
+            data-step={state}
+            aria-current={state === 'current' ? 'step' : undefined}
+          >
+            <span className={styles.stepMark} aria-hidden="true">
+              {state === 'done' ? (
+                <svg viewBox="0 0 16 16" width="16" height="16" fill="none">
+                  <motion.path
+                    d="M3.5 8.5l3 3 6-7"
+                    stroke="var(--teal-deep)"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    initial={
+                      complete && index === 2 && !reduced
+                        ? { pathLength: 0 }
+                        : false
+                    }
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.32 }}
+                  />
+                </svg>
+              ) : (
+                <i data-dot={state} />
+              )}
+            </span>
+            {step}
+            <span className={styles.visuallyHidden}>
+              {state === 'done'
+                ? ' (đã xong)'
+                : state === 'current'
+                  ? ' (đang diễn ra)'
+                  : ' (chưa tới)'}
+            </span>
+          </li>
+        )
+      })}
+    </motion.ol>
+  )
 }
 
 export default function SpecialistEarningsManager() {
-  const [activeTab, setActiveTab] = useState<TabKey>('overview')
-  const [period, setPeriod] = useState('7-days')
-  const [query, setQuery] = useState('')
-  const [status, setStatus] = useState('all')
-  const [withdrawOpen, setWithdrawOpen] = useState(false)
-  const [withdrawAmount, setWithdrawAmount] = useState('8400000')
-  const [confirmed, setConfirmed] = useState(false)
+  const { showActionToast } = useFeedback()
+  const reduced = useReducedMotion()
+  const [data, setData] = useState<SpecialistEarnings | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [dialog, setDialog] = useState<DialogName>(null)
+  const [destinationType, setDestinationType] =
+    useState<SavePayoutDestinationInput['destinationType']>('MOMO_WALLET')
+  const [accountReference, setAccountReference] = useState('')
+  const [accountHolderName, setAccountHolderName] = useState('')
+  const [bankCode, setBankCode] = useState('')
+  const [banks, setBanks] = useState<BankOption[] | null>(null)
+  const [banksLoading, setBanksLoading] = useState(false)
+  const [banksFailed, setBanksFailed] = useState(false)
   const [formError, setFormError] = useState('')
-  const [toast, setToast] = useState('')
+  const [invalidField, setInvalidField] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [unconfirmedPayout, setUnconfirmedPayout] = useState(false)
+  const [celebrating, setCelebrating] = useState<ReadonlySet<string>>(new Set())
+  const sequence = useRef(0)
+  const loadBusy = useRef(false)
+  const mutationBusy = useRef(false)
+  const payoutIntent = useRef<{ key: string; destinationId: string } | null>(
+    null,
+  )
+  const seenPayouts = useRef<Map<string, string> | null>(null)
+  const celebrateTimer = useRef<number | undefined>(undefined)
+  const nameInput = useRef<HTMLInputElement>(null)
+  const referenceInput = useRef<HTMLInputElement>(null)
+  const bankInput = useRef<HTMLInputElement>(null)
 
-  const filteredTransactions = useMemo(() => transactions.filter(transaction => {
-    const text = `${transaction.clientName} ${transaction.id} ${transaction.sessionType}`.toLocaleLowerCase('vi')
-    return text.includes(query.toLocaleLowerCase('vi').trim()) && (status === 'all' || transaction.status === status)
-  }), [query, status])
-
-  const showToast = (message: string) => {
-    setToast(message)
-    window.setTimeout(() => setToast(''), 3000)
-  }
-
-  const openWithdrawal = () => {
-    setActiveTab('payouts')
-    setWithdrawOpen(true)
+  const resetForm = useCallback(() => {
+    setAccountReference('')
+    setAccountHolderName('')
+    setBankCode('')
     setFormError('')
+    setInvalidField('')
+  }, [])
+  const clearProtected = useCallback(() => {
+    setData(null)
+    setDialog(null)
+    resetForm()
+    payoutIntent.current = null
+    seenPayouts.current = null
+    setUnconfirmedPayout(false)
+  }, [resetForm])
+  // Stores a fresh response; returns true when a payout just reached SUCCEEDED so the step list can finish.
+  const commit = useCallback((next: SpecialistEarnings) => {
+    const prior = seenPayouts.current
+    const finished = prior
+      ? next.payouts
+          .filter(
+            (p) =>
+              p.status === 'SUCCEEDED' &&
+              (!prior.has(p.id) ||
+                ['PENDING', 'PROCESSING'].includes(prior.get(p.id) ?? '')),
+          )
+          .map((p) => p.id)
+      : []
+    seenPayouts.current = new Map(next.payouts.map((p) => [p.id, p.status]))
+    setData(next)
+    if (finished.length) {
+      setCelebrating(new Set(finished))
+      window.clearTimeout(celebrateTimer.current)
+      celebrateTimer.current = window.setTimeout(
+        () => setCelebrating(new Set()),
+        600,
+      )
+    }
+    return finished.length > 0
+  }, [])
+  // A mutation supersedes any read already in flight, so a pre-mutation response cannot overwrite post-mutation state.
+  function fenceReads() {
+    loadBusy.current = false
+    setLoading(false)
+    return ++sequence.current
   }
+  // silent: background refresh while a payout is in flight; no skeleton, no error banner.
+  const load = useCallback(
+    async (silent = false) => {
+      if (loadBusy.current || mutationBusy.current) return
+      loadBusy.current = true
+      const request = ++sequence.current
+      if (!silent) {
+        setLoading(true)
+        setError('')
+      }
+      try {
+        const response = await specialistEarningsBrowserClient.get()
+        if (request === sequence.current && commit(response))
+          showActionToast({
+            title: 'Khoản rút tiền đã được thanh toán',
+            description: 'Kiểm tra số dư mới trong lịch sử chi trả.',
+          })
+      } catch (caught) {
+        if (request !== sequence.current) return
+        if (denied(caught)) clearProtected()
+        if (!silent || denied(caught)) setError(requestError(caught, 'load'))
+      } finally {
+        if (request === sequence.current) {
+          if (!silent) setLoading(false)
+          loadBusy.current = false
+        }
+      }
+    },
+    [clearProtected, commit, showActionToast],
+  )
+  const loadBanks = useCallback(async () => {
+    setBanksLoading(true)
+    setBanksFailed(false)
+    try {
+      setBanks((await specialistEarningsBrowserClient.banks()).items)
+    } catch (caught) {
+      if (denied(caught)) clearProtected()
+      setBanksFailed(true)
+    } finally {
+      setBanksLoading(false)
+    }
+  }, [clearProtected])
+  useEffect(() => {
+    let active = true
+    queueMicrotask(() => {
+      if (active) void load()
+    })
+    return () => {
+      active = false
+      sequence.current += 1
+      loadBusy.current = false
+      window.clearTimeout(celebrateTimer.current)
+    }
+  }, [load])
 
-  const submitWithdrawal = () => {
-    const amount = Number(withdrawAmount)
-    if (!amount || amount < 500000 || amount > 8400000) {
-      setFormError('Số tiền cần từ 500.000 ₫ đến 8.400.000 ₫.')
+  const destination = data?.destination ?? null
+  const availability = data?.payoutAvailability
+  const mode = availability?.mode ?? data?.payoutProvider
+  const payos = mode === 'PAYOS'
+  const notReady = Boolean(
+    availability && (!availability.ready || availability.mode === 'DISABLED'),
+  )
+  // Under PAYOS only a bank account confirmed by an admin can receive money; MoMo history stays readable.
+  const legacy = Boolean(
+    payos && destination && destination.provider !== 'PAYOS',
+  )
+  const pendingConfirmation = destination?.status === 'PENDING_CONFIRMATION'
+  const usable = Boolean(
+    destination?.status === 'VERIFIED' &&
+    destination.usableForPayout !== false &&
+    !legacy,
+  )
+  const processing = Boolean(
+    data &&
+    (data.balance.processingVnd > 0 ||
+      data.payouts.some((p) =>
+        ['PENDING', 'PROCESSING', 'UNKNOWN'].includes(p.status),
+      )),
+  )
+  const canWithdraw = Boolean(
+    data &&
+    usable &&
+    !notReady &&
+    data.balance.availableVnd >= data.minimumWithdrawalVnd &&
+    !processing &&
+    !error &&
+    !loading,
+  )
+  const inFlight = Boolean(
+    data?.payouts.some(
+      (p) =>
+        p.reconciliationStatus !== 'NEEDS_REVIEW' &&
+        (p.reconciliationStatus === 'POLLING' ||
+          p.reconciliationStatus === 'PENDING' ||
+          ['PENDING', 'PROCESSING', 'UNKNOWN'].includes(p.status)),
+    ),
+  )
+  // Poll every 30 s while a payout is in flight and the tab is visible; refresh once on return.
+  useEffect(() => {
+    if (!inFlight) return
+    const tick = () => {
+      if (document.visibilityState === 'visible') void load(true)
+    }
+    const timer = window.setInterval(tick, 30_000)
+    document.addEventListener('visibilitychange', tick)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', tick)
+    }
+  }, [inFlight, load])
+  const sortedEarnings = useMemo(
+    () =>
+      [...(data?.earnings ?? [])].sort(
+        (a, b) => Date.parse(b.earnedAt) - Date.parse(a.earnedAt),
+      ),
+    [data],
+  )
+  const sortedPayouts = useMemo(
+    () =>
+      [...(data?.payouts ?? [])].sort(
+        (a, b) => Date.parse(b.requestedAt) - Date.parse(a.requestedAt),
+      ),
+    [data],
+  )
+  function closeDialog() {
+    if (mutationBusy.current) return
+    setDialog(null)
+    resetForm()
+  }
+  function openDestination() {
+    if (mutationBusy.current || unconfirmedPayout) return
+    resetForm()
+    setDestinationType(
+      payos ? 'BANK_ACCOUNT' : (destination?.destinationType ?? 'MOMO_WALLET'),
+    )
+    setDialog('destination')
+    if (payos && (!banks || banksFailed)) void loadBanks()
+  }
+  function openWithdraw() {
+    if (mutationBusy.current) return
+    setFormError('')
+    setDialog('withdraw')
+  }
+  async function saveDestination(event: FormEvent) {
+    event.preventDefault()
+    if (mutationBusy.current) return
+    const field = !accountHolderName.trim()
+      ? 'name'
+      : destinationType === 'BANK_ACCOUNT' &&
+          !(payos
+            ? banks?.some((bank) => bank.bin === bankCode)
+            : bankCode.trim())
+        ? 'bank'
+        : !/^\d{6,32}$/.test(accountReference)
+          ? 'reference'
+          : ''
+    if (field) {
+      setInvalidField(field)
+      setFormError(
+        field === 'name'
+          ? payos
+            ? 'Nhập tên chủ tài khoản đúng như trên thẻ hoặc sao kê.'
+            : 'Nhập đúng tên chủ tài khoản hoặc chủ ví.'
+          : field === 'bank'
+            ? payos
+              ? 'Chọn ngân hàng từ danh sách.'
+              : 'Nhập mã ngân hàng để tiếp tục.'
+            : 'Nhập từ 6 đến 32 chữ số, không có khoảng trắng hoặc ký tự đặc biệt.',
+      )
+      ;({ name: nameInput, bank: bankInput, reference: referenceInput })[
+        field
+      ]?.current?.focus()
       return
     }
-    if (!confirmed) {
-      setFormError('Vui lòng xác nhận thông tin tài khoản nhận tiền.')
-      return
+    mutationBusy.current = true
+    setSubmitting(true)
+    setFormError('')
+    setInvalidField('')
+    const request = fenceReads()
+    try {
+      const saved = await specialistEarningsBrowserClient.saveDestination({
+        destinationType,
+        accountReference,
+        accountHolderName: accountHolderName.trim(),
+        ...(destinationType === 'BANK_ACCOUNT'
+          ? { bankCode: bankCode.trim() }
+          : {}),
+      })
+      if (request !== sequence.current) return
+      setData((current) =>
+        current ? { ...current, destination: saved } : current,
+      )
+      setDialog(null)
+      resetForm()
+      payoutIntent.current = null
+      showActionToast(
+        saved.status === 'PENDING_CONFIRMATION'
+          ? {
+              title: 'Đã gửi tài khoản để xác nhận',
+              description: 'Bạn có thể rút tiền khi tài khoản được xác nhận.',
+            }
+          : {
+              title: 'Đã lưu nơi nhận tiền',
+              description: 'Thông tin nhận tiền chỉ hiển thị dạng che bớt.',
+            },
+      )
+    } catch (caught) {
+      if (request !== sequence.current) return
+      if (denied(caught)) {
+        clearProtected()
+        setError(requestError(caught, 'destination'))
+      } else setFormError(requestError(caught, 'destination'))
+    } finally {
+      mutationBusy.current = false
+      setSubmitting(false)
     }
-    setWithdrawOpen(false)
-    showToast('Đã gửi yêu cầu rút tiền. Hệ thống đang xử lý đối soát.')
   }
-
-  return <div className="earnings-manager">
-    <header className="earnings-header">
-      <div><span className="earnings-eyebrow">Không gian chuyên gia</span><h1>Thu nhập & thanh toán</h1><p>Theo dõi doanh thu tư vấn, trạng thái đối soát và các kỳ chuyển tiền của bạn.</p></div>
-      <div className="earnings-header-actions"><span><i /> Dữ liệu cập nhật 09:15 hôm nay</span><button type="button" onClick={() => showToast('Báo cáo tài chính đã sẵn sàng để kết nối chức năng xuất dữ liệu.')}><Icon name="download" /> Xuất báo cáo</button></div>
-    </header>
-
-    <section className="earnings-summary" aria-label="Tổng quan thu nhập">
-      <motion.article className="earnings-balance" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="earnings-balance-top"><span className="earnings-balance-icon"><Icon name="wallet" /></span><span className="earnings-verified"><Icon name="check" /> Đã đối soát</span></div>
-        <p>Số dư có thể rút</p><strong>{formatCurrency(8400000)}</strong><small>21 phiên tư vấn đã hoàn tất đối soát</small>
-        <button type="button" className="earnings-withdraw-cta btn-primary" onClick={openWithdrawal}>Yêu cầu rút tiền <span>→</span></button>
-      </motion.article>
-
-      <div className="earnings-metrics">
-        <article><span className="earnings-metric-icon"><Icon name="trend" /></span><div><small>Doanh thu tháng 8</small><strong>{formatCurrency(10500000)}</strong><p><b>↑ 12,4%</b> so với tháng 7</p></div></article>
-        <article><span className="earnings-metric-icon"><Icon name="clock" /></span><div><small>Đang chờ đối soát</small><strong>{formatCurrency(2100000)}</strong><p>5 phiên · khả dụng sau 48 giờ</p></div></article>
-        <article><span className="earnings-metric-icon"><Icon name="calendar" /></span><div><small>Phiên hoàn thành</small><strong>25 <em>phiên</em></strong><p>Trung bình {formatCurrency(420000)} / phiên</p></div></article>
+  async function createPayout() {
+    if (
+      mutationBusy.current ||
+      !data?.destination ||
+      (!canWithdraw && !unconfirmedPayout)
+    )
+      return
+    const intent = payoutIntent.current ?? {
+      key: 'payout-' + crypto.randomUUID(),
+      destinationId: data.destination.id,
+    }
+    payoutIntent.current = intent
+    mutationBusy.current = true
+    setSubmitting(true)
+    setFormError('')
+    const request = fenceReads()
+    const priorIds = new Set(data.payouts.map((p) => p.id))
+    try {
+      const response = await specialistEarningsBrowserClient.createPayout(
+        intent.destinationId,
+        intent.key,
+      )
+      if (request !== sequence.current) return
+      commit(response)
+      setError('')
+      setUnconfirmedPayout(false)
+      setDialog(null)
+      const returned =
+        response.payouts.find((p) => !priorIds.has(p.id)) ??
+        response.payouts.find((p) => p.destinationId === intent.destinationId)
+      payoutIntent.current = null
+      showActionToast({
+        title:
+          returned?.status === 'FAILED'
+            ? 'Yêu cầu rút tiền chưa thành công'
+            : returned?.status === 'UNKNOWN'
+              ? 'Yêu cầu đang cần đối soát'
+              : 'Đã cập nhật yêu cầu rút tiền',
+        description:
+          returned?.status === 'SUCCEEDED'
+            ? 'Yêu cầu đã được ghi nhận là thanh toán thành công.'
+            : 'Kiểm tra trạng thái và số dư mới trong lịch sử chi trả.',
+      })
+    } catch (caught) {
+      if (request !== sequence.current) return
+      if (denied(caught)) {
+        clearProtected()
+        setError(requestError(caught, 'withdraw'))
+      } else {
+        // A 4xx, or a 503 "not open" answer, is a definite refusal before dispatch: the next try may use a new key.
+        const definitive =
+          caught instanceof ApiError &&
+          ((caught.status !== undefined &&
+            caught.status >= 400 &&
+            caught.status < 500) ||
+            Boolean(caught.code && NOT_OPEN_CODES.includes(caught.code)))
+        if (definitive) payoutIntent.current = null
+        setUnconfirmedPayout(!definitive)
+        setFormError(requestError(caught, 'withdraw'))
+      }
+    } finally {
+      mutationBusy.current = false
+      setSubmitting(false)
+    }
+  }
+  const header = (
+    <header className={styles.heading}>
+      <div>
+        <span className={styles.eyebrow}>Không gian chuyên gia</span>
+        <h1>Thu nhập & thanh toán</h1>
+        <p>Theo dõi khoản thu và quản lý nơi nhận tiền của bạn.</p>
       </div>
+      <div className={styles.refresh}>
+        {data && (
+          <small>
+            Cập nhật lúc {formatDate(data.generatedAt)} · giờ Việt Nam
+          </small>
+        )}
+        <button
+          className={styles.secondary}
+          type="button"
+          disabled={loading || submitting}
+          onClick={() => void load()}
+        >
+          <RefreshCw
+            size={17}
+            aria-hidden="true"
+            className={loading ? styles.spinning : undefined}
+          />
+          {loading ? 'Đang tải…' : 'Làm mới'}
+        </button>
+      </div>
+    </header>
+  )
 
-      <aside className="earnings-settlement">
-        <span>Kỳ thanh toán tiếp theo</span><strong>29 tháng 8</strong><p>Chuyển về Vietcombank<br/>•••• 2846</p><div><span>Ước tính nhận</span><b>{formatCurrency(8400000)}</b></div><button type="button" onClick={() => setActiveTab('payouts')}>Xem lịch thanh toán →</button>
-      </aside>
-    </section>
-
-    <nav className="earnings-tabs" aria-label="Nội dung tài chính">
-      {([['overview', 'Tổng quan'], ['transactions', 'Giao dịch'], ['payouts', 'Rút tiền & đối soát']] as const).map(([key, label]) => <button type="button" key={key} className={activeTab === key ? 'active' : ''} aria-current={activeTab === key ? 'page' : undefined} onClick={() => setActiveTab(key)}>{label}{key === 'transactions' && <span>{transactions.length}</span>}</button>)}
-    </nav>
-
-    {activeTab === 'overview' && <div className="earnings-overview">
-      <section className="earnings-panel earnings-chart-panel">
-        <header className="earnings-panel-header"><div><span>Xu hướng doanh thu</span><h2>Thu nhập theo ngày</h2><p>Doanh thu đã ghi nhận, chưa trừ các khoản hoàn tiền phát sinh.</p></div><select value={period} onChange={event => setPeriod(event.target.value)} aria-label="Khoảng thời gian"><option value="7-days">7 ngày qua</option><option value="month">Tháng này</option><option value="3-months">3 tháng qua</option></select></header>
-        <div className="earnings-chart">
-          <div className="earnings-y-axis"><span>2 triệu</span><span>1 triệu</span><span>0</span></div>
-          <div className="earnings-plot"><div className="earnings-grid-lines"><i/><i/><i/></div><div className="earnings-bars">{chartData.map((item, index) => <div className={`earnings-bar ${index === chartData.length - 1 ? 'is-current' : ''}`} key={item.label}><span>{formatCurrency(item.value).replace('₫', '').trim()}</span><i style={{ height: `${Math.max(16, item.value / 21000)}%` }} /><small>{item.label}</small></div>)}</div></div>
+  if (!data)
+    return (
+      <div className={styles.workspace} data-specialist-journey="earnings">
+        {header}
+        {loading ? (
+          <div
+            role="status"
+            aria-label="Đang tải thu nhập"
+            className={styles.loading}
+          >
+            <Skeleton height={210} />
+            <Skeleton height={320} />
+          </div>
+        ) : (
+          <section className={styles.empty} role="alert">
+            <RefreshCw size={32} aria-hidden="true" />
+            <h2>Chưa thể tải thu nhập</h2>
+            <p>{error}</p>
+            <button
+              className={styles.primary}
+              type="button"
+              onClick={() => void load()}
+            >
+              Thử lại
+            </button>
+          </section>
+        )}
+      </div>
+    )
+  // The simulated-mode notice follows the configured mode; old servers without it fall back to the rows.
+  const sandbox = mode
+    ? mode === 'FAKE'
+    : destination?.provider === 'FAKE' ||
+      data.payouts.some((p) => p.provider === 'FAKE')
+  const retryPendingVnd = data.balance.retryPendingVnd ?? 0
+  const reason = error
+    ? 'Cần cập nhật số dư trước khi rút'
+    : unconfirmedPayout
+      ? 'Chưa nhận được kết quả yêu cầu trước'
+      : notReady
+        ? NOT_OPEN
+        : processing
+          ? 'Đang có yêu cầu cần xử lý hoặc đối soát'
+          : !destination
+            ? 'Cần thiết lập nơi nhận tiền'
+            : legacy
+              ? 'Cần thêm tài khoản ngân hàng'
+              : pendingConfirmation
+                ? 'Tài khoản đang chờ xác nhận'
+                : destination.status !== 'VERIFIED'
+                  ? 'Nơi nhận tiền đang bị vô hiệu hóa'
+                  : !usable
+                    ? 'Cần kiểm tra lại nơi nhận tiền'
+                    : data.balance.availableVnd < data.minimumWithdrawalVnd
+                      ? 'Số dư chưa đạt mức rút tối thiểu'
+                      : 'Đủ điều kiện yêu cầu rút tiền'
+  // The sub-line follows the reason: what to expect, never the default repeated while blocked.
+  const subLine = unconfirmedPayout
+    ? 'Kiểm tra lại cùng yêu cầu, không tạo thêm lệnh mới.'
+    : notReady
+      ? null
+      : processing
+        ? 'Bạn có thể rút tiếp khi yêu cầu hiện tại hoàn tất.'
+        : (!destination || legacy) && payos
+          ? 'Thêm tài khoản ngân hàng để nhận tiền.'
+          : pendingConfirmation
+            ? 'Bạn có thể rút ngay khi tài khoản được xác nhận.'
+            : destination?.status === 'VERIFIED' && !usable
+              ? 'Hãy cập nhật lại nơi nhận tiền để xác minh thông tin trước khi rút.'
+              : 'Rút toàn bộ số dư khả dụng; số tiền do hệ thống tính.'
+  const destinationBadge = !destination
+    ? 'Chưa thiết lập'
+    : legacy
+      ? 'Không dùng để rút'
+      : pendingConfirmation
+        ? 'Chờ xác nhận'
+        : destination.status === 'VERIFIED'
+          ? !usable
+            ? 'Cần kiểm tra lại'
+            : payos
+              ? 'Đã xác nhận'
+              : 'Đã xác minh'
+          : 'Đã vô hiệu hóa'
+  const destinationName = legacy
+    ? 'Ví MoMo'
+    : destination?.destinationType === 'MOMO_WALLET'
+      ? 'Ví MoMo'
+      : (destination?.bankName ?? 'Tài khoản ngân hàng')
+  const changeDisabled =
+    loading || submitting || Boolean(error) || unconfirmedPayout
+  const motionEnter = (delay = 0) => ({
+    initial: reduced ? (false as const) : { opacity: 0, y: 8 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: reduced ? 0 : 0.24, delay },
+  })
+  return (
+    <div
+      className={styles.workspace}
+      data-specialist-journey="earnings"
+      aria-busy={loading}
+    >
+      {header}
+      {error && (
+        <section className={styles.notice} role="alert">
+          <div>
+            <strong>Chưa thể cập nhật thu nhập</strong>
+            <p>{error} Thông tin bên dưới là lần tải thành công gần nhất.</p>
+          </div>
+          <button
+            className={styles.secondary}
+            type="button"
+            disabled={loading}
+            onClick={() => void load()}
+          >
+            Thử lại
+          </button>
+        </section>
+      )}
+      {sandbox && (
+        <aside className={styles.notice}>
+          <Info size={20} aria-hidden="true" />
+          <div>
+            <strong>Chế độ thử nghiệm</strong>
+            <p>Các giao dịch thử nghiệm không chuyển tiền thật.</p>
+          </div>
+        </aside>
+      )}
+      <div className={styles.topGrid}>
+        <section
+          className={styles.balanceCard}
+          aria-labelledby="earnings-balance-title"
+        >
+          <header className={styles.cardHeader}>
+            <h2 id="earnings-balance-title">
+              <Wallet size={20} aria-hidden="true" />
+              Số dư khả dụng
+            </h2>
+            <span className={styles.badge}>
+              Tối thiểu {formatCurrency(data.minimumWithdrawalVnd)}
+            </span>
+          </header>
+          <div className={styles.balanceAmount}>
+            <Amount value={data.balance.availableVnd} />
+          </div>
+          <div className={styles.balanceDetails}>
+            <div>
+              <span>
+                Chờ đối soát ·{' '}
+                {formatHold(
+                  data.settlementHoldDays,
+                  data.settlementHoldSeconds,
+                )}
+              </span>
+              <b>{formatCurrency(data.balance.pendingSettlementVnd)}</b>
+            </div>
+            {retryPendingVnd > 0 && (
+              <div>
+                <span>Chờ chuyển lại</span>
+                <b>{formatCurrency(retryPendingVnd)}</b>
+              </div>
+            )}
+            <div>
+              <span>Đang chi trả</span>
+              <b>{formatCurrency(data.balance.processingVnd)}</b>
+            </div>
+            <div>
+              <span>Đã thanh toán</span>
+              <b>{formatCurrency(data.balance.paidVnd)}</b>
+            </div>
+          </div>
+          <footer className={styles.withdrawAction}>
+            <div>
+              <strong>
+                {canWithdraw ? (
+                  <CheckCircle2 size={17} aria-hidden="true" />
+                ) : (
+                  <Info size={17} aria-hidden="true" />
+                )}
+                {reason}
+              </strong>
+              {subLine && <p>{subLine}</p>}
+            </div>
+            <button
+              className={styles.primary}
+              type="button"
+              disabled={
+                loading ||
+                submitting ||
+                Boolean(error) ||
+                (!canWithdraw && !unconfirmedPayout && Boolean(destination))
+              }
+              onClick={
+                unconfirmedPayout
+                  ? openWithdraw
+                  : destination
+                    ? openWithdraw
+                    : openDestination
+              }
+            >
+              <ArrowDownToLine size={17} aria-hidden="true" />
+              {unconfirmedPayout
+                ? 'Kiểm tra lại yêu cầu'
+                : destination
+                  ? 'Rút toàn bộ số dư'
+                  : 'Thiết lập nơi nhận'}
+            </button>
+          </footer>
+        </section>
+        <section
+          className={styles.card}
+          aria-labelledby="earnings-destination-title"
+        >
+          <header className={styles.cardHeader}>
+            <h2 id="earnings-destination-title">
+              <CreditCard size={20} aria-hidden="true" />
+              Nơi nhận tiền
+            </h2>
+            <span
+              className={styles.badge}
+              data-state={legacy ? 'LEGACY' : (destination?.status ?? 'NONE')}
+            >
+              <FadeText value={destinationBadge} />
+            </span>
+          </header>
+          {destination ? (
+            <div className={styles.destination}>
+              <i>
+                <Banknote size={24} aria-hidden="true" />
+              </i>
+              <div>
+                <div className={styles.destinationName}>{destinationName}</div>
+                <strong>{maskedHint(destination.displayHint)}</strong>
+              </div>
+              {destination.verifiedAt && !legacy && (
+                <small>
+                  {payos ? 'Xác nhận lúc ' : 'Xác minh lúc '}
+                  {formatDate(destination.verifiedAt)}
+                </small>
+              )}
+            </div>
+          ) : (
+            <div className={styles.destinationEmpty}>
+              <CreditCard size={28} aria-hidden="true" />
+              <h3>Chưa có nơi nhận tiền</h3>
+              <p>
+                {payos
+                  ? 'Thêm tài khoản ngân hàng để yêu cầu chi trả.'
+                  : 'Thêm ví MoMo hoặc tài khoản ngân hàng để yêu cầu chi trả.'}
+              </p>
+            </div>
+          )}
+          {pendingConfirmation && (
+            <p className={styles.meta}>
+              Chúng tôi kiểm tra tên chủ tài khoản một lần. Sau đó, tiền rút về
+              tài khoản này sẽ được chuyển tự động.
+            </p>
+          )}
+          {legacy && (
+            <p className={styles.meta}>
+              Ví MoMo không còn nhận tiền rút. Thêm tài khoản ngân hàng để tiếp
+              tục.
+            </p>
+          )}
+          <p className={styles.meta}>
+            Thông tin đầy đủ không hiển thị lại sau khi lưu.
+          </p>
+          <button
+            className={legacy ? styles.primary : styles.secondary}
+            type="button"
+            onClick={openDestination}
+            disabled={changeDisabled}
+          >
+            {legacy
+              ? 'Thêm tài khoản ngân hàng'
+              : destination
+                ? 'Cập nhật nơi nhận tiền'
+                : 'Thiết lập nơi nhận tiền'}
+          </button>
+        </section>
+      </div>
+      <section className={styles.card} aria-labelledby="earnings-list-title">
+        <header className={styles.cardHeader}>
+          <div>
+            <h2 id="earnings-list-title">Khoản thu theo phiên tư vấn</h2>
+            <p>Khoản thu đã được ghi nhận và thời điểm có thể rút.</p>
+          </div>
+          <span className={styles.badge}>{sortedEarnings.length} khoản</span>
+        </header>
+        {sortedEarnings.length ? (
+          <div className={styles.rows}>
+            {sortedEarnings.map((earning) => (
+              <article key={earning.id} className={styles.earningRow}>
+                <span className={styles.rowIcon}>
+                  <CalendarIcon />
+                </span>
+                <div>
+                  <strong>Ghi nhận ngày {formatDate(earning.earnedAt)}</strong>
+                  <small>
+                    {earning.status === 'PENDING_SETTLEMENT'
+                      ? 'Khả dụng từ ' +
+                        formatDate(earning.settlementAvailableAt)
+                      : earningLabels[earning.status]}
+                  </small>
+                </div>
+                <b>{formatCurrency(earning.earningAmountVnd)}</b>
+                <span className={styles.badge} data-state={earning.status}>
+                  {earningLabels[earning.status]}
+                </span>
+                <Link
+                  className={styles.rowLink}
+                  href={
+                    '/specialist/appointments?appointmentId=' +
+                    encodeURIComponent(earning.appointmentId)
+                  }
+                  aria-label={
+                    'Xem phiên có khoản thu ghi nhận ngày ' +
+                    formatDate(earning.earnedAt)
+                  }
+                >
+                  <ArrowRight size={18} aria-hidden="true" />
+                </Link>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className={styles.empty}>
+            <Wallet size={28} aria-hidden="true" />
+            <h3>Chưa có thu nhập được ghi nhận</h3>
+            <p>
+              Khoản thu sẽ xuất hiện khi một phiên tư vấn hoàn tất và đủ điều
+              kiện.
+            </p>
+          </div>
+        )}
+      </section>
+      <section className={styles.card} aria-labelledby="earnings-payout-title">
+        <header className={styles.cardHeader}>
+          <div>
+            <h2 id="earnings-payout-title">Lịch sử chi trả</h2>
+            <p>Kết quả và tiến trình các yêu cầu rút tiền.</p>
+          </div>
+          <span className={styles.badge}>{sortedPayouts.length} yêu cầu</span>
+        </header>
+        {sortedPayouts.length ? (
+          <div className={styles.rows}>
+            <AnimatePresence initial={false}>
+              {sortedPayouts.map((payout) => {
+                const view = payoutView(payout)
+                const finishing = celebrating.has(payout.id)
+                return (
+                  <motion.article
+                    key={payout.id}
+                    layout={reduced ? false : 'position'}
+                    className={styles.payoutRow}
+                    {...motionEnter()}
+                  >
+                    <Clock3 size={20} aria-hidden="true" />
+                    <div>
+                      <strong>{formatCurrency(payout.amountVnd)}</strong>
+                      <small>Gửi lúc {formatDate(payout.requestedAt)}</small>
+                      {payout.completedAt && (
+                        <small>
+                          Cập nhật kết quả lúc {formatDate(payout.completedAt)}
+                        </small>
+                      )}
+                      <small>
+                        {payout.provider === 'FAKE'
+                          ? payoutProviderName.FAKE
+                          : `Qua ${payoutProviderName[payout.provider]}`}
+                      </small>
+                    </div>
+                    <span className={styles.badge} data-state={view.tone}>
+                      <FadeText
+                        value={finishing ? 'Đã thanh toán' : view.label}
+                      />
+                    </span>
+                    {view.note && <p>{view.note}</p>}
+                    <AnimatePresence initial={false}>
+                      {(view.active || finishing) && (
+                        <PayoutSteps key="steps" complete={finishing} />
+                      )}
+                    </AnimatePresence>
+                  </motion.article>
+                )
+              })}
+            </AnimatePresence>
+          </div>
+        ) : (
+          <div className={styles.empty}>
+            <Clock3 size={28} aria-hidden="true" />
+            <h3>Chưa có yêu cầu rút tiền</h3>
+            <p>Các yêu cầu và kết quả chi trả sẽ xuất hiện tại đây.</p>
+          </div>
+        )}
+      </section>
+      <Dialog
+        open={dialog === 'destination'}
+        onOpenChange={(open) => {
+          if (!open) closeDialog()
+        }}
+        labelledBy="destination-title"
+        describedBy="destination-description"
+        className={styles.dialog}
+      >
+        <header className={styles.dialogHeader}>
+          <div>
+            <h2 id="destination-title">
+              {destination
+                ? 'Cập nhật thông tin nhận'
+                : 'Thiết lập thông tin nhận'}
+            </h2>
+            <div id="destination-description">
+              <p>
+                {payos
+                  ? 'Nhập tài khoản ngân hàng của bạn.'
+                  : 'Nhập thông tin ví MoMo hoặc tài khoản ngân hàng của bạn.'}
+              </p>
+              {payos && destination?.provider === 'PAYOS' && usable && (
+                <p>
+                  Tài khoản mới cần được xác nhận lại trước lần rút tiếp theo.
+                </p>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            className={styles.iconButton}
+            aria-label="Đóng"
+            disabled={submitting}
+            onClick={closeDialog}
+          >
+            <X size={20} aria-hidden="true" />
+          </button>
+        </header>
+        <form
+          id="earnings-destination-form"
+          onSubmit={saveDestination}
+          noValidate
+          className={styles.form}
+          aria-busy={submitting}
+        >
+          <fieldset disabled={submitting}>
+            {!payos && (
+              <>
+                <legend>Hình thức nhận</legend>
+                <div className={styles.choices}>
+                  {(['MOMO_WALLET', 'BANK_ACCOUNT'] as const).map((type) => (
+                    <label key={type}>
+                      <input
+                        type="radio"
+                        name="destination"
+                        checked={destinationType === type}
+                        onChange={() => {
+                          setDestinationType(type)
+                          setFormError('')
+                          setInvalidField('')
+                        }}
+                      />
+                      <span>
+                        {type === 'MOMO_WALLET'
+                          ? 'Ví MoMo'
+                          : 'Tài khoản ngân hàng'}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+            {payos && (
+              <BankCombobox
+                banks={banks}
+                loading={banksLoading}
+                loadFailed={banksFailed}
+                onRetry={() => void loadBanks()}
+                value={bankCode}
+                onChange={setBankCode}
+                invalid={invalidField === 'bank'}
+                describedBy={
+                  invalidField === 'bank' ? 'earnings-form-error' : undefined
+                }
+                disabled={submitting}
+                inputRef={bankInput}
+              />
+            )}
+            <div className={styles.fieldGroup}>
+              <label className={styles.field}>
+                <span>
+                  {payos
+                    ? 'Tên chủ tài khoản'
+                    : 'Tên chủ tài khoản hoặc chủ ví'}
+                </span>
+                <input
+                  ref={nameInput}
+                  required
+                  autoComplete="off"
+                  spellCheck={false}
+                  autoCapitalize={payos ? 'characters' : undefined}
+                  maxLength={100}
+                  value={accountHolderName}
+                  onChange={(e) =>
+                    setAccountHolderName(
+                      payos ? e.target.value.toUpperCase() : e.target.value,
+                    )
+                  }
+                  placeholder={
+                    payos ? 'NGUYEN VAN A' : 'Nhập đúng tên đã đăng ký'
+                  }
+                  aria-invalid={invalidField === 'name'}
+                  aria-describedby={
+                    invalidField === 'name'
+                      ? 'earnings-form-error'
+                      : payos
+                        ? 'earnings-holder-hint'
+                        : undefined
+                  }
+                />
+              </label>
+              {payos && (
+                <small id="earnings-holder-hint">
+                  Nhập đúng như tên in trên thẻ hoặc sao kê, không dấu.
+                </small>
+              )}
+            </div>
+            {!payos && destinationType === 'BANK_ACCOUNT' && (
+              <label className={styles.field}>
+                <span>Mã ngân hàng</span>
+                <input
+                  ref={bankInput}
+                  required
+                  autoComplete="off"
+                  maxLength={32}
+                  value={bankCode}
+                  onChange={(e) => setBankCode(e.target.value.toUpperCase())}
+                  placeholder="Ví dụ: VCB"
+                  aria-invalid={invalidField === 'bank'}
+                  aria-describedby={
+                    invalidField === 'bank' ? 'earnings-form-error' : undefined
+                  }
+                />
+              </label>
+            )}
+            <label className={styles.field}>
+              <span>
+                {destinationType === 'MOMO_WALLET'
+                  ? 'Số điện thoại MoMo'
+                  : 'Số tài khoản'}
+              </span>
+              <input
+                ref={referenceInput}
+                required
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                spellCheck={false}
+                maxLength={32}
+                value={accountReference}
+                onChange={(e) =>
+                  setAccountReference(e.target.value.replace(/\s/g, ''))
+                }
+                placeholder="Từ 6 đến 32 chữ số"
+                aria-invalid={invalidField === 'reference'}
+                aria-describedby={
+                  invalidField === 'reference'
+                    ? 'earnings-form-error'
+                    : undefined
+                }
+              />
+            </label>
+          </fieldset>
+          {formError && (
+            <p
+              className={styles.formError}
+              id="earnings-form-error"
+              role="alert"
+            >
+              {formError}
+            </p>
+          )}
+        </form>
+        <footer className={styles.dialogFooter}>
+          <button
+            className={styles.secondary}
+            type="button"
+            disabled={submitting}
+            onClick={closeDialog}
+          >
+            Hủy
+          </button>
+          <button
+            className={styles.primary}
+            type="submit"
+            form="earnings-destination-form"
+            disabled={submitting}
+          >
+            {submitting && (
+              <RefreshCw
+                size={16}
+                aria-hidden="true"
+                className={styles.spinning}
+              />
+            )}
+            {submitting ? 'Đang lưu…' : 'Lưu thông tin nhận'}
+          </button>
+        </footer>
+      </Dialog>
+      <Dialog
+        open={dialog === 'withdraw'}
+        onOpenChange={(open) => {
+          if (!open) closeDialog()
+        }}
+        labelledBy="withdraw-title"
+        describedBy="withdraw-description"
+        className={styles.dialog}
+      >
+        <header className={styles.dialogHeader}>
+          <div>
+            <h2 id="withdraw-title">Rút toàn bộ số dư khả dụng</h2>
+            <p id="withdraw-description">
+              Hệ thống tự tính số tiền từ các khoản đủ điều kiện; bạn không cần
+              nhập số tiền.
+            </p>
+          </div>
+          <button
+            className={styles.iconButton}
+            type="button"
+            aria-label="Đóng"
+            disabled={submitting}
+            onClick={closeDialog}
+          >
+            <X size={20} aria-hidden="true" />
+          </button>
+        </header>
+        <div className={styles.form}>
+          <div className={styles.confirmAmount}>
+            <small>
+              {unconfirmedPayout
+                ? 'Số dư ở lần tải gần nhất'
+                : 'Số dư khả dụng ở lần tải gần nhất'}
+            </small>
+            <strong>{formatCurrency(data.balance.availableVnd)}</strong>
+            <p>Số tiền thực tế được xác định khi hệ thống tiếp nhận yêu cầu.</p>
+          </div>
+          <div className={styles.destination}>
+            <CreditCard size={22} aria-hidden="true" />
+            <div>
+              <small>Nơi nhận tiền</small>
+              <strong>
+                {destinationName} · {maskedHint(destination?.displayHint ?? '')}
+              </strong>
+            </div>
+          </div>
+          <p className={styles.meta}>
+            Mỗi chuyên gia được tạo tối đa một yêu cầu trong ngày. Kiểm tra kết
+            quả trong lịch sử chi trả.
+          </p>
+          {sandbox && (
+            <p className={styles.meta}>
+              Giao dịch thử nghiệm không chuyển tiền thật.
+            </p>
+          )}
+          {formError && (
+            <p className={styles.formError} role="alert">
+              {formError}
+            </p>
+          )}
         </div>
-      </section>
-
-      <aside className="earnings-insights">
-        <header><span>Đối soát tháng 8</span><strong>Tiền của bạn được tính thế nào?</strong></header>
-        <dl><div><dt>Tổng phí tư vấn</dt><dd>{formatCurrency(9240000)}</dd></div><div><dt>Phí nền tảng (9,1%)</dt><dd>− {formatCurrency(840000)}</dd></div><div className="is-total"><dt>Số dư thực nhận</dt><dd>{formatCurrency(8400000)}</dd></div></dl>
-        <p><span>i</span>Mỗi phiên được đối soát sau khi hoàn thành. Các khoản hoàn tiền sẽ hiển thị riêng trong giao dịch.</p>
-      </aside>
-
-      <section className="earnings-panel earnings-recent">
-        <header className="earnings-panel-header"><div><span>Hoạt động gần đây</span><h2>Giao dịch mới nhất</h2></div><button type="button" onClick={() => setActiveTab('transactions')}>Xem tất cả <span>→</span></button></header>
-        <div>{transactions.slice(0, 4).map((transaction, index) => <motion.article key={transaction.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * .04 }}><span className="earnings-avatar">{transaction.clientName.split(' ').slice(-2).map(name => name[0]).join('')}</span><div className="earnings-transaction-copy"><strong>{transaction.clientName}</strong><p>{transaction.sessionType} · {transaction.duration}</p></div><time>{formatDate(transaction.date)}</time><span className={`earnings-status is-${transaction.status}`}>{statusLabel[transaction.status]}</span><b>{formatCurrency(transaction.amount)}</b><button type="button" aria-label={`Xem giao dịch ${transaction.id}`} onClick={() => showToast(`Chi tiết ${transaction.id} đã sẵn sàng để kết nối API.`)}>→</button></motion.article>)}</div>
-      </section>
-    </div>}
-
-    {activeTab === 'transactions' && <section className="earnings-panel earnings-transaction-panel">
-      <header className="earnings-panel-header"><div><span>Sổ giao dịch</span><h2>Tất cả khoản thu</h2><p>Theo dõi từng phiên tư vấn và trạng thái đối soát tương ứng.</p></div><div className="earnings-table-actions"><label><Icon name="search"/><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Tìm khách hàng hoặc mã GD..." /></label><select value={status} onChange={event => setStatus(event.target.value)} aria-label="Lọc trạng thái"><option value="all">Tất cả trạng thái</option><option value="completed">Đã ghi nhận</option><option value="pending">Chờ đối soát</option><option value="refunded">Đã hoàn tiền</option></select></div></header>
-      <div className="earnings-table-wrap"><table><thead><tr><th>Giao dịch</th><th>Khách hàng</th><th>Phiên tư vấn</th><th>Trạng thái</th><th>Số tiền</th><th /></tr></thead><tbody>{filteredTransactions.map(transaction => <tr key={transaction.id}><td><strong>{transaction.id}</strong><small>{formatDate(transaction.date)}</small></td><td>{transaction.clientName}</td><td><strong>{transaction.sessionType}</strong><small>{transaction.duration}</small></td><td><span className={`earnings-status is-${transaction.status}`}>{statusLabel[transaction.status]}</span></td><td className="earnings-amount">{formatCurrency(transaction.amount)}</td><td><button type="button" onClick={() => showToast(`Chi tiết ${transaction.id} đã sẵn sàng để kết nối API.`)} aria-label={`Xem ${transaction.id}`}>→</button></td></tr>)}</tbody></table>{!filteredTransactions.length && <div className="earnings-empty"><span>⌕</span><h3>Không có giao dịch phù hợp</h3><p>Hãy thử thay đổi từ khóa hoặc trạng thái đang lọc.</p><button type="button" onClick={() => { setQuery(''); setStatus('all') }}>Xóa bộ lọc</button></div>}</div>
-    </section>}
-
-    {activeTab === 'payouts' && <div className="earnings-payout-layout">
-      <section className="earnings-panel earnings-payout-list"><header className="earnings-panel-header"><div><span>Lịch sử đối soát</span><h2>Các kỳ thanh toán</h2><p>Kiểm tra số tiền, số phiên và mã giao dịch ngân hàng.</p></div></header><div>{payouts.map(payout => <article key={payout.id} className={payout.status === 'available' ? 'is-available' : ''}><span className="earnings-payout-icon"><Icon name={payout.status === 'available' ? 'wallet' : 'check'} /></span><div><small>Kỳ {payout.period}</small><strong>{formatCurrency(payout.amount)}</strong><p>{payout.sessions} phiên · {payout.id}</p></div><div><span className={`earnings-payout-badge is-${payout.status}`}>{payout.status === 'available' ? 'Có thể rút' : 'Đã thanh toán'}</span><time>{payout.date}</time></div>{payout.status === 'available' ? <button type="button" onClick={() => setWithdrawOpen(true)}>Rút tiền</button> : <button type="button" className="is-secondary" onClick={() => showToast(`Biên nhận ${payout.id} đã sẵn sàng để kết nối tải xuống.`)}>Biên nhận</button>}</article>)}</div></section>
-      <aside className="earnings-bank"><span className="earnings-bank-icon"><Icon name="bank" /></span><small>TÀI KHOẢN NHẬN TIỀN</small><h2>Vietcombank</h2><strong>•••• •••• •••• 2846</strong><p>NGUYEN THU HA</p><span className="earnings-bank-verified"><Icon name="check" /> Đã xác minh</span><button type="button" onClick={() => showToast('Chức năng cập nhật tài khoản ngân hàng sẽ yêu cầu xác minh danh tính.')}>Cập nhật tài khoản</button><div><span>Chu kỳ đối soát</span><b>Hai lần mỗi tháng</b></div><div><span>Thời gian xử lý</span><b>1–3 ngày làm việc</b></div></aside>
-    </div>}
-
-    {withdrawOpen && <div className="earnings-modal-layer"><button className="earnings-modal-backdrop" aria-label="Đóng" onClick={() => setWithdrawOpen(false)} /><section className="earnings-modal" role="dialog" aria-modal="true" aria-labelledby="withdraw-title"><header><div><span>Yêu cầu thanh toán</span><h2 id="withdraw-title">Rút thu nhập khả dụng</h2><p>Kiểm tra số tiền và tài khoản nhận trước khi gửi yêu cầu.</p></div><button type="button" onClick={() => setWithdrawOpen(false)} aria-label="Đóng">×</button></header><div className="earnings-modal-body"><div className="earnings-modal-balance"><span>Số dư có thể rút</span><strong>{formatCurrency(8400000)}</strong><small>Không có phí rút tiền</small></div><label><span>Số tiền muốn rút</span><div><input type="number" min="500000" max="8400000" step="100000" value={withdrawAmount} onChange={event => setWithdrawAmount(event.target.value)} /><b>₫</b></div><small>Tối thiểu 500.000 ₫</small></label><section><Icon name="bank"/><div><small>Chuyển đến</small><strong>Vietcombank · •••• 2846</strong><span>Chủ tài khoản: NGUYEN THU HA</span></div><b>Đã xác minh</b></section><label className="earnings-confirm"><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} /><span><i><Icon name="check"/></i><strong>Tôi xác nhận thông tin nhận tiền là chính xác</strong><small>Yêu cầu đã gửi không thể tự hủy sau khi bắt đầu xử lý.</small></span></label>{formError && <p className="earnings-form-error" role="alert">{formError}</p>}</div><footer><button type="button" onClick={() => setWithdrawOpen(false)}>Quay lại</button><button type="button" onClick={submitWithdrawal}>Gửi yêu cầu <span>→</span></button></footer></section></div>}
-    {toast && <div className="earnings-toast" role="status"><Icon name="check" />{toast}</div>}
-  </div>
+        <footer className={styles.dialogFooter}>
+          <button
+            className={styles.secondary}
+            type="button"
+            disabled={submitting}
+            onClick={closeDialog}
+          >
+            Quay lại
+          </button>
+          <button
+            className={styles.primary}
+            type="button"
+            disabled={
+              submitting ||
+              loading ||
+              Boolean(error) ||
+              (!canWithdraw && !unconfirmedPayout)
+            }
+            onClick={() => void createPayout()}
+          >
+            {submitting && (
+              <RefreshCw
+                size={16}
+                aria-hidden="true"
+                className={styles.spinning}
+              />
+            )}
+            {submitting
+              ? 'Đang gửi…'
+              : unconfirmedPayout
+                ? 'Kiểm tra lại yêu cầu'
+                : 'Xác nhận rút tiền'}
+          </button>
+        </footer>
+      </Dialog>
+    </div>
+  )
+}
+function CalendarIcon() {
+  return <CheckCircle2 size={20} aria-hidden="true" />
 }

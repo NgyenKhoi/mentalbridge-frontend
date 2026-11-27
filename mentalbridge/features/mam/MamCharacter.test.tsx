@@ -1,0 +1,653 @@
+import { act, render, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import type { MamCharacter as MamCharacterComponent } from './MamCharacter'
+
+let MamCharacter: typeof MamCharacterComponent
+
+const runtime = vi.hoisted(() => {
+  const state = {
+    wasmUrl: '',
+    fallbackUrl: 'unset' as string | null,
+    runtimeError: null as Error | null,
+    loadError: false,
+    instances: [] as Array<{
+      options: Record<string, unknown>
+      cleanup: ReturnType<typeof vi.fn>
+      load: () => void
+      values: Record<string, VmValue>
+      fired: string[]
+      complete: () => void
+      resize: ReturnType<typeof vi.fn>
+    }>,
+  }
+
+  type VmValue = {
+    value: unknown
+    listeners: Set<() => void>
+    on: (cb: () => void) => void
+    off: (cb?: () => void) => void
+  }
+  const vmValue = (value: unknown): VmValue => {
+    const listeners = new Set<() => void>()
+    return {
+      value,
+      listeners,
+      on: (cb) => listeners.add(cb),
+      off: (cb) => (cb ? listeners.delete(cb) : listeners.clear()),
+    }
+  }
+  const oneShots = [
+    'light_success',
+    'celebrate_soft',
+    'celebrate_hero',
+    'drowsy',
+    'wake',
+    'giggle',
+    'tickled',
+    'nod',
+    'stretch',
+    'look_around',
+    'scratch',
+    'point',
+    'hop_down',
+    'wave',
+  ]
+
+  class Rive {
+    cleanup = vi.fn()
+    values: Record<string, VmValue> = {
+      behaviorState: vmValue('idle'),
+      celebrationTier: vmValue('none'),
+      attentionDirection: vmValue(0),
+      reducedMotion: vmValue(false),
+      isVisible: vmValue(true),
+    }
+    fired: string[] = []
+    // Models the asset writing `idle` when a one-shot ends or is interrupted.
+    assetWritesIdle = () => {
+      const behavior = this.values.behaviorState!
+      behavior.value = 'idle'
+      behavior.listeners.forEach((cb) => cb())
+    }
+    viewModelInstance = {
+      enum: (path: string) => this.values[path] ?? null,
+      number: (path: string) => this.values[path] ?? null,
+      boolean: (path: string) => this.values[path] ?? null,
+      trigger: (path: string) =>
+        path === 'playOnce' || path === 'returnToDock'
+          ? {
+              trigger: () => {
+                this.fired.push(path)
+                if (
+                  path === 'returnToDock' &&
+                  oneShots.includes(String(this.values.behaviorState!.value))
+                )
+                  this.assetWritesIdle()
+              },
+            }
+          : null,
+    }
+    resizeDrawingSurfaceToCanvas = vi.fn()
+    constructor(public options: Record<string, unknown>) {
+      state.instances.push({
+        options,
+        cleanup: this.cleanup,
+        values: this.values,
+        fired: this.fired,
+        complete: () => this.assetWritesIdle(),
+        resize: this.resizeDrawingSurfaceToCanvas,
+        load: () =>
+          state.loadError
+            ? (options.onLoadError as () => void)()
+            : (options.onLoad as () => void)(),
+      })
+    }
+  }
+
+  return {
+    state,
+    module: {
+      Rive,
+      Layout: class {
+        constructor(public options: unknown) {}
+      },
+      Fit: { Contain: 'contain' },
+      Alignment: { Center: 'center' },
+      RuntimeLoader: {
+        setWasmUrl: (url: string) => {
+          state.wasmUrl = url
+        },
+        setWasmFallbackUrl: (url: string | null) => {
+          state.fallbackUrl = url
+        },
+        getInstance: (ok: () => void, fail: (error: Error) => void) =>
+          state.runtimeError ? fail(state.runtimeError) : ok(),
+      },
+    },
+  }
+})
+
+vi.mock('@rive-app/canvas-lite', () => runtime.module)
+
+const reducedMotion = vi.hoisted(() => ({ value: false }))
+vi.mock('@/lib/animations/use-reduced-motion', () => ({
+  useReactiveReducedMotion: () => reducedMotion.value,
+}))
+
+beforeEach(async () => {
+  // The asset cache is module state: every test gets a fresh module.
+  vi.resetModules()
+  ;({ MamCharacter } = await import('./MamCharacter'))
+  runtime.state.instances = []
+  runtime.state.runtimeError = null
+  runtime.state.loadError = false
+  reducedMotion.value = false
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+    {} as CanvasRenderingContext2D,
+  )
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(new Uint8Array([1, 2, 3]))),
+  )
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
+
+async function loaded() {
+  await waitFor(() => expect(runtime.state.instances).toHaveLength(1))
+  const instance = runtime.state.instances[0]!
+  act(() => instance.load())
+  return instance
+}
+
+describe('MamCharacter', () => {
+  it('shows the static pose and hides itself from assistive technology while loading', () => {
+    const { container } = render(<MamCharacter size={96} />)
+    const root = container.firstElementChild!
+    expect(root.getAttribute('aria-hidden')).toBe('true')
+    expect(root.getAttribute('data-mam-status')).toBe('loading')
+    expect(container.querySelector('img')?.getAttribute('src')).toBe(
+      '/mam/mam-v03-idle.svg',
+    )
+  })
+
+  it('loads the frozen asset from the app origin with no CDN fallback', async () => {
+    const { container } = render(<MamCharacter size={96} behavior="curious" />)
+    const instance = await loaded()
+
+    expect(runtime.state.wasmUrl).toBe('/mam/rive-lite-2.47.1.wasm')
+    expect(runtime.state.fallbackUrl).toBeNull()
+    expect(instance.options.buffer).toBeInstanceOf(ArrayBuffer)
+    expect(instance.options).toMatchObject({
+      artboard: 'companion_main',
+      stateMachines: 'MamBehaviorController',
+      autoBind: true,
+    })
+    await waitFor(() =>
+      expect(container.firstElementChild?.getAttribute('data-mam-status')).toBe(
+        'ready',
+      ),
+    )
+    // The static pose stays mounted and is hidden by CSS once the canvas has faded in.
+    expect(container.querySelector('img')?.getAttribute('data-ready')).toBe(
+      'true',
+    )
+    expect(instance.values.behaviorState!.value).toBe('curious')
+  })
+
+  it('fires a one-shot once per key and never on re-render', async () => {
+    const { rerender } = render(
+      <MamCharacter size={96} oneShot={{ kind: 'celebrate_hero', key: 1 }} />,
+    )
+    const instance = await loaded()
+    await waitFor(() => expect(instance.fired).toEqual(['playOnce']))
+
+    rerender(
+      <MamCharacter
+        size={96}
+        attention={-0.5}
+        oneShot={{ kind: 'celebrate_hero', key: 1 }}
+      />,
+    )
+    expect(instance.fired).toEqual(['playOnce'])
+
+    rerender(
+      <MamCharacter size={96} oneShot={{ kind: 'light_success', key: 2 }} />,
+    )
+    await waitFor(() => expect(instance.fired).toHaveLength(2))
+  })
+
+  it('cuts a running one-shot and starts the next two frames later, once', async () => {
+    vi.useFakeTimers({
+      toFake: ['requestAnimationFrame', 'cancelAnimationFrame'],
+    })
+    const { rerender } = render(
+      <MamCharacter size={96} oneShot={{ kind: 'giggle', key: 'a' }} />,
+    )
+    const instance = await loaded()
+    expect(instance.fired).toEqual(['playOnce'])
+    expect(instance.values.behaviorState!.value).toBe('giggle')
+
+    rerender(<MamCharacter size={96} oneShot={{ kind: 'tickled', key: 'b' }} />)
+    // The asset has no route from one one-shot to another: it is cut first.
+    expect(instance.fired).toEqual(['playOnce', 'returnToDock'])
+    expect(instance.values.behaviorState!.value).toBe('idle')
+    act(() => void vi.advanceTimersByTime(16))
+    expect(instance.fired).toEqual(['playOnce', 'returnToDock'])
+    act(() => void vi.advanceTimersByTime(16))
+    expect(instance.fired).toEqual(['playOnce', 'returnToDock', 'playOnce'])
+    expect(instance.values.behaviorState!.value).toBe('tickled')
+    vi.useRealTimers()
+  })
+
+  it('drops a pending replay when the host withdraws the command or unmounts', async () => {
+    vi.useFakeTimers({
+      toFake: ['requestAnimationFrame', 'cancelAnimationFrame'],
+    })
+    const { rerender, unmount } = render(
+      <MamCharacter size={96} oneShot={{ kind: 'giggle', key: 'a' }} />,
+    )
+    const instance = await loaded()
+    rerender(<MamCharacter size={96} oneShot={{ kind: 'tickled', key: 'b' }} />)
+    rerender(<MamCharacter size={96} oneShot={null} />)
+    act(() => void vi.advanceTimersByTime(64))
+    expect(instance.fired).toEqual(['playOnce', 'returnToDock'])
+
+    rerender(<MamCharacter size={96} oneShot={{ kind: 'nod', key: 'c' }} />)
+    expect(instance.fired).toEqual(['playOnce', 'returnToDock', 'playOnce'])
+    rerender(<MamCharacter size={96} oneShot={{ kind: 'giggle', key: 'd' }} />)
+    unmount()
+    act(() => void vi.advanceTimersByTime(64))
+    expect(instance.fired).toEqual([
+      'playOnce',
+      'returnToDock',
+      'playOnce',
+      'returnToDock',
+    ])
+    vi.useRealTimers()
+  })
+
+  it('follows the pointer gaze, but an active anchor wins and 0 returns to the gaze', async () => {
+    let value = 0.4
+    const listeners = new Set<() => void>()
+    const gaze = {
+      get: () => value,
+      subscribe: (listener: () => void) => {
+        listeners.add(listener)
+        return () => void listeners.delete(listener)
+      },
+    }
+    const { rerender, unmount } = render(<MamCharacter size={96} gaze={gaze} />)
+    const instance = await loaded()
+    const attention = () => instance.values.attentionDirection!.value
+    expect(attention()).toBe(0.4)
+    value = -0.7
+    act(() => listeners.forEach((listener) => listener()))
+    expect(attention()).toBe(-0.7)
+
+    // The anchor owns the gaze while it is not 0, and the gaze listener is gone.
+    rerender(<MamCharacter size={96} gaze={gaze} attention={0.6} />)
+    expect(attention()).toBe(0.6)
+    expect(listeners.size).toBe(0)
+    value = 0.2
+    act(() => listeners.forEach((listener) => listener()))
+    expect(attention()).toBe(0.6)
+
+    rerender(<MamCharacter size={96} gaze={gaze} attention={0} />)
+    expect(attention()).toBe(0.2)
+    // Without a gaze source (ineligible host) the eyes return to the centre.
+    rerender(<MamCharacter size={96} />)
+    expect(attention()).toBe(0)
+    expect(listeners.size).toBe(0)
+    unmount()
+  })
+
+  it('replays an older key that follows a different one (A, B, A)', async () => {
+    const shot = (key: string) => ({ kind: 'light_success' as const, key })
+    const { rerender } = render(<MamCharacter size={96} oneShot={shot('a')} />)
+    const instance = await loaded()
+    await waitFor(() => expect(instance.fired).toHaveLength(1))
+    rerender(<MamCharacter size={96} oneShot={shot('b')} />)
+    rerender(<MamCharacter size={96} oneShot={shot('a')} />)
+    await waitFor(() => expect(instance.fired).toHaveLength(3))
+  })
+
+  it('interrupts a running one-shot for a new looping state and keeps it after the hero would have ended', async () => {
+    const { rerender } = render(
+      <MamCharacter size={96} oneShot={{ kind: 'celebrate_hero', key: 1 }} />,
+    )
+    const instance = await loaded()
+    await waitFor(() =>
+      expect(instance.values.behaviorState!.value).toBe('celebrate_hero'),
+    )
+
+    rerender(<MamCharacter size={96} behavior="thinking" oneShot={null} />)
+    await waitFor(() => expect(instance.fired).toContain('returnToDock'))
+    act(() => instance.complete()) // a late completion write must not win
+    expect(instance.values.behaviorState!.value).toBe('thinking')
+  })
+
+  it('restores the host state when a one-shot ends on its own, and does not interrupt it for unrelated props', async () => {
+    const { rerender } = render(
+      <MamCharacter
+        size={96}
+        behavior="explaining"
+        oneShot={{ kind: 'celebrate_soft', key: 1 }}
+      />,
+    )
+    const instance = await loaded()
+    await waitFor(() =>
+      expect(instance.values.behaviorState!.value).toBe('celebrate_soft'),
+    )
+    rerender(
+      <MamCharacter
+        size={96}
+        behavior="explaining"
+        attention={0.5}
+        oneShot={{ kind: 'celebrate_soft', key: 1 }}
+      />,
+    )
+    expect(instance.fired).not.toContain('returnToDock')
+    expect(instance.values.behaviorState!.value).toBe('celebrate_soft')
+
+    act(() => instance.complete())
+    expect(instance.values.behaviorState!.value).toBe('explaining')
+  })
+
+  it('follows a live OS reduced-motion change after the character is ready', async () => {
+    const { container, rerender } = render(<MamCharacter size={96} />)
+    const instance = await loaded()
+    await waitFor(() =>
+      expect(container.firstElementChild?.getAttribute('data-mam-status')).toBe(
+        'ready',
+      ),
+    )
+    reducedMotion.value = true
+    rerender(
+      <MamCharacter size={96} oneShot={{ kind: 'celebrate_hero', key: 9 }} />,
+    )
+    await waitFor(() => expect(instance.values.reducedMotion!.value).toBe(true))
+    expect(instance.fired).toEqual([])
+    expect(container.firstElementChild?.getAttribute('data-mam-reduced')).toBe(
+      'true',
+    )
+  })
+
+  it("exposes the user's motion setting to CSS even when the OS allows motion", () => {
+    const { container } = render(<MamCharacter size={96} reducedMotion />)
+    expect(container.firstElementChild?.getAttribute('data-mam-reduced')).toBe(
+      'true',
+    )
+  })
+
+  it.each(['after', 'before'])(
+    'falls back for good when the canvas context is lost %s the asset loads',
+    async (moment) => {
+      const { container } = render(<MamCharacter size={96} />)
+      await waitFor(() => expect(runtime.state.instances).toHaveLength(1))
+      const instance = runtime.state.instances[0]!
+      const canvas = container.querySelector('canvas')!
+      if (moment === 'after') act(() => instance.load())
+      act(() => {
+        canvas.dispatchEvent(new Event('contextlost'))
+      })
+      if (moment === 'before') act(() => instance.load())
+
+      await waitFor(() =>
+        expect(
+          container.firstElementChild?.getAttribute('data-mam-status'),
+        ).toBe('fallback'),
+      )
+      expect(instance.cleanup).toHaveBeenCalledTimes(1)
+      expect(container.querySelector('img')?.getAttribute('data-ready')).toBe(
+        'false',
+      )
+    },
+  )
+
+  it('applies OS reduced motion and blocks one-shots', async () => {
+    reducedMotion.value = true
+    render(
+      <MamCharacter size={96} oneShot={{ kind: 'celebrate_hero', key: 1 }} />,
+    )
+    const instance = await loaded()
+    await waitFor(() => expect(instance.values.reducedMotion!.value).toBe(true))
+    expect(instance.fired).toEqual([])
+  })
+
+  it('hides the character and its static pose when not visible', async () => {
+    const { container } = render(<MamCharacter size={96} visible={false} />)
+    expect(container.querySelector('img')).toBeNull()
+    const instance = await loaded()
+    await waitFor(() => expect(instance.values.isVisible!.value).toBe(false))
+  })
+
+  it.each([
+    ['the asset fails to load', () => (runtime.state.loadError = true)],
+    [
+      'the WASM runtime fails',
+      () => (runtime.state.runtimeError = new Error('wasm')),
+    ],
+  ])('keeps the static pose when %s', async (_case, arrange) => {
+    arrange()
+    const onStatusChange = vi.fn()
+    const { container } = render(
+      <MamCharacter size={72} onStatusChange={onStatusChange} />,
+    )
+    if (!runtime.state.runtimeError) await loaded()
+    await waitFor(() => expect(onStatusChange).toHaveBeenCalledWith('fallback'))
+    expect(container.querySelector('img')).not.toBeNull()
+  })
+
+  it('falls back without loading the runtime when canvas is unsupported', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
+    const { container } = render(<MamCharacter size={72} />)
+    await waitFor(() =>
+      expect(container.firstElementChild?.getAttribute('data-mam-status')).toBe(
+        'fallback',
+      ),
+    )
+    expect(runtime.state.instances).toHaveLength(0)
+  })
+
+  it('downloads the asset once for every instance on the page', async () => {
+    const Fresh = MamCharacter
+    render(
+      <>
+        <Fresh size={72} />
+        <Fresh size={96} />
+      </>,
+    )
+    await waitFor(() => expect(runtime.state.instances).toHaveLength(2))
+    const [first, second] = runtime.state.instances
+    expect(first!.options.buffer).not.toBe(second!.options.buffer)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(fetch).toHaveBeenCalledWith('/mam/mam-v08.riv')
+  })
+
+  it('keeps the static pose when the asset download fails, and retries later', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 404 }))
+    const Fresh = MamCharacter
+    const first = render(<Fresh size={72} />)
+    await waitFor(() =>
+      expect(
+        first.container.firstElementChild?.getAttribute('data-mam-status'),
+      ).toBe('fallback'),
+    )
+    expect(runtime.state.instances).toHaveLength(0)
+
+    render(<Fresh size={72} />)
+    await waitFor(() => expect(runtime.state.instances).toHaveLength(1))
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('cleans up the runtime on unmount, including during load', async () => {
+    const { unmount } = render(<MamCharacter size={96} />)
+    await waitFor(() => expect(runtime.state.instances).toHaveLength(1))
+    const instance = runtime.state.instances[0]!
+    unmount()
+    expect(instance.cleanup).toHaveBeenCalledTimes(1)
+    act(() => instance.load())
+  })
+})
+
+// MB-814: dizzy shows for a broken renderer only, never for an unsupported device.
+describe('MamCharacter fallback reason', () => {
+  it('reports unsupported when the device has no canvas or WebAssembly', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
+    const onFallback = vi.fn()
+    render(<MamCharacter size={96} onFallback={onFallback} />)
+    await waitFor(() => expect(onFallback).toHaveBeenCalledWith('unsupported'))
+    expect(onFallback).toHaveBeenCalledTimes(1)
+    expect(runtime.state.instances).toHaveLength(0)
+  })
+
+  it.each([
+    ['the asset fails to load', () => (runtime.state.loadError = true)],
+    [
+      'the WASM runtime fails',
+      () => (runtime.state.runtimeError = new Error('wasm')),
+    ],
+  ])('reports an error when %s', async (_case, arrange) => {
+    arrange()
+    const onFallback = vi.fn()
+    render(<MamCharacter size={96} onFallback={onFallback} />)
+    if (!runtime.state.runtimeError) {
+      await waitFor(() => expect(runtime.state.instances).toHaveLength(1))
+      act(() => runtime.state.instances[0]!.load())
+    }
+    await waitFor(() => expect(onFallback).toHaveBeenCalledWith('error'))
+    expect(onFallback).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports an error when the asset breaks the contract', async () => {
+    const onFallback = vi.fn()
+    render(<MamCharacter size={96} onFallback={onFallback} />)
+    await waitFor(() => expect(runtime.state.instances).toHaveLength(1))
+    const instance = runtime.state.instances[0]!
+    delete instance.values.behaviorState
+    act(() => instance.load())
+    await waitFor(() => expect(onFallback).toHaveBeenCalledWith('error'))
+  })
+
+  it('reports an error when the canvas context is lost', async () => {
+    const onFallback = vi.fn()
+    const { container } = render(
+      <MamCharacter size={96} onFallback={onFallback} />,
+    )
+    await waitFor(() => expect(runtime.state.instances).toHaveLength(1))
+    act(() => runtime.state.instances[0]!.load())
+    act(() => {
+      container.querySelector('canvas')!.dispatchEvent(new Event('contextlost'))
+    })
+    await waitFor(() => expect(onFallback).toHaveBeenCalledWith('error'))
+  })
+
+  // MB-815: the voice call mounts MamCharacter alone; a broken renderer leaves the static
+  // image and nothing else (dizzy belongs to the dock host).
+  it.each([
+    [
+      'unsupported',
+      () =>
+        vi
+          .spyOn(HTMLCanvasElement.prototype, 'getContext')
+          .mockReturnValue(null),
+    ],
+    ['error', () => (runtime.state.runtimeError = new Error('wasm'))],
+  ])(
+    'keeps a speaking in-call avatar as a static image on %s',
+    async (reason, arrange) => {
+      arrange()
+      const onFallback = vi.fn()
+      const { container } = render(
+        <MamCharacter size={164} behavior="speaking" onFallback={onFallback} />,
+      )
+      await waitFor(() => expect(onFallback).toHaveBeenCalledWith(reason))
+      expect(container.querySelector('img')).not.toBeNull()
+      expect(container.querySelector('canvas')?.dataset.ready).not.toBe('true')
+      expect(container.querySelector('[role], [data-mam-dizzy]')).toBeNull()
+    },
+  )
+
+  it('sets the speaking behavior on the asset', async () => {
+    render(<MamCharacter size={164} behavior="speaking" />)
+    const instance = await loaded()
+    expect(instance.values.behaviorState!.value).toBe('speaking')
+  })
+
+  it.each(['pilot', 'pilot_wave'] as const)(
+    'sets the host-set %s loop on the asset and restores it after a one-shot',
+    async (behavior) => {
+      render(<MamCharacter size={96} behavior={behavior} />)
+      const instance = await loaded()
+      expect(instance.values.behaviorState!.value).toBe(behavior)
+      act(() => instance.complete())
+      expect(instance.values.behaviorState!.value).toBe(behavior)
+    },
+  )
+
+  it.each(['hop_down', 'wave'] as const)(
+    'plays the %s one-shot once, then the asset returns to the host state',
+    async (kind) => {
+      const { rerender } = render(
+        <MamCharacter size={96} oneShot={{ kind, key: 1 }} />,
+      )
+      const instance = await loaded()
+      await waitFor(() => expect(instance.fired).toEqual(['playOnce']))
+      expect(instance.values.behaviorState!.value).toBe(kind)
+      rerender(
+        <MamCharacter size={96} oneShot={{ kind, key: 1 }} attention={0.2} />,
+      )
+      expect(instance.fired).toEqual(['playOnce'])
+      act(() => instance.complete())
+      expect(instance.values.behaviorState!.value).toBe('idle')
+    },
+  )
+
+  it('keeps every V1 one-shot working beside the v0.7 ids', async () => {
+    render(<MamCharacter size={96} oneShot={{ kind: 'point', key: 1 }} />)
+    const instance = await loaded()
+    await waitFor(() => expect(instance.fired).toEqual(['playOnce']))
+    expect(instance.values.behaviorState!.value).toBe('point')
+  })
+
+  it('cuts a pilot flight for reduced motion and refuses the hop', async () => {
+    reducedMotion.value = true
+    render(
+      <MamCharacter
+        size={96}
+        behavior="pilot"
+        oneShot={{ kind: 'hop_down', key: 1 }}
+      />,
+    )
+    const instance = await loaded()
+    expect(instance.fired).toEqual([])
+    expect(instance.values.reducedMotion!.value).toBe(true)
+  })
+
+  it('sizes the drawing buffer for the 1.7x flight only while oversampling', async () => {
+    const { rerender } = render(<MamCharacter size={96} />)
+    const instance = await loaded()
+    const resize = instance.resize
+    expect(resize).toHaveBeenLastCalledWith(window.devicePixelRatio || 1)
+    rerender(<MamCharacter size={96} oversample />)
+    expect(resize).toHaveBeenLastCalledWith(
+      (window.devicePixelRatio || 1) * 1.7,
+    )
+    rerender(<MamCharacter size={96} />)
+    expect(resize).toHaveBeenLastCalledWith(window.devicePixelRatio || 1)
+  })
+
+  it('reports nothing while the character renders', async () => {
+    const onFallback = vi.fn()
+    render(<MamCharacter size={96} onFallback={onFallback} />)
+    await waitFor(() => expect(runtime.state.instances).toHaveLength(1))
+    act(() => runtime.state.instances[0]!.load())
+    await act(async () => {})
+    expect(onFallback).not.toHaveBeenCalled()
+  })
+})

@@ -8,6 +8,72 @@ import { careClient } from './care-client'
 
 const assessmentId = '10000000-0000-4000-8000-000000000003'
 
+const firstUseHome = {
+  homePolicyVersion: 'mb-home-next-step-v1',
+  journey: {
+    journeyPolicyVersion: 'mb-guided-journey-v1',
+    stage: 'ASSESSMENT_REQUIRED',
+    assessmentInProgress: false,
+    episodeId: null,
+    episodeCompletedAt: null,
+    presentationEvaluationId: null,
+    supportGuideId: null,
+    nextAction: null,
+    currentSupportPlanId: null,
+    entitlementStatus: 'NOT_REQUIRED',
+    latestScreening: null,
+  },
+  plan: null,
+  lastCompletedPlan: null,
+} as const
+
+describe('Care Home next-step client', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('forwards the owner bearer and IANA time zone to the sibling read', async () => {
+    vi.stubEnv('CARE_API_BASE_URL', 'http://care.test')
+    mockServer.use(
+      http.get('http://care.test/api/v1/home-next-step', ({ request }) => {
+        expect(new URL(request.url).searchParams.get('timezone')).toBe(
+          'Asia/Bangkok',
+        )
+        expect(request.headers.get('authorization')).toBe('Bearer owner-token')
+        expect(request.cache).toBe('no-store')
+        return HttpResponse.json({ ...firstUseHome, rawAnswers: [1, 2] })
+      }),
+    )
+
+    await expect(
+      careClient.homeNextStep('owner-token', 'Asia/Bangkok', 'correlation'),
+    ).resolves.toEqual(firstUseHome)
+  })
+
+  it('omits timezone when the plan schedule supplies the default', async () => {
+    vi.stubEnv('CARE_API_BASE_URL', 'http://care.test')
+    mockServer.use(
+      http.get('http://care.test/api/v1/home-next-step', ({ request }) => {
+        expect(new URL(request.url).searchParams.has('timezone')).toBe(false)
+        return HttpResponse.json(firstUseHome)
+      }),
+    )
+    await expect(
+      careClient.homeNextStep('owner-token', undefined, 'correlation'),
+    ).resolves.toEqual(firstUseHome)
+  })
+
+  it('rejects malformed embedded journey data', async () => {
+    vi.stubEnv('CARE_API_BASE_URL', 'http://care.test')
+    mockServer.use(
+      http.get('http://care.test/api/v1/home-next-step', () =>
+        HttpResponse.json({ ...firstUseHome, journey: {} }),
+      ),
+    )
+    await expect(
+      careClient.homeNextStep('owner-token', undefined, 'correlation'),
+    ).rejects.toMatchObject({ code: 'CARE_MALFORMED_RESPONSE', status: 502 })
+  })
+})
+
 describe('Care client progress validation', () => {
   afterEach(() => vi.unstubAllEnvs())
 
@@ -47,6 +113,70 @@ describe('Care client progress validation', () => {
     ).rejects.toMatchObject({
       code: 'CARE_MALFORMED_RESPONSE',
       status: 502,
+    })
+  })
+
+  it('loads the backend-owned AI disclosure and records its exact consent decision', async () => {
+    vi.stubEnv('CARE_API_BASE_URL', 'http://care.test')
+    const disclosure = {
+      consentType: 'AI_PROCESSING' as const,
+      version: 'ai-processing-capstone-v2' as const,
+      locale: 'vi-VN' as const,
+      title: 'Đồng ý xử lý nhật ký bằng AI',
+      content: 'Nội dung do Care sở hữu.',
+      capstoneOnly: true as const,
+    }
+    mockServer.use(
+      http.get(
+        'http://care.test/api/v1/ai-processing-disclosures/current',
+        ({ request }) => {
+          expect(new URL(request.url).searchParams.get('locale')).toBe('vi-VN')
+          return HttpResponse.json(disclosure)
+        },
+      ),
+      http.post(
+        'http://care.test/api/v1/consent-decisions',
+        async ({ request }) => {
+          expect(request.headers.get('authorization')).toBe('Bearer token')
+          expect(request.headers.get('idempotency-key')).toBe(
+            'consent-command-0001',
+          )
+          expect(await request.json()).toEqual({
+            consentType: 'AI_PROCESSING',
+            policyVersion: 'ai-processing-capstone-v2',
+            granted: true,
+          })
+          return HttpResponse.json(
+            {
+              decisionId: '30000000-0000-4000-8000-000000000001',
+              consentType: 'AI_PROCESSING',
+              policyVersion: 'ai-processing-capstone-v2',
+              granted: true,
+              decidedAt: '2026-09-23T00:00:00Z',
+            },
+            { status: 201 },
+          )
+        },
+      ),
+    )
+
+    await expect(
+      careClient.currentAiProcessingDisclosure('correlation'),
+    ).resolves.toEqual(disclosure)
+    await expect(
+      careClient.recordConsent(
+        'token',
+        {
+          consentType: 'AI_PROCESSING',
+          policyVersion: 'ai-processing-capstone-v2',
+          granted: true,
+        },
+        'consent-command-0001',
+        'correlation',
+      ),
+    ).resolves.toMatchObject({
+      consentType: 'AI_PROCESSING',
+      granted: true,
     })
   })
 })

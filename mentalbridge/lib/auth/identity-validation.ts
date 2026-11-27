@@ -1,6 +1,12 @@
 import type {
   AccountDetail,
+  AccountPage,
+  AccountStateChangeRequest,
+  AccountStatus,
+  AdministrationAuditEvent,
+  AdministrationAuditEventPage,
   AccountSummary,
+  AccountsSummary,
   ChallengeRequest,
   EmailRequest,
   IdentityRole,
@@ -11,6 +17,17 @@ import type {
   TokenPair,
   PasswordResetRequest,
   PasswordChangeRequest,
+  PlatformReport,
+  PlatformReportPage,
+  PlatformReportRequest,
+  PlatformReportType,
+  ProductJourneyMetrics,
+  ApplyHoldRequest,
+  DeletionOwnerFact,
+  DeletionRequest,
+  DeletionRequestPage,
+  RetentionExecutionRecord,
+  RetentionPolicy,
 } from '@/features/auth/api/identity-contract'
 
 const ACCOUNT_STATUSES = new Set([
@@ -21,6 +38,13 @@ const ACCOUNT_STATUSES = new Set([
   'DELETED',
 ])
 const IDENTITY_ROLES = new Set<IdentityRole>(['USER', 'SPECIALIST', 'ADMIN'])
+const ADMIN_TARGET_STATUSES = new Set(['ACTIVE', 'DISABLED'])
+const ACCOUNT_STATE_REASON_CODES = new Set([
+  'SAFETY_CONCERN',
+  'POLICY_VIOLATION',
+  'ACCOUNT_REVIEW_REQUIRED',
+  'REVIEW_COMPLETED',
+])
 const PUBLIC_REGISTRATION_ROLES = new Set<PublicRegistrationRole>([
   'USER',
   'SPECIALIST',
@@ -28,6 +52,30 @@ const PUBLIC_REGISTRATION_ROLES = new Set<PublicRegistrationRole>([
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const SAFE_CODE_PATTERN = /^[A-Z0-9_]{1,96}$/
+const SAFE_ACTOR_PATTERN =
+  /^(account:[0-9a-f-]{36}|tombstone:[0-9a-f]{64}|system)$/i
+const SAFE_TARGET_PATTERN = /^(account:[0-9a-f-]{36}|tombstone:[0-9a-f]{64})$/i
+const VALID_AUDIT_SERVICES = new Set([
+  'IDENTITY',
+  'CONSULTATION',
+  'CONTENT',
+  'COMMUNITY',
+])
+const VALID_AUDIT_DOMAINS = new Set([
+  'ACCOUNT_ADMINISTRATION',
+  'SPECIALIST_REVIEW',
+  'RESOURCE_MANAGEMENT',
+  'COMMUNITY_MODERATION',
+])
+const PLATFORM_REPORT_STATUSES = new Set([
+  'QUEUED',
+  'RUNNING',
+  'COMPLETED',
+  'FAILED',
+  'STALE',
+])
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -424,4 +472,875 @@ export function parseAccountDetail(value: unknown): AccountDetail | null {
 
 export function isUuid(value: string | null): value is string {
   return value !== null && UUID_PATTERN.test(value)
+}
+
+export function isValidAccountStatus(value: string): value is AccountStatus {
+  return ACCOUNT_STATUSES.has(value)
+}
+
+export function isValidIdentityRole(value: string): value is IdentityRole {
+  return IDENTITY_ROLES.has(value as IdentityRole)
+}
+
+export function isValidEmail(value: string) {
+  return value.length <= 254 && EMAIL_PATTERN.test(value)
+}
+
+export function parseAccountPage(value: unknown): AccountPage | null {
+  if (!isRecord(value)) return null
+  if (!hasOnlyKeys(value, ['items', 'nextCursor'])) return null
+  if (!Array.isArray(value.items)) return null
+  const items: AccountDetail[] = []
+  for (const item of value.items) {
+    const detail = parseAccountDetail(item)
+    if (!detail) return null
+    items.push(detail)
+  }
+  if (value.nextCursor !== null && typeof value.nextCursor !== 'string')
+    return null
+  return { items, nextCursor: value.nextCursor as string | null }
+}
+
+function parseAdministrationAuditEvent(
+  value: unknown,
+): AdministrationAuditEvent | null {
+  if (!isRecord(value)) return null
+  if (
+    !hasOnlyKeys(value, [
+      'eventId',
+      'occurredAt',
+      'actorType',
+      'actorIdentifier',
+      'action',
+      'result',
+      'reasonCode',
+      'correlationId',
+      'sourceService',
+      'domain',
+      'targetIdentifier',
+    ])
+  ) {
+    return null
+  }
+  if (
+    typeof value.eventId !== 'string' ||
+    !UUID_PATTERN.test(value.eventId) ||
+    !isDateTime(value.occurredAt) ||
+    !['ADMIN', 'SYSTEM'].includes(String(value.actorType)) ||
+    typeof value.actorIdentifier !== 'string' ||
+    !SAFE_ACTOR_PATTERN.test(value.actorIdentifier) ||
+    typeof value.action !== 'string' ||
+    !SAFE_CODE_PATTERN.test(value.action) ||
+    !['SUCCEEDED', 'DENIED', 'FAILED'].includes(String(value.result)) ||
+    (value.reasonCode !== null &&
+      (typeof value.reasonCode !== 'string' ||
+        !SAFE_CODE_PATTERN.test(value.reasonCode))) ||
+    typeof value.correlationId !== 'string' ||
+    !UUID_PATTERN.test(value.correlationId) ||
+    !VALID_AUDIT_SERVICES.has(String(value.sourceService)) ||
+    !VALID_AUDIT_DOMAINS.has(String(value.domain)) ||
+    (value.actorType === 'SYSTEM' && value.actorIdentifier !== 'system') ||
+    (value.actorType === 'ADMIN' && value.actorIdentifier === 'system') ||
+    (value.targetIdentifier !== null &&
+      value.targetIdentifier !== undefined &&
+      (typeof value.targetIdentifier !== 'string' ||
+        !SAFE_TARGET_PATTERN.test(value.targetIdentifier)))
+  ) {
+    return null
+  }
+  return value as AdministrationAuditEvent
+}
+
+export function parseAdministrationAuditEventPage(
+  value: unknown,
+): AdministrationAuditEventPage | null {
+  if (!isRecord(value)) return null
+  if (
+    !hasOnlyKeys(value, [
+      'items',
+      'nextCursor',
+      'effectiveFrom',
+      'effectiveTo',
+      'retentionCutoff',
+    ]) ||
+    !Array.isArray(value.items) ||
+    (value.nextCursor !== null && typeof value.nextCursor !== 'string') ||
+    !isDateTime(value.effectiveFrom) ||
+    !isDateTime(value.effectiveTo) ||
+    !isDateTime(value.retentionCutoff)
+  ) {
+    return null
+  }
+  const items = value.items.map(parseAdministrationAuditEvent)
+  if (items.some((item) => item === null)) return null
+  return {
+    items: items as AdministrationAuditEvent[],
+    nextCursor: value.nextCursor as string | null,
+    effectiveFrom: value.effectiveFrom,
+    effectiveTo: value.effectiveTo,
+    retentionCutoff: value.retentionCutoff,
+  }
+}
+
+export function validateAccountStateChangeRequest(
+  value: unknown,
+): ValidationResult<AccountStateChangeRequest> {
+  if (!isRecord(value)) {
+    return {
+      success: false,
+      violations: [{ field: 'body', code: 'INVALID_TYPE' }],
+    }
+  }
+  const violations: ValidationViolation[] = []
+  if (!hasOnlyKeys(value, ['status', 'reasonCode'])) {
+    violations.push({ field: 'body', code: 'UNKNOWN_FIELD' })
+  }
+  if (
+    typeof value.status !== 'string' ||
+    !ADMIN_TARGET_STATUSES.has(value.status)
+  ) {
+    violations.push({ field: 'status', code: 'INVALID_FORMAT' })
+  }
+  if (
+    typeof value.reasonCode !== 'string' ||
+    !ACCOUNT_STATE_REASON_CODES.has(value.reasonCode)
+  ) {
+    violations.push({ field: 'reasonCode', code: 'INVALID_FORMAT' })
+  }
+  if (violations.length > 0) return { success: false, violations }
+  return {
+    success: true,
+    value: {
+      status: value.status as AccountStateChangeRequest['status'],
+      reasonCode: value.reasonCode as AccountStateChangeRequest['reasonCode'],
+    },
+  }
+}
+
+export function parseAccountsSummary(value: unknown): AccountsSummary | null {
+  if (!isRecord(value)) return null
+  if (
+    value.source !== 'IDENTITY' ||
+    typeof value.asOf !== 'string' ||
+    !isDateTime(value.asOf) ||
+    typeof value.totalAccounts !== 'number' ||
+    typeof value.activeAccounts !== 'number' ||
+    typeof value.pendingVerificationAccounts !== 'number' ||
+    typeof value.disabledAccounts !== 'number' ||
+    typeof value.deletionPendingAccounts !== 'number' ||
+    !isRecord(value.byRole)
+  ) {
+    return null
+  }
+  const byRole = value.byRole
+  if (
+    typeof byRole.users !== 'number' ||
+    typeof byRole.specialists !== 'number' ||
+    typeof byRole.admins !== 'number'
+  ) {
+    return null
+  }
+  return {
+    source: 'IDENTITY',
+    asOf: value.asOf,
+    totalAccounts: value.totalAccounts,
+    activeAccounts: value.activeAccounts,
+    pendingVerificationAccounts: value.pendingVerificationAccounts,
+    disabledAccounts: value.disabledAccounts,
+    deletionPendingAccounts: value.deletionPendingAccounts,
+    byRole: {
+      users: byRole.users,
+      specialists: byRole.specialists,
+      admins: byRole.admins,
+    },
+  }
+}
+
+export function validatePlatformReportRequest(
+  value: unknown,
+): ValidationResult<PlatformReportRequest> {
+  if (!isRecord(value)) {
+    return {
+      success: false,
+      violations: [{ field: 'body', code: 'INVALID_TYPE' }],
+    }
+  }
+  const violations: ValidationViolation[] = []
+  if (!hasOnlyKeys(value, ['reportType', 'periodStart', 'periodEnd'])) {
+    violations.push({ field: 'body', code: 'UNKNOWN_FIELD' })
+  }
+  if (value.reportType !== 'ACCOUNT_ACTIVITY') {
+    violations.push({ field: 'reportType', code: 'INVALID_VALUE' })
+  }
+  if (
+    typeof value.periodStart !== 'string' ||
+    !DATE_PATTERN.test(value.periodStart)
+  ) {
+    violations.push({ field: 'periodStart', code: 'INVALID_FORMAT' })
+  }
+  if (
+    typeof value.periodEnd !== 'string' ||
+    !DATE_PATTERN.test(value.periodEnd)
+  ) {
+    violations.push({ field: 'periodEnd', code: 'INVALID_FORMAT' })
+  }
+  if (violations.length > 0) return { success: false, violations }
+  return { success: true, value: value as PlatformReportRequest }
+}
+
+export function parsePlatformReportType(
+  value: unknown,
+): PlatformReportType | null {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, [
+      'reportType',
+      'label',
+      'description',
+      'scopeVersion',
+      'maximumPeriodDays',
+    ])
+  )
+    return null
+  if (
+    value.reportType !== 'ACCOUNT_ACTIVITY' ||
+    typeof value.label !== 'string' ||
+    value.label.length > 120 ||
+    typeof value.description !== 'string' ||
+    value.description.length > 500 ||
+    typeof value.scopeVersion !== 'string' ||
+    value.scopeVersion.length > 64 ||
+    !Number.isInteger(value.maximumPeriodDays) ||
+    (value.maximumPeriodDays as number) < 1 ||
+    (value.maximumPeriodDays as number) > 366
+  )
+    return null
+  return value as PlatformReportType
+}
+
+export function parsePlatformReportCatalogue(
+  value: unknown,
+): PlatformReportType[] | null {
+  if (!Array.isArray(value) || value.length > 20) return null
+  const parsed = value.map(parsePlatformReportType)
+  return parsed.every((item): item is PlatformReportType => item !== null)
+    ? parsed
+    : null
+}
+
+export function parsePlatformReport(value: unknown): PlatformReport | null {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, [
+      'reportId',
+      'reportType',
+      'scopeVersion',
+      'periodStart',
+      'periodEnd',
+      'requestedBy',
+      'requestedAt',
+      'status',
+      'sourceVersions',
+      'retryOf',
+      'startedAt',
+      'completedAt',
+      'failedAt',
+      'failureCode',
+      'downloadable',
+      'fileName',
+      'mediaType',
+      'contentLength',
+      'contentSha256',
+      'retainedUntil',
+    ])
+  )
+    return null
+  if (
+    typeof value.reportId !== 'string' ||
+    !UUID_PATTERN.test(value.reportId) ||
+    value.reportType !== 'ACCOUNT_ACTIVITY' ||
+    typeof value.scopeVersion !== 'string' ||
+    typeof value.periodStart !== 'string' ||
+    !DATE_PATTERN.test(value.periodStart) ||
+    typeof value.periodEnd !== 'string' ||
+    !DATE_PATTERN.test(value.periodEnd) ||
+    typeof value.requestedBy !== 'string' ||
+    !UUID_PATTERN.test(value.requestedBy) ||
+    !isDateTime(value.requestedAt) ||
+    typeof value.status !== 'string' ||
+    !PLATFORM_REPORT_STATUSES.has(value.status) ||
+    !isRecord(value.sourceVersions) ||
+    Object.values(value.sourceVersions).some(
+      (item) => typeof item !== 'string',
+    ) ||
+    typeof value.downloadable !== 'boolean'
+  )
+    return null
+  for (const field of ['retryOf']) {
+    const item = value[field]
+    if (item !== null && (typeof item !== 'string' || !UUID_PATTERN.test(item)))
+      return null
+  }
+  for (const field of [
+    'startedAt',
+    'completedAt',
+    'failedAt',
+    'retainedUntil',
+  ]) {
+    const item = value[field]
+    if (item !== null && !isDateTime(item)) return null
+  }
+  if (
+    (value.failureCode !== null && typeof value.failureCode !== 'string') ||
+    (value.fileName !== null && typeof value.fileName !== 'string') ||
+    (value.mediaType !== null && typeof value.mediaType !== 'string') ||
+    (value.contentLength !== null &&
+      (!Number.isInteger(value.contentLength) ||
+        (value.contentLength as number) < 1)) ||
+    (value.contentSha256 !== null &&
+      (typeof value.contentSha256 !== 'string' ||
+        !/^[0-9a-f]{64}$/.test(value.contentSha256)))
+  )
+    return null
+  return value as PlatformReport
+}
+
+export function parsePlatformReportPage(
+  value: unknown,
+): PlatformReportPage | null {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, ['items', 'nextCursor']) ||
+    !Array.isArray(value.items)
+  )
+    return null
+  const items = value.items.map(parsePlatformReport)
+  if (!items.every((item): item is PlatformReport => item !== null)) return null
+  if (value.nextCursor !== null && typeof value.nextCursor !== 'string')
+    return null
+  return { items, nextCursor: value.nextCursor as string | null }
+}
+
+const PRODUCT_JOURNEY_SOURCES = new Set(['IDENTITY', 'CARE', 'CONSULTATION'])
+const PRODUCT_JOURNEY_SOURCE_VERSIONS: Readonly<Record<string, string>> = {
+  IDENTITY: 'identity-account-projection-v3',
+  CARE: 'care-product-journey-v1',
+  CONSULTATION: 'consultation-product-journey-v3',
+}
+const PRODUCT_JOURNEY_STAGES = new Set([
+  'USER_ACCOUNTS_REGISTERED',
+  'USER_ACCOUNTS_ACTIVATED',
+  'COMPLETED_SCREENING_EPISODES',
+  'SUPPORT_GUIDES_GENERATED',
+  'SUPPORT_GUIDES_OPENED',
+  'PAID_SUPPORT_PLANS_ACTIVATED',
+  'CONSULTATIONS_REQUESTED',
+  'CONSULTATIONS_CONFIRMED',
+  'CONSULTATIONS_COMPLETED',
+])
+const PRODUCT_JOURNEY_STAGE_SOURCES: Readonly<Record<string, string>> = {
+  USER_ACCOUNTS_REGISTERED: 'IDENTITY',
+  USER_ACCOUNTS_ACTIVATED: 'IDENTITY',
+  COMPLETED_SCREENING_EPISODES: 'CARE',
+  SUPPORT_GUIDES_GENERATED: 'CARE',
+  SUPPORT_GUIDES_OPENED: 'CARE',
+  PAID_SUPPORT_PLANS_ACTIVATED: 'CARE',
+  CONSULTATIONS_REQUESTED: 'CONSULTATION',
+  CONSULTATIONS_CONFIRMED: 'CONSULTATION',
+  CONSULTATIONS_COMPLETED: 'CONSULTATION',
+}
+const PRODUCT_JOURNEY_RATE_DENOMINATORS: Readonly<Record<string, string>> = {
+  USER_ACCOUNTS_ACTIVATED: 'USER_ACCOUNTS_REGISTERED',
+  CONSULTATIONS_CONFIRMED: 'CONSULTATIONS_REQUESTED',
+  CONSULTATIONS_COMPLETED: 'CONSULTATIONS_REQUESTED',
+}
+
+export function parseProductJourneyMetrics(
+  value: unknown,
+): ProductJourneyMetrics | null {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, [
+      'projectionVersion',
+      'window',
+      'asOf',
+      'interpretation',
+      'sources',
+      'stages',
+    ]) ||
+    value.projectionVersion !== 'product-journey-metrics-v2' ||
+    value.interpretation !==
+      'DESCRIPTIVE_PRODUCT_ACTIVITY_NOT_CLINICAL_EFFECTIVENESS' ||
+    !isDateTime(value.asOf) ||
+    !isRecord(value.window) ||
+    !hasOnlyKeys(value.window, ['from', 'to']) ||
+    !isDateTime(value.window.from) ||
+    !isDateTime(value.window.to) ||
+    !Array.isArray(value.sources) ||
+    value.sources.length !== 3 ||
+    !Array.isArray(value.stages) ||
+    value.stages.length !== 9
+  )
+    return null
+
+  if (
+    new Set(
+      value.sources.map((source) => (isRecord(source) ? source.source : null)),
+    ).size !== 3 ||
+    !value.sources.every((source) => {
+      if (
+        !isRecord(source) ||
+        !hasOnlyKeys(source, [
+          'source',
+          'sourceVersion',
+          'status',
+          'asOf',
+          'unavailableReason',
+        ]) ||
+        !PRODUCT_JOURNEY_SOURCES.has(String(source.source)) ||
+        !['AVAILABLE', 'UNAVAILABLE'].includes(String(source.status))
+      )
+        return false
+      return source.status === 'AVAILABLE'
+        ? source.sourceVersion ===
+            PRODUCT_JOURNEY_SOURCE_VERSIONS[String(source.source)] &&
+            isDateTime(source.asOf) &&
+            source.unavailableReason === null
+        : source.sourceVersion === null &&
+            source.asOf === null &&
+            source.unavailableReason === 'DEPENDENCY_UNAVAILABLE'
+    })
+  )
+    return null
+
+  if (
+    new Set(value.stages.map((stage) => (isRecord(stage) ? stage.stage : null)))
+      .size !== 9 ||
+    !value.stages.every((stage) => {
+      if (
+        !isRecord(stage) ||
+        !hasOnlyKeys(stage, [
+          'stage',
+          'source',
+          'status',
+          'count',
+          'rate',
+          'unavailableReason',
+        ]) ||
+        !PRODUCT_JOURNEY_STAGES.has(String(stage.stage)) ||
+        !PRODUCT_JOURNEY_SOURCES.has(String(stage.source)) ||
+        stage.source !== PRODUCT_JOURNEY_STAGE_SOURCES[String(stage.stage)] ||
+        !['AVAILABLE', 'UNAVAILABLE'].includes(String(stage.status))
+      )
+        return false
+      if (stage.status === 'AVAILABLE') {
+        if (
+          !Number.isSafeInteger(stage.count) ||
+          Number(stage.count) < 0 ||
+          stage.unavailableReason !== null
+        )
+          return false
+      } else if (
+        stage.count !== null ||
+        stage.rate !== null ||
+        ![
+          'SOURCE_UNAVAILABLE',
+          'AUTHORITATIVE_USAGE_FACT_UNAVAILABLE',
+        ].includes(String(stage.unavailableReason))
+      )
+        return false
+      if (stage.rate === null) return true
+      if (!isRecord(stage.rate)) return false
+      return (
+        hasOnlyKeys(stage.rate, ['denominatorStage', 'percentage']) &&
+        ['USER_ACCOUNTS_REGISTERED', 'CONSULTATIONS_REQUESTED'].includes(
+          String(stage.rate.denominatorStage),
+        ) &&
+        typeof stage.rate.percentage === 'number' &&
+        Number.isFinite(stage.rate.percentage) &&
+        stage.rate.percentage >= 0 &&
+        stage.rate.percentage <= 100
+      )
+    })
+  )
+    return null
+
+  const stages = new Map(
+    value.stages.map((stage) => {
+      const record = stage as Record<string, unknown>
+      return [String(record.stage), record]
+    }),
+  )
+  for (const [stageCode, stage] of stages) {
+    const denominatorCode = PRODUCT_JOURNEY_RATE_DENOMINATORS[stageCode]
+    if (!denominatorCode) {
+      if (stage.rate !== null) return null
+      continue
+    }
+    if (stage.status === 'UNAVAILABLE') continue
+    const denominator = stages.get(denominatorCode)
+    if (
+      !denominator ||
+      denominator.status !== 'AVAILABLE' ||
+      !Number.isSafeInteger(denominator.count)
+    )
+      return null
+    const numeratorCount = Number(stage.count)
+    const denominatorCount = Number(denominator.count)
+    if (numeratorCount > denominatorCount) return null
+    if (denominatorCount === 0) {
+      if (stage.rate !== null) return null
+      continue
+    }
+    if (
+      !isRecord(stage.rate) ||
+      stage.rate.denominatorStage !== denominatorCode
+    )
+      return null
+    const expectedPercentage =
+      Math.round((numeratorCount / denominatorCount) * 1_000) / 10
+    if (stage.rate.percentage !== expectedPercentage) return null
+  }
+
+  return value as ProductJourneyMetrics
+}
+
+const RETENTION_OWNER_SERVICES = new Set([
+  'IDENTITY',
+  'CARE',
+  'CONSULTATION',
+  'JOURNAL_AI',
+  'COMMUNITY',
+  'CONTENT',
+])
+const RETENTION_POLICY_STATUSES = new Set([
+  'APPROVED',
+  'ENFORCED',
+  'PARTIALLY_SUPPORTED',
+  'UNAVAILABLE',
+])
+const RETENTION_JOB_STATUSES = new Set([
+  'ACTIVE',
+  'IDLE',
+  'PARTIALLY_SUPPORTED',
+  'UNAVAILABLE',
+  'SUCCEEDED',
+  'FAILED',
+  'RUNNING',
+  'STALE',
+])
+const RETENTION_JOB_STATUS_SOURCES = new Set([
+  'IDENTITY_POLICY_CATALOG',
+  'IDENTITY_EXECUTION_RECORD',
+  'NO_AUTHORITATIVE_SIGNAL',
+])
+const DELETION_REQUEST_STATUSES = new Set([
+  'PENDING',
+  'IN_PROGRESS',
+  'HELD',
+  'COMPLETED',
+  'FAILED',
+])
+const DELETION_HOLD_TYPES = new Set([
+  'NONE',
+  'LEGAL_HOLD',
+  'OPERATIONAL_HOLD',
+  'DISPUTE_HOLD',
+])
+export const DELETION_HOLD_REASON_CODES = [
+  'STATUTORY_INQUIRY',
+  'PENDING_DISPUTE',
+  'ACTIVE_SAFETY_REVIEW',
+  'SCHEDULED_APPOINTMENT_ACTIVE',
+  'USER_CONTESTED',
+  'AUDIT_COMPLIANCE_HOLD',
+] as const satisfies ReadonlyArray<ApplyHoldRequest['holdReason']>
+const DELETION_HOLD_REASONS = new Set<string>(DELETION_HOLD_REASON_CODES)
+const DELETION_ESCALATION_STATES = new Set([
+  'NONE',
+  'RETRY_EXHAUSTED',
+  'MANUAL_ESCALATION_REQUIRED',
+])
+const DELETION_FACT_STATUSES = new Set([
+  'PENDING',
+  'COMPLETED',
+  'HELD',
+  'FAILED',
+  'UNAVAILABLE',
+])
+export const APPROVED_RETENTION_FAILURE_CODES = new Set<string>([
+  'PRIOR_EXECUTION_STALE',
+  'SWEEP_EXECUTION_FAILED',
+])
+export const APPROVED_DELETION_FAILURE_CODES = new Set<string>([
+  'ACCOUNT_NOT_FOUND',
+  'RETRY_LIMIT_EXHAUSTED',
+])
+export const APPROVED_DELETION_FAILURE_REASONS = new Set<string>([
+  'ACCOUNT_NOT_FOUND',
+])
+export const APPROVED_FAILURE_CODES = new Set<string>([
+  ...APPROVED_RETENTION_FAILURE_CODES,
+  ...APPROVED_DELETION_FAILURE_CODES,
+])
+export const APPROVED_FAILURE_REASONS = APPROVED_DELETION_FAILURE_REASONS
+export const SAFE_FAILURE_CODE_PATTERN = /^[A-Z0-9_]{1,64}$/
+export const SAFE_FAILURE_REASON_PATTERN = /^[A-Z0-9_]{1,64}$/
+export const APPROVED_IDENTITY_EVIDENCE_PATTERN =
+  /^audit:identity:account-deleted:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+export function parseRetentionExecutionRecord(
+  value: unknown,
+): RetentionExecutionRecord | null {
+  if (!isRecord(value)) return null
+  if (
+    typeof value.executionId !== 'string' ||
+    !UUID_PATTERN.test(value.executionId) ||
+    typeof value.policyId !== 'string' ||
+    !value.policyId.trim() ||
+    typeof value.ownerService !== 'string' ||
+    typeof value.jobName !== 'string' ||
+    typeof value.jobStatus !== 'string' ||
+    !isDateTime(value.startedAt) ||
+    (value.completedAt !== null &&
+      value.completedAt !== undefined &&
+      !isDateTime(value.completedAt)) ||
+    typeof value.itemsEvaluated !== 'number' ||
+    typeof value.recordsPurged !== 'number' ||
+    typeof value.tombstonesCreated !== 'number' ||
+    typeof value.holdsHonored !== 'number'
+  )
+    return null
+
+  return {
+    executionId: value.executionId,
+    policyId: value.policyId,
+    ownerService: value.ownerService,
+    jobName: value.jobName,
+    jobStatus: value.jobStatus,
+    startedAt: value.startedAt,
+    completedAt: (value.completedAt as string) ?? null,
+    itemsEvaluated: value.itemsEvaluated,
+    recordsPurged: value.recordsPurged,
+    tombstonesCreated: value.tombstonesCreated,
+    holdsHonored: value.holdsHonored,
+    failureCode:
+      typeof value.failureCode === 'string' &&
+      APPROVED_RETENTION_FAILURE_CODES.has(value.failureCode.trim())
+        ? (value.failureCode.trim() as RetentionExecutionRecord['failureCode'])
+        : null,
+  }
+}
+
+export function parseRetentionPolicy(value: unknown): RetentionPolicy | null {
+  if (!isRecord(value)) return null
+  if (
+    typeof value.policyId !== 'string' ||
+    !value.policyId.trim() ||
+    typeof value.name !== 'string' ||
+    typeof value.version !== 'string' ||
+    typeof value.ownerService !== 'string' ||
+    !RETENTION_OWNER_SERVICES.has(value.ownerService) ||
+    typeof value.status !== 'string' ||
+    !RETENTION_POLICY_STATUSES.has(value.status) ||
+    typeof value.description !== 'string' ||
+    (value.retentionDays !== null &&
+      value.retentionDays !== undefined &&
+      typeof value.retentionDays !== 'number') ||
+    typeof value.jobName !== 'string' ||
+    typeof value.jobStatus !== 'string' ||
+    !RETENTION_JOB_STATUSES.has(value.jobStatus) ||
+    typeof value.jobStatusSource !== 'string' ||
+    !RETENTION_JOB_STATUS_SOURCES.has(value.jobStatusSource) ||
+    typeof value.automatedExecutionSupported !== 'boolean' ||
+    typeof value.manualHoldSupported !== 'boolean' ||
+    (value.manualEscalationRequired !== undefined &&
+      typeof value.manualEscalationRequired !== 'boolean') ||
+    typeof value.requiresManualReview !== 'boolean'
+  )
+    return null
+
+  let lastExecution: RetentionExecutionRecord | null = null
+  if (value.lastExecution !== null && value.lastExecution !== undefined) {
+    lastExecution = parseRetentionExecutionRecord(value.lastExecution)
+    if (!lastExecution) return null
+  }
+
+  return {
+    policyId: value.policyId,
+    name: value.name,
+    version: value.version,
+    ownerService: value.ownerService as RetentionPolicy['ownerService'],
+    status: value.status as RetentionPolicy['status'],
+    description: value.description,
+    retentionDays: (value.retentionDays as number) ?? null,
+    jobName: value.jobName,
+    jobStatus: value.jobStatus as RetentionPolicy['jobStatus'],
+    jobStatusSource:
+      value.jobStatusSource as RetentionPolicy['jobStatusSource'],
+    automatedExecutionSupported: value.automatedExecutionSupported,
+    manualHoldSupported: value.manualHoldSupported,
+    manualEscalationRequired: value.manualEscalationRequired ?? false,
+    requiresManualReview: value.requiresManualReview,
+    unsupportedCapabilityNotice:
+      (value.unsupportedCapabilityNotice as string) ?? null,
+    lastExecution,
+  }
+}
+
+export function parseRetentionPolicies(
+  value: unknown,
+): RetentionPolicy[] | null {
+  if (!Array.isArray(value)) return null
+  const result: RetentionPolicy[] = []
+  for (const item of value) {
+    const policy = parseRetentionPolicy(item)
+    if (!policy) return null
+    result.push(policy)
+  }
+  return result
+}
+
+export function parseDeletionOwnerFact(
+  value: unknown,
+): DeletionOwnerFact | null {
+  if (!isRecord(value)) return null
+  if (
+    typeof value.ownerService !== 'string' ||
+    !RETENTION_OWNER_SERVICES.has(value.ownerService) ||
+    typeof value.status !== 'string' ||
+    !DELETION_FACT_STATUSES.has(value.status) ||
+    (value.completedAt !== null &&
+      value.completedAt !== undefined &&
+      !isDateTime(value.completedAt))
+  )
+    return null
+
+  const rawEvidence =
+    typeof value.evidenceReference === 'string'
+      ? value.evidenceReference.trim()
+      : null
+  const safeEvidenceReference =
+    value.ownerService === 'IDENTITY' &&
+    rawEvidence &&
+    APPROVED_IDENTITY_EVIDENCE_PATTERN.test(rawEvidence)
+      ? rawEvidence
+      : null
+
+  const rawReason =
+    typeof value.failureReason === 'string' ? value.failureReason.trim() : null
+  const safeFailureReason =
+    rawReason && APPROVED_DELETION_FAILURE_REASONS.has(rawReason)
+      ? (rawReason as DeletionOwnerFact['failureReason'])
+      : null
+
+  return {
+    ownerService: value.ownerService as DeletionOwnerFact['ownerService'],
+    status: value.status as DeletionOwnerFact['status'],
+    completedAt: (value.completedAt as string) ?? null,
+    evidenceReference: safeEvidenceReference,
+    failureReason: safeFailureReason,
+  }
+}
+
+export function parseDeletionRequest(value: unknown): DeletionRequest | null {
+  if (!isRecord(value)) return null
+  if (
+    typeof value.requestId !== 'string' ||
+    !UUID_PATTERN.test(value.requestId) ||
+    typeof value.subjectReference !== 'string' ||
+    !/^tombstone:[0-9a-f]{64}$/i.test(value.subjectReference) ||
+    (value.accountStatus !== null &&
+      value.accountStatus !== undefined &&
+      (typeof value.accountStatus !== 'string' ||
+        !ACCOUNT_STATUSES.has(value.accountStatus))) ||
+    typeof value.status !== 'string' ||
+    !DELETION_REQUEST_STATUSES.has(value.status) ||
+    typeof value.holdType !== 'string' ||
+    !DELETION_HOLD_TYPES.has(value.holdType) ||
+    (value.holdReason !== null &&
+      value.holdReason !== undefined &&
+      (typeof value.holdReason !== 'string' ||
+        !DELETION_HOLD_REASONS.has(value.holdReason))) ||
+    typeof value.retryCount !== 'number' ||
+    typeof value.maxRetries !== 'number' ||
+    typeof value.escalationState !== 'string' ||
+    !DELETION_ESCALATION_STATES.has(value.escalationState) ||
+    !isDateTime(value.requestedAt) ||
+    !isDateTime(value.scheduledExecutionAt) ||
+    (value.completedAt !== null &&
+      value.completedAt !== undefined &&
+      !isDateTime(value.completedAt)) ||
+    (value.lastAttemptAt !== null &&
+      value.lastAttemptAt !== undefined &&
+      !isDateTime(value.lastAttemptAt)) ||
+    !Array.isArray(value.ownerFacts)
+  )
+    return null
+
+  const facts: DeletionOwnerFact[] = []
+  for (const fact of value.ownerFacts) {
+    const parsed = parseDeletionOwnerFact(fact)
+    if (!parsed) return null
+    facts.push(parsed)
+  }
+
+  return {
+    requestId: value.requestId,
+    subjectReference: value.subjectReference,
+    accountStatus:
+      (value.accountStatus as DeletionRequest['accountStatus']) ?? null,
+    status: value.status as DeletionRequest['status'],
+    holdType: value.holdType as DeletionRequest['holdType'],
+    holdReason: (value.holdReason as DeletionRequest['holdReason']) ?? null,
+    retryCount: value.retryCount,
+    maxRetries: value.maxRetries,
+    escalationState:
+      value.escalationState as DeletionRequest['escalationState'],
+    failureCode:
+      typeof value.failureCode === 'string' &&
+      APPROVED_DELETION_FAILURE_CODES.has(value.failureCode.trim())
+        ? (value.failureCode.trim() as DeletionRequest['failureCode'])
+        : null,
+    requestedAt: value.requestedAt,
+    scheduledExecutionAt: value.scheduledExecutionAt,
+    completedAt: (value.completedAt as string) ?? null,
+    lastAttemptAt: (value.lastAttemptAt as string) ?? null,
+    ownerFacts: facts,
+  }
+}
+
+export function parseDeletionRequestPage(
+  value: unknown,
+): DeletionRequestPage | null {
+  if (!isRecord(value) || !Array.isArray(value.items)) return null
+  const items: DeletionRequest[] = []
+  for (const item of value.items) {
+    const parsed = parseDeletionRequest(item)
+    if (!parsed) return null
+    items.push(parsed)
+  }
+  const total = typeof value.total === 'number' ? value.total : items.length
+  return {
+    items,
+    total,
+    nextCursor: (value.nextCursor as string) ?? null,
+  }
+}
+
+export function parseApplyHoldRequest(value: unknown): ApplyHoldRequest | null {
+  if (!isRecord(value)) return null
+  if (
+    typeof value.holdType !== 'string' ||
+    !DELETION_HOLD_TYPES.has(value.holdType) ||
+    value.holdType === 'NONE' ||
+    typeof value.holdReason !== 'string' ||
+    !DELETION_HOLD_REASONS.has(value.holdReason)
+  )
+    return null
+
+  return {
+    holdType: value.holdType as ApplyHoldRequest['holdType'],
+    holdReason: value.holdReason as ApplyHoldRequest['holdReason'],
+  }
 }

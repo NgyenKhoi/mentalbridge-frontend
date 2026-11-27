@@ -1,10 +1,16 @@
 import 'server-only'
 
+import { createHash } from 'node:crypto'
+
 import { ApiError } from '@/lib/api/api-error'
 import { isProblemDetails } from '@/lib/api/problem-details'
 import type {
   AccountDetail,
+  AccountPage,
+  AccountStateChangeRequest,
   AccountSummary,
+  AdministrationAuditEventPage,
+  AccountsSummary,
   ChallengeRequest,
   EmailRequest,
   LoginRequest,
@@ -13,29 +19,71 @@ import type {
   TokenPair,
   PasswordResetRequest,
   PasswordChangeRequest,
+  PlatformReport,
+  PlatformReportPage,
+  PlatformReportRequest,
+  PlatformReportType,
+  PlatformReportSchedule,
+  PlatformReportScheduleRequest,
+  ProductJourneyMetrics,
+  ApplyHoldRequest,
+  DeletionRequest,
+  DeletionRequestPage,
+  RetentionExecutionRecord,
+  RetentionPolicy,
 } from '@/features/auth/api/identity-contract'
 import { readIdentityServerConfig } from '@/lib/config/server'
 
 import {
   parseAccountDetail,
+  parseAccountPage,
   parseAccountSummary,
+  parseAdministrationAuditEventPage,
+  parseAccountsSummary,
   parseRegistrationResponse,
   parseTokenPair,
+  parsePlatformReport,
+  parsePlatformReportCatalogue,
+  parsePlatformReportPage,
+  parseProductJourneyMetrics,
+  parseDeletionRequest,
+  parseDeletionRequestPage,
+  parseRetentionExecutionRecord,
+  parseRetentionPolicies,
 } from './identity-validation'
+import {
+  parseReportSchedule,
+  parseReportSchedules,
+} from './report-schedule-validation'
 
 type RequestOptions<T> = Readonly<{
-  method: 'GET' | 'POST' | 'PUT'
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE'
   path: string
   expectedStatus: number
   correlationId: string
   authorization?: string
   idempotencyKey?: string
+  ifMatch?: string
   body?: unknown
   parseSuccess?: (value: unknown) => T | null
   emptySuccess?: boolean
 }>
 
 const MAX_IDENTITY_RESPONSE_BYTES = 64 * 1_024
+const MAX_IDENTITY_EXPORT_BYTES = 5 * 1_024 * 1_024
+
+export type AdministrationAuditSearch = Readonly<{
+  from?: string
+  to?: string
+  sourceService?: string
+  domain?: string
+  actorType?: string
+  action?: string
+  result?: string
+  targetIdentifier?: string
+  cursor?: string
+  limit?: number
+}>
 
 function upstreamUrl(baseUrl: string, path: string) {
   return new URL(path.replace(/^\//, ''), baseUrl)
@@ -113,6 +161,9 @@ async function identityRequest<T>(options: RequestOptions<T>): Promise<T> {
         ...(options.idempotencyKey === undefined
           ? {}
           : { 'Idempotency-Key': options.idempotencyKey }),
+        ...(options.ifMatch === undefined
+          ? {}
+          : { 'If-Match': options.ifMatch }),
       },
       ...(options.body === undefined
         ? {}
@@ -177,6 +228,202 @@ async function identityRequest<T>(options: RequestOptions<T>): Promise<T> {
       message: 'Identity is unavailable.',
       code: 'IDENTITY_UNAVAILABLE',
       status: 503,
+      cause: error,
+    })
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+function auditPath(path: string, params: AdministrationAuditSearch) {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) query.set(key, String(value))
+  }
+  const queryString = query.toString()
+  return `${path}${queryString ? `?${queryString}` : ''}`
+}
+
+async function identityCsvRequest(
+  accessToken: string,
+  params: AdministrationAuditSearch,
+  correlationId: string,
+) {
+  const config = readIdentityServerConfig()
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), config.timeoutMs)
+  try {
+    const response = await fetch(
+      upstreamUrl(
+        config.baseUrl,
+        auditPath('/api/v1/admin/audit-events/export', params),
+      ),
+      {
+        cache: 'no-store',
+        redirect: 'error',
+        signal: controller.signal,
+        headers: {
+          Accept: 'text/csv, application/problem+json',
+          Authorization: `Bearer ${accessToken}`,
+          'X-Correlation-Id': correlationId,
+        },
+      },
+    )
+    if (!response.ok) {
+      const body = await readJson(response)
+      if (isProblemDetails(body)) {
+        throw new ApiError({
+          message: body.title,
+          code: body.code,
+          status: response.status,
+          correlationId: body.correlationId,
+          problem: body,
+        })
+      }
+      throw new ApiError({
+        message: 'Identity returned an invalid error response.',
+        code: 'IDENTITY_MALFORMED_RESPONSE',
+        status: 502,
+      })
+    }
+    const contentType = response.headers.get('content-type') ?? ''
+    const contentLength = Number(response.headers.get('content-length'))
+    if (
+      !contentType.toLowerCase().startsWith('text/csv') ||
+      (Number.isFinite(contentLength) &&
+        contentLength > MAX_IDENTITY_EXPORT_BYTES)
+    ) {
+      throw new ApiError({
+        message: 'Identity returned an invalid export.',
+        code: 'IDENTITY_MALFORMED_RESPONSE',
+        status: 502,
+      })
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer())
+    if (bytes.byteLength > MAX_IDENTITY_EXPORT_BYTES) {
+      throw new ApiError({
+        message: 'Identity returned an oversized export.',
+        code: 'IDENTITY_MALFORMED_RESPONSE',
+        status: 502,
+      })
+    }
+    return {
+      bytes,
+      contentDisposition:
+        response.headers.get('content-disposition') ??
+        'attachment; filename="mentalbridge-audit.csv"',
+    }
+  } catch (error) {
+    if (error instanceof ApiError) throw error
+    const timedOut = controller.signal.aborted
+    throw new ApiError({
+      message: timedOut ? 'Identity timed out.' : 'Identity is unavailable.',
+      code: timedOut ? 'IDENTITY_TIMEOUT' : 'IDENTITY_UNAVAILABLE',
+      status: timedOut ? 504 : 503,
+      cause: error,
+    })
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+async function identityArtifactRequest(
+  accessToken: string,
+  reportId: string,
+  correlationId: string,
+) {
+  const config = readIdentityServerConfig()
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), config.timeoutMs)
+  try {
+    const response = await fetch(
+      upstreamUrl(
+        config.baseUrl,
+        `/api/v1/admin/platform-reports/${encodeURIComponent(reportId)}/artifact`,
+      ),
+      {
+        cache: 'no-store',
+        redirect: 'error',
+        signal: controller.signal,
+        headers: {
+          Accept: 'application/json, application/problem+json',
+          Authorization: `Bearer ${accessToken}`,
+          'X-Correlation-Id': correlationId,
+        },
+      },
+    )
+    if (!response.ok) {
+      const body = await readJson(response)
+      if (isProblemDetails(body)) {
+        throw new ApiError({
+          message: body.title,
+          code: body.code,
+          status: response.status,
+          correlationId: body.correlationId,
+          problem: body,
+        })
+      }
+      throw new ApiError({
+        message: 'Identity returned an invalid error response.',
+        code: 'IDENTITY_MALFORMED_RESPONSE',
+        status: 502,
+      })
+    }
+    const contentLength = Number(response.headers.get('content-length'))
+    if (
+      !Number.isFinite(contentLength) ||
+      contentLength < 1 ||
+      contentLength > 1_048_576
+    ) {
+      throw new ApiError({
+        message: 'Identity returned an invalid artifact.',
+        code: 'IDENTITY_MALFORMED_RESPONSE',
+        status: 502,
+      })
+    }
+    const content = new Uint8Array(await response.arrayBuffer())
+    if (content.byteLength !== contentLength) {
+      throw new ApiError({
+        message: 'Identity returned an invalid artifact.',
+        code: 'IDENTITY_MALFORMED_RESPONSE',
+        status: 502,
+      })
+    }
+    const sha256 = response.headers.get('x-content-sha256')
+    const retainedUntil = response.headers.get('x-retained-until')
+    if (
+      !sha256?.match(/^[0-9a-f]{64}$/) ||
+      !retainedUntil ||
+      Number.isNaN(Date.parse(retainedUntil))
+    ) {
+      throw new ApiError({
+        message: 'Identity returned invalid artifact provenance.',
+        code: 'IDENTITY_MALFORMED_RESPONSE',
+        status: 502,
+      })
+    }
+    const actualSha256 = createHash('sha256').update(content).digest('hex')
+    if (actualSha256 !== sha256) {
+      throw new ApiError({
+        message: 'Identity returned an artifact with invalid integrity.',
+        code: 'IDENTITY_MALFORMED_RESPONSE',
+        status: 502,
+      })
+    }
+    return {
+      content,
+      contentType: response.headers.get('content-type') ?? 'application/json',
+      contentDisposition: response.headers.get('content-disposition'),
+      sha256,
+      retainedUntil,
+    }
+  } catch (error) {
+    if (error instanceof ApiError) throw error
+    const timedOut = controller.signal.aborted
+    throw new ApiError({
+      message: timedOut ? 'Identity timed out.' : 'Identity is unavailable.',
+      code: timedOut ? 'IDENTITY_TIMEOUT' : 'IDENTITY_UNAVAILABLE',
+      status: timedOut ? 504 : 503,
       cause: error,
     })
   } finally {
@@ -311,6 +558,361 @@ export const identityClient = {
       correlationId,
       authorization: accessToken,
       parseSuccess: parseAccountDetail,
+    })
+  },
+
+  searchAccounts(
+    accessToken: string,
+    params: {
+      status?: string
+      role?: string
+      email?: string
+      cursor?: string
+      limit?: number
+    },
+    correlationId: string,
+  ) {
+    const query = new URLSearchParams()
+    if (params.status) query.set('status', params.status)
+    if (params.role) query.set('role', params.role)
+    if (params.email) query.set('email', params.email)
+    if (params.cursor) query.set('cursor', params.cursor)
+    if (params.limit !== undefined) query.set('limit', String(params.limit))
+    const queryString = query.toString()
+    const path = `/api/v1/admin/accounts${queryString ? `?${queryString}` : ''}`
+    return identityRequest<AccountPage>({
+      method: 'GET',
+      path,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseAccountPage,
+    })
+  },
+
+  browseAdministrationAuditEvents(
+    accessToken: string,
+    params: AdministrationAuditSearch,
+    correlationId: string,
+  ) {
+    return identityRequest<AdministrationAuditEventPage>({
+      method: 'GET',
+      path: auditPath('/api/v1/admin/audit-events', params),
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseAdministrationAuditEventPage,
+    })
+  },
+
+  exportAdministrationAuditEvents(
+    accessToken: string,
+    params: AdministrationAuditSearch,
+    correlationId: string,
+  ) {
+    return identityCsvRequest(accessToken, params, correlationId)
+  },
+
+  getAccountById(
+    accessToken: string,
+    accountId: string,
+    correlationId: string,
+  ) {
+    return identityRequest<AccountDetail>({
+      method: 'GET',
+      path: `/api/v1/admin/accounts/${encodeURIComponent(accountId)}`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseAccountDetail,
+    })
+  },
+
+  changeAccountState(
+    accessToken: string,
+    accountId: string,
+    request: AccountStateChangeRequest,
+    ifMatch: string,
+    correlationId: string,
+  ) {
+    const formattedIfMatch =
+      ifMatch.startsWith('"') && ifMatch.endsWith('"')
+        ? ifMatch
+        : `"${ifMatch}"`
+    return identityRequest<AccountDetail>({
+      method: 'PUT',
+      path: `/api/v1/admin/accounts/${encodeURIComponent(accountId)}/state`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      ifMatch: formattedIfMatch,
+      body: request,
+      parseSuccess: parseAccountDetail,
+    })
+  },
+
+  getAccountsSummary(accessToken: string, correlationId: string) {
+    return identityRequest<AccountsSummary>({
+      method: 'GET',
+      path: '/api/v1/admin/accounts/summary',
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseAccountsSummary,
+    })
+  },
+
+  platformReportCatalogue(accessToken: string, correlationId: string) {
+    return identityRequest<PlatformReportType[]>({
+      method: 'GET',
+      path: '/api/v1/admin/platform-reports/catalogue',
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parsePlatformReportCatalogue,
+    })
+  },
+
+  reportSchedules(accessToken: string, correlationId: string) {
+    return identityRequest<PlatformReportSchedule[]>({
+      method: 'GET',
+      path: '/api/v1/admin/platform-report-schedules',
+      expectedStatus: 200,
+      authorization: accessToken,
+      correlationId,
+      parseSuccess: parseReportSchedules,
+    })
+  },
+
+  createReportSchedule(
+    accessToken: string,
+    body: PlatformReportScheduleRequest,
+    correlationId: string,
+  ) {
+    return identityRequest<PlatformReportSchedule>({
+      method: 'POST',
+      path: '/api/v1/admin/platform-report-schedules',
+      expectedStatus: 201,
+      authorization: accessToken,
+      correlationId,
+      body,
+      parseSuccess: parseReportSchedule,
+    })
+  },
+
+  updateReportSchedule(
+    accessToken: string,
+    id: string,
+    version: number,
+    body: PlatformReportScheduleRequest,
+    correlationId: string,
+  ) {
+    return identityRequest<PlatformReportSchedule>({
+      method: 'PUT',
+      path: `/api/v1/admin/platform-report-schedules/${encodeURIComponent(id)}?expectedVersion=${version}`,
+      expectedStatus: 200,
+      authorization: accessToken,
+      correlationId,
+      body,
+      parseSuccess: parseReportSchedule,
+    })
+  },
+
+  deleteReportSchedule(
+    accessToken: string,
+    id: string,
+    version: number,
+    correlationId: string,
+  ) {
+    return identityRequest<void>({
+      method: 'DELETE',
+      path: `/api/v1/admin/platform-report-schedules/${encodeURIComponent(id)}?expectedVersion=${version}`,
+      expectedStatus: 204,
+      authorization: accessToken,
+      correlationId,
+      emptySuccess: true,
+    })
+  },
+
+  productJourneyMetrics(
+    accessToken: string,
+    params: { from: string; to: string },
+    correlationId: string,
+  ) {
+    const query = new URLSearchParams({ from: params.from, to: params.to })
+    return identityRequest<ProductJourneyMetrics>({
+      method: 'GET',
+      path: `/api/v1/admin/product-journey-metrics?${query.toString()}`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: (value) => {
+        const parsed = parseProductJourneyMetrics(value)
+        return parsed?.window.from === params.from &&
+          parsed.window.to === params.to
+          ? parsed
+          : null
+      },
+    })
+  },
+
+  platformReportHistory(
+    accessToken: string,
+    params: { cursor?: string; limit?: number },
+    correlationId: string,
+  ) {
+    const query = new URLSearchParams()
+    if (params.cursor) query.set('cursor', params.cursor)
+    if (params.limit !== undefined) query.set('limit', String(params.limit))
+    const suffix = query.toString()
+    return identityRequest<PlatformReportPage>({
+      method: 'GET',
+      path: `/api/v1/admin/platform-reports${suffix ? `?${suffix}` : ''}`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parsePlatformReportPage,
+    })
+  },
+
+  requestPlatformReport(
+    accessToken: string,
+    request: PlatformReportRequest,
+    idempotencyKey: string,
+    correlationId: string,
+  ) {
+    return identityRequest<PlatformReport>({
+      method: 'POST',
+      path: '/api/v1/admin/platform-reports',
+      expectedStatus: 202,
+      correlationId,
+      authorization: accessToken,
+      idempotencyKey,
+      body: request,
+      parseSuccess: parsePlatformReport,
+    })
+  },
+
+  retryPlatformReport(
+    accessToken: string,
+    reportId: string,
+    idempotencyKey: string,
+    correlationId: string,
+  ) {
+    return identityRequest<PlatformReport>({
+      method: 'POST',
+      path: `/api/v1/admin/platform-reports/${encodeURIComponent(reportId)}/retries`,
+      expectedStatus: 202,
+      correlationId,
+      authorization: accessToken,
+      idempotencyKey,
+      parseSuccess: parsePlatformReport,
+    })
+  },
+
+  downloadPlatformReport(
+    accessToken: string,
+    reportId: string,
+    correlationId: string,
+  ) {
+    return identityArtifactRequest(accessToken, reportId, correlationId)
+  },
+
+  getRetentionPolicies(accessToken: string, correlationId: string) {
+    return identityRequest<RetentionPolicy[]>({
+      method: 'GET',
+      path: '/api/v1/admin/retention/policies',
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseRetentionPolicies,
+    })
+  },
+
+  triggerRetentionSweep(
+    accessToken: string,
+    policyId: string,
+    correlationId: string,
+  ) {
+    return identityRequest<RetentionExecutionRecord>({
+      method: 'POST',
+      path: `/api/v1/admin/retention/policies/${encodeURIComponent(policyId)}/sweep`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseRetentionExecutionRecord,
+    })
+  },
+
+  getDeletionRequests(
+    accessToken: string,
+    params: {
+      status?: string
+      holdType?: string
+      limit?: number
+      page?: number
+    },
+    correlationId: string,
+  ) {
+    const search = new URLSearchParams()
+    if (params.status) search.set('status', params.status)
+    if (params.holdType) search.set('holdType', params.holdType)
+    if (params.limit !== undefined && params.limit !== null)
+      search.set('limit', String(params.limit))
+    if (params.page !== undefined && params.page !== null)
+      search.set('page', String(params.page))
+    const suffix = search.toString()
+
+    return identityRequest<DeletionRequestPage>({
+      method: 'GET',
+      path: `/api/v1/admin/retention/deletions${suffix ? `?${suffix}` : ''}`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseDeletionRequestPage,
+    })
+  },
+
+  retryDeletion(accessToken: string, requestId: string, correlationId: string) {
+    return identityRequest<DeletionRequest>({
+      method: 'POST',
+      path: `/api/v1/admin/retention/deletions/${encodeURIComponent(requestId)}/retry`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseDeletionRequest,
+    })
+  },
+
+  applyDeletionHold(
+    accessToken: string,
+    requestId: string,
+    body: ApplyHoldRequest,
+    correlationId: string,
+  ) {
+    return identityRequest<DeletionRequest>({
+      method: 'POST',
+      path: `/api/v1/admin/retention/deletions/${encodeURIComponent(requestId)}/holds`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      body,
+      parseSuccess: parseDeletionRequest,
+    })
+  },
+
+  releaseDeletionHold(
+    accessToken: string,
+    requestId: string,
+    correlationId: string,
+  ) {
+    return identityRequest<DeletionRequest>({
+      method: 'DELETE',
+      path: `/api/v1/admin/retention/deletions/${encodeURIComponent(requestId)}/holds`,
+      expectedStatus: 200,
+      correlationId,
+      authorization: accessToken,
+      parseSuccess: parseDeletionRequest,
     })
   },
 }

@@ -33,12 +33,16 @@ state unless the user explicitly authorizes the specific operation.
 ## Verification and handoff
 
 1. Run focused tests/checks for the changed behavior.
-2. Run the complete current quality gate described in
-   [review and testing](review-and-testing.md).
-3. Inspect `git diff --check`, `git diff --stat`, and the actual diff.
-4. Confirm no secret, generated output, user-owned change, or contract drift was
+2. Run the complete `dev` quality gate described in
+   [review and testing](review-and-testing.md). Do not run Browser E2E during
+   ordinary feature delivery unless the task explicitly requires it.
+3. If the change materially alters an existing browser journey, update the
+   relevant Playwright test even though its normal execution belongs to the
+   `dev`-to-`staging` release gate.
+4. Inspect `git diff --check`, `git diff --stat`, and the actual diff.
+5. Confirm no secret, generated output, user-owned change, or contract drift was
    introduced.
-5. Report the parent Jira story, acceptance-criteria coverage, files/behavior
+6. Report the parent Jira story, acceptance-criteria coverage, files/behavior
    changed, commands and results, skipped checks, and remaining risks.
 
 “Done” means the story acceptance criteria are met and the handoff is

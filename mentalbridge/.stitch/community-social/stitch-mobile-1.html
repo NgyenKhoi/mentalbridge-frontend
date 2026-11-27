@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Cộng đồng MentalBridge - Chi tiết bài viết & Bình luận (Mobile 375x812)</title>
+  <!-- Google Fonts: Be Vietnam Pro & Fraunces -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Be Vietnam Pro', sans-serif;
+      background-color: #f1f4eb;
+      color: #183a37;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    .font-display {
+      font-family: 'Fraunces', serif;
+    }
+    .touch-target {
+      min-width: 44px;
+      min-height: 44px;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between relative bg-[#f1f4eb]">
+
+  <!-- ==================== 1. LOCKED MOBILE TOPBAR (64px) WITH BACK TO FEED ==================== -->
+  <header class="sticky top-0 z-40 bg-white border-b border-[#e5ece2] h-16 w-full max-w-[430px] mx-auto px-3.5 flex items-center justify-between shadow-sm">
+    <!-- Left: Back button + Brand context -->
+    <div class="flex items-center space-x-2">
+      <a href="#quay-lai-bang-tin" aria-label="Quay lại Bảng tin" class="touch-target w-10 h-10 flex items-center justify-center text-[#183a37] hover:bg-[#f1f4eb] active:scale-95 rounded-full transition-all">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+      </a>
+      <div class="flex flex-col leading-tight">
+        <span class="font-bold text-[14px] text-[#183a37]">Bài viết chia sẻ</span>
+        <span class="text-[11px] text-[#526965]">#Bước tiến nhỏ</span>
+      </div>
+    </div>
+
+    <!-- Right: ONLY support button and share/bookmark -->
+    <div class="flex items-center space-x-1">
+      <button type="button" aria-label="Lưu bài viết" class="touch-target w-10 h-10 flex items-center justify-center text-[#183a37] hover:bg-[#f1f4eb] active:scale-95 rounded-full transition-all">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+        </svg>
+      </button>
+      <a href="#ho-tro" aria-label="Cần hỗ trợ ngay" class="touch-target w-10 h-10 flex items-center justify-center text-[#c87a32] bg-[#fbf5ee] hover:bg-[#f6ebd9] active:scale-95 rounded-full border border-[#f0dec9] transition-all">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- ==================== 2. MAIN POST CONTENT + CONVERSATIONAL BUBBLES ==================== -->
+  <main class="w-full max-w-[430px] mx-auto px-3.5 pt-3 pb-32 flex-1">
+
+    <!-- Full Article Card (18 radius, #e1e8db border) -->
+    <article class="bg-white rounded-[18px] border border-[#e1e8db] p-4 shadow-sm mb-4">
+
+      <!-- Author info -->
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-11 h-11 rounded-full bg-[#fceee6] text-[#b95738] font-bold text-base flex items-center justify-center border border-[#edd5ca] flex-shrink-0">
+            HN
+          </div>
+          <div>
+            <div class="flex items-center space-x-1.5">
+              <span class="font-bold text-[15px] text-[#183a37] leading-tight">Hoa Nắng</span>
+              <span class="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-[#e8f3ef] text-[#1b5e58]">Đồng hành 4 tháng</span>
+            </div>
+            <div class="text-[12px] text-[#718682] flex items-center space-x-1.5 mt-0.5">
+              <span>Hôm nay lúc 07:45</span>
+              <span>•</span>
+              <span>Công khai</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Topic Chips -->
+      <div class="flex items-center space-x-1.5 mb-3">
+        <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-[#f1f6ed] text-[#2e5d56] border border-[#dbe6d5]">#Bước tiến nhỏ</span>
+        <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-[#f1f6ed] text-[#2e5d56] border border-[#dbe6d5]">#Không gian yên tĩnh</span>
+      </div>
+
+      <!-- Narrative Copy -->
+      <div class="text-[15px] text-[#224440] leading-[1.65] space-y-2.5 mb-3.5">
+        <p>
+          Sau hai tuần quay cuồng với những cơn lo âu bất chợt, sáng nay mình quyết định dậy sớm hơn 30 phút, pha một tách cà phê phin rồi ngồi ngoài ban công nhìn ngắm những chậu cây nhỏ tắm nắng sớm.
+        </p>
+        <p>
+          Hóa ra việc cho phép bản thân được "chẳng cần phải vội" lại mang lại cảm giác bình an đến thế. Nhắn gửi một chút dịu dàng này đến những ai sáng nay cũng đang cảm thấy lòng mình hơi nặng trĩu nhé.
+        </p>
+      </div>
+
+      <!-- UNCROPPED 4:3 BALCONY PHOTO (~263px height on mobile) -->
+      <div class="rounded-xl overflow-hidden border border-[#e1e9dc] mb-3.5 bg-[#e8efe3]">
+        <img
+          src="https://lh3.googleusercontent.com/aida/AEtjO1XPgtjgCufqeLkvtdy-XQC8U4mgWzv17eP_Dw9TLCieTY5L6rXWc1wg3234eZ59g-4vF_OdMLiT8MqMrOvuP_6gG9ypha1UfV_Ei2T4BXSy7I14lk7kgTqG8Q67ZPP8YUCJmA-EyHHCT684YuluhlQGJbe17-lyf_sGYJOxsZcDkEYbsAGiMrm6yS7ZVHf4B9S9jOrucfyVEZUG8uopo2o2NvJhNktILAkMkqH2hSLCX50R0whnqPVp2Q2d"
+          alt="Ban công yên bình với những chậu cây nhỏ đón nắng mai"
+          class="w-full h-auto aspect-[4/3] object-cover block"
+        >
+      </div>
+
+      <!-- Supportive Reactions Pill Bar -->
+      <div class="flex items-center justify-between pt-2 border-t border-[#edf2ea]">
+        <div class="flex items-center space-x-1.5">
+          <button type="button" class="touch-target px-2.5 py-1 rounded-xl bg-[#e6f3ee] text-[#1b5e58] font-semibold text-xs border border-[#cde5db] flex items-center space-x-1">
+            <span>🤝 Đồng hành</span>
+            <span class="font-bold">14</span>
+          </button>
+          <button type="button" class="touch-target px-2.5 py-1 rounded-xl bg-[#f8faf6] text-[#4f6763] font-medium text-xs border border-[#e2eae0] flex items-center space-x-1">
+            <span>❤️ Mình cũng vậy</span>
+            <span class="font-bold">9</span>
+          </button>
+          <button type="button" class="touch-target px-2.5 py-1 rounded-xl bg-[#f8faf6] text-[#4f6763] font-medium text-xs border border-[#e2eae0] flex items-center space-x-1">
+            <span>☀️ Cảm ơn</span>
+            <span class="font-bold">5</span>
+          </button>
+        </div>
+      </div>
+
+    </article>
+
+    <!-- ==================== COMMENTS & CONVERSATION BUBBLES ==================== -->
+    <section class="space-y-3">
+      <div class="flex items-center justify-between px-1">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-[#183a37]">
+          Phản hồi sẻ chia (6)
+        </h2>
+        <span class="text-[11px] text-[#6b827e]">Theo thứ tự gần nhất</span>
+      </div>
+
+      <!-- Bubble 1: Chuyên gia An (Specialist badge) -->
+      <div class="bg-white rounded-2xl p-3 border border-[#d6e5d5] shadow-2xs">
+        <div class="flex items-start space-x-2.5">
+          <div class="w-8 h-8 rounded-full bg-[#1b5e58] text-white font-bold text-xs flex items-center justify-center flex-shrink-0">
+            GA
+          </div>
+          <div class="flex-1">
+            <div class="flex items-center space-x-1.5 mb-1">
+              <span class="font-bold text-[13px] text-[#183a37]">Chuyên gia An</span>
+              <span class="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-[#e6f3ee] text-[#1b5e58]">Đồng hành chuyên môn</span>
+              <span class="text-[11px] text-[#8aa09c] ml-auto">08:12</span>
+            </div>
+            <p class="text-[13px] text-[#224440] leading-relaxed">
+              Một góc ban công thật ấm áp Hoa Nắng ơi. Cho phép mình "chậm lại 30 phút" chính là một bài tập điều hòa hệ thần kinh thực vật rất tự nhiên và hiệu quả. Chúc bạn có một ngày trọn vẹn bình yên nhé!
+            </p>
+            <div class="mt-2 flex items-center space-x-3 text-[11px] text-[#69807b]">
+              <button type="button" class="font-semibold text-[#1b5e58] hover:underline">Đồng cảm (8)</button>
+              <button type="button" class="hover:underline">Trả lời</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bubble 2: Thảo Vy (Thành viên cộng đồng) -->
+      <div class="bg-white rounded-2xl p-3 border border-[#e1e8db] shadow-2xs">
+        <div class="flex items-start space-x-2.5">
+          <div class="w-8 h-8 rounded-full bg-[#faefe4] text-[#b46535] font-bold text-xs flex items-center justify-center flex-shrink-0 border border-[#f0dec9]">
+            TV
+          </div>
+          <div class="flex-1">
+            <div class="flex items-center space-x-1.5 mb-1">
+              <span class="font-bold text-[13px] text-[#183a37]">Thảo Vy</span>
+              <span class="text-[11px] text-[#8aa09c] ml-auto">08:35</span>
+            </div>
+            <p class="text-[13px] text-[#224440] leading-relaxed">
+              Nhìn ảnh tách cà phê phin với mấy chậu sen đá của bạn mà thấy lòng dịu lại hẳn. Sáng nay mình cũng đang rất hoảng vì công việc dồn dập, đọc được bài này thấy như được vỗ về. Cảm ơn bạn nhiều nha!
+            </p>
+            <div class="mt-2 flex items-center space-x-3 text-[11px] text-[#69807b]">
+              <button type="button" class="font-semibold text-[#1b5e58] hover:underline">Đồng cảm (4)</button>
+              <button type="button" class="hover:underline">Trả lời</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bubble 3: Người dùng ẩn danh -->
+      <div class="bg-white rounded-2xl p-3 border border-[#e1e8db] shadow-2xs">
+        <div class="flex items-start space-x-2.5">
+          <div class="w-8 h-8 rounded-full bg-[#edf1ea] text-[#58726e] font-bold text-xs flex items-center justify-center flex-shrink-0 border border-[#d9e2d6]">
+            🌿
+          </div>
+          <div class="flex-1">
+            <div class="flex items-center space-x-1.5 mb-1">
+              <span class="font-bold text-[13px] text-[#183a37]">Một người bạn cùng phòng</span>
+              <span class="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-[#f0f4ee] text-[#55716d]">Ẩn danh</span>
+              <span class="text-[11px] text-[#8aa09c] ml-auto">09:05</span>
+            </div>
+            <p class="text-[13px] text-[#224440] leading-relaxed">
+              Mình cũng đang cố gắng tập hít thở sâu mỗi sáng. Cảm giác nhìn nắng xuyên qua tán lá thật sự xoa dịu rất nhiều.
+            </p>
+            <div class="mt-2 flex items-center space-x-3 text-[11px] text-[#69807b]">
+              <button type="button" class="font-semibold text-[#1b5e58] hover:underline">Đồng cảm (2)</button>
+              <button type="button" class="hover:underline">Trả lời</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ==================== 3. FLOATING SAFETY AMBER CIRCLE ==================== -->
+  <div class="fixed bottom-[74px] right-4 z-40 max-w-[430px] pointer-events-auto">
+    <button type="button" aria-label="Nút an toàn & trợ giúp khẩn cấp" class="touch-target w-12 h-12 rounded-full bg-[#c87a32] text-white flex items-center justify-center shadow-lg hover:bg-[#b56b26] active:scale-90 transition-all border-2 border-white ring-2 ring-[#c87a32]/20" title="Cần hỗ trợ an toàn">
+      <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- ==================== 4. INLINE COMMENT COMPOSER (FIXED BOTTOM BAR 64px) ==================== -->
+  <footer class="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#e2eae0] h-16 w-full max-w-[430px] mx-auto shadow-lg px-3 flex items-center space-x-2">
+    <!-- User Avatar -->
+    <div class="w-9 h-9 rounded-full bg-[#e3ece0] text-[#1b5e58] font-bold text-xs flex items-center justify-center flex-shrink-0 border border-[#cedece]">
+      An
+    </div>
+    <!-- Input Box -->
+    <div class="flex-1 bg-[#f4f7f0] rounded-full px-3.5 py-2 text-[13px] border border-[#dbe6d5] flex items-center space-x-2 focus-within:border-[#1b5e58] focus-within:bg-white transition-all">
+      <input
+        type="text"
+        placeholder="Gửi lời chia sẻ tử tế, đồng cảm..."
+        class="w-full bg-transparent outline-none text-[#183a37] placeholder-[#79908c] text-[13px]"
+      >
+      <!-- Anonymous toggle switch icon -->
+      <button type="button" aria-label="Chế độ ẩn danh" title="Gửi ẩn danh" class="text-[#718682] hover:text-[#1b5e58] flex-shrink-0">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+        </svg>
+      </button>
+    </div>
+    <!-- Send Button (Touch target 44px) -->
+    <button type="button" aria-label="Gửi phản hồi" class="touch-target w-11 h-11 rounded-full bg-[#1b5e58] text-white flex items-center justify-center shadow-xs active:scale-95 transition-all flex-shrink-0">
+      <svg class="w-4 h-4 transform rotate-45 -mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+      </svg>
+    </button>
+  </footer>
+
+</body>
+</html>

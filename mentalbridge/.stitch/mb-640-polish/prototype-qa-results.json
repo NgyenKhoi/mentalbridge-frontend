@@ -1,0 +1,100 @@
+{
+  "fixtureOnly": true,
+  "generatedAt": "2026-10-12T18:07:31.703Z",
+  "visualStitchApproval": "pending parent review",
+  "zoom": "640x400 CSS viewport models 1280x800 at 200%; actual browser zoom still requires manual review",
+  "results": [
+    {
+      "name": "Exact shell geometry, workspace heading and four captured tabs",
+      "status": "passed"
+    },
+    {
+      "name": "Resolved font families",
+      "status": "evidence",
+      "body": "Be Vietnam Pro",
+      "heading": "Fraunces",
+      "bodyLoaded": true,
+      "headingLoaded": true
+    },
+    {
+      "name": "Actual Be Vietnam Pro and Fraunces loaded for Vietnamese text",
+      "status": "passed"
+    },
+    {
+      "name": "Save A pending and success preserve unsaved B",
+      "status": "passed"
+    },
+    {
+      "name": "Undo A returns to its latest saved snapshot; editing again is dirty",
+      "status": "passed"
+    },
+    {
+      "name": "Simulated 412 retains A+B; authoritative reload affects only A",
+      "status": "passed"
+    },
+    {
+      "name": "Connection error retains editable draft and retry saves it",
+      "status": "passed"
+    },
+    {
+      "name": "Invalid duration and empty weekly days explain and focus a field",
+      "status": "passed"
+    },
+    {
+      "name": "DRAFT activation blocked by dirty state until both actions saved/undone",
+      "status": "passed"
+    },
+    {
+      "name": "Lifecycle confirmation accept, PAUSED read-only and resume cancel/Escape",
+      "status": "passed"
+    },
+    {
+      "name": "Custom select supports arrows, Home/End, Enter, Escape and Tab",
+      "status": "passed"
+    },
+    {
+      "name": "Themed checkbox toggles with Space and retains keyboard focus",
+      "status": "passed"
+    },
+    {
+      "name": "Community entry, bookmark simulation and return preserve plan draft/tab",
+      "status": "passed"
+    },
+    {
+      "name": "Loading, empty, error-retry and non-schedulable states remain reversible",
+      "status": "passed"
+    },
+    {
+      "name": "All four tabs are keyboard-operable without replacing the workspace",
+      "status": "passed"
+    },
+    {
+      "name": "No horizontal overflow and 44px new control targets at 1440px",
+      "status": "passed"
+    },
+    {
+      "name": "No horizontal overflow and 44px new control targets at 1280px",
+      "status": "passed"
+    },
+    {
+      "name": "No horizontal overflow and 44px new control targets at 768px",
+      "status": "passed"
+    },
+    {
+      "name": "No horizontal overflow and 44px new control targets at 375px",
+      "status": "passed"
+    },
+    {
+      "name": "No horizontal overflow and 44px new control targets at 640px",
+      "status": "passed"
+    },
+    {
+      "name": "Reduced motion removes all prototype animations and transitions",
+      "status": "passed"
+    },
+    {
+      "name": "No JavaScript/render errors and no external/business API requests",
+      "status": "passed"
+    }
+  ]
+}

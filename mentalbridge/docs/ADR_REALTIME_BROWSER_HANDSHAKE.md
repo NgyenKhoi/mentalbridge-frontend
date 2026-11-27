@@ -1,43 +1,50 @@
 # ADR: browser Realtime authentication boundary
 
-- Status: **fail-closed pending architecture approval**
-- Scope: frontend Realtime transport foundation, schema version 1
-- Date: 2026-09-08
+- Status: **accepted and implemented for appointment chat (MB-382)**
+- Scope: frontend Realtime transport, schema version 1
+- Date: 2026-09-29
 
 ## Context
 
-The current Realtime Socket.IO handshake requires `accessToken`. Identity authentication in the frontend is intended to remain server-owned through an HttpOnly session. Copying the general Identity bearer token into JavaScript-readable storage, a public environment variable, query string, telemetry, or browser logs would weaken that boundary.
-
-The current deployment and contracts do not define either an audience-limited socket credential exchange or a same-origin WebSocket termination layer. Consultation also has not published the appointment/conversation eligibility contract.
+The frontend owns an HttpOnly Identity session. A general Identity bearer must
+not be exposed to browser JavaScript, URLs, public environment variables,
+storage, diagnostics, or logs, while Socket.IO still needs a browser-safe
+handshake credential.
 
 ## Decision
 
-Production Realtime connection remains fail-closed. `currentProductionRealtimeBoundary` cannot construct a socket, and the Next.js diagnostics route always renders the fail-closed notice. The only working credential seam is injected by unit tests and the test-owned synthetic Browser E2E harness served directly by Vite; no `NEXT_PUBLIC_` credential or activation switch exists.
+The browser requests a one-use socket credential through the authenticated,
+same-origin BFF route `POST /api/realtime/socket-credentials`. The BFF forwards
+the server-owned Identity bearer to Realtime. Realtime returns a random 256-bit
+ticket with at most a 30-second lifetime.
 
-No token is persisted in `localStorage`, `sessionStorage`, IndexedDB, cookies owned by client code, URLs, UI state, or logs. The adapter keeps an injected credential only long enough to construct Socket.IO auth state and never reports its value.
+Realtime stores only a SHA-256-derived Redis key. Its short-lived record binds
+the account, role, Identity token ID and Identity expiry; the bearer body is
+AES-256-GCM encrypted at rest. Socket authentication atomically consumes the
+record with `GETDEL`, so replay fails. The connected server process retains the
+decrypted bearer only in socket memory and disconnects at the original Identity
+expiry.
 
-## Options evaluated
+Each initial connection and bounded reconnect obtains a fresh ticket. The
+browser does not persist the ticket. The exchange rejects cross-origin requests.
+The BFF returns the configured public Realtime endpoint with the ticket; that
+endpoint is not a secret, and Realtime still enforces its strict origin
+allowlist. A deployment may expose it directly or route it through same-origin
+ingress.
 
-### Audience-limited, short-lived socket credential
+## Appointment authorization
 
-Identity or a same-origin backend-for-frontend could exchange the HttpOnly session for a one-use or very short-lived credential whose audience is only Realtime. It should bind account, origin/session, expiry, nonce, and permitted socket scope. Reconnect obtains a new credential; it does not reuse an expired token.
+The browser never decides appointment access from its local clock. It obtains
+Consultation's decision through the BFF and Realtime repeats the same
+authoritative check for subscribe, send and history operations. Dependency
+failure denies the operation. Sending is allowed only in `[startsAt, endsAt)`;
+the ten-minute pre-start window is subscribe-only. Ended, cancelled and
+rescheduled appointments expose history as read-only.
 
-- Expiry: short lifetime bounds exposure and maps to `authentication-expired` without automatic retry storms.
-- Replay: one-use nonce/JTI and server-side replay rejection are required.
-- Origin: the exchange endpoint validates same-origin requests and CSRF protections; Realtime keeps a strict origin allowlist.
-- Logging: credential values and handshake auth must be redacted at proxies, application logs, traces, and browser diagnostics.
-- Reconnect: each bounded reconnect requests a fresh credential; rate limits must cover both exchange and socket connect.
-- Revocation: session revocation must prevent new exchanges; immediate active-socket revocation needs a separately defined signal.
+## Consequences
 
-### Same-origin termination
-
-A trusted same-origin gateway could authenticate the HttpOnly session server-side and terminate or proxy the socket without exposing a bearer token to JavaScript. It must preserve schema versioning, correlation IDs, backpressure, origin enforcement, expiry/disconnect semantics, and safe log redaction. Sticky routing and proxy timeout behavior must be designed before approval.
-
-## Required follow-ups before production enablement
-
-1. Approve and version one authentication contract, including expiry, audience, replay, origin, reconnect, revocation, and redaction behavior.
-2. Publish Consultation appointment/conversation eligibility and integrate it without an allow-all fallback.
-3. Mark Realtime history available only after its REST operation and eligibility dependency cease returning planned/unavailable.
-4. Complete security review and replace the fail-closed decision with its architecture decision ID.
-
-This decision does not approve appointment chat, production conversations, delivery receipts, fan-out, or access-token exposure.
+- A stolen ticket has a bounded lifetime and cannot be replayed after use.
+- Session revocation blocks new exchanges; active socket revocation remains
+  bounded by the Identity expiry unless a later revocation signal is added.
+- Reconnect includes history resynchronization and message-ID deduplication.
+- No `NEXT_PUBLIC_` secret or reusable bearer is introduced.

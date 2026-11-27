@@ -1,0 +1,33 @@
+appId: com.mentalbridge.mobile
+name: MB-638 SupportPlan personalization
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn: 'Email'
+- inputText: '${MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL}'
+- tapOn: 'Mật khẩu'
+- inputText: '${MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD}'
+- tapOn: 'Đăng nhập'
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Mở kế hoạch hỗ trợ'
+- scrollUntilVisible:
+    element:
+      text: 'Điều gì giúp kế hoạch dễ thực hiện hơn?'
+    direction: DOWN
+- tapOn: 'Ngủ và nghỉ ngơi'
+- tapOn: 'Nhẹ nhàng'
+- tapOn: '10 phút'
+- tapOn: 'Buổi tối'
+- tapOn: 'Bài tập có hướng dẫn'
+- tapOn: 'Ít năng lượng'
+- tapOn: 'Lưu lựa chọn'
+- assertVisible: 'Đã lưu cách bạn muốn kế hoạch đồng hành.'
+- tapOn: '← Quay lại'
+- tapOn: 'Mở kế hoạch hỗ trợ'
+- scrollUntilVisible:
+    element:
+      text: 'Điều gì giúp kế hoạch dễ thực hiện hơn?'
+    direction: DOWN
+- assertVisible: 'Ngủ và nghỉ ngơi'
+- assertVisible: 'Kế hoạch hiện tại vẫn được giữ nguyên'

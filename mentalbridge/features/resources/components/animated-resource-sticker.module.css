@@ -1,0 +1,173 @@
+.sticker {
+  --sticker-main: #4d9985;
+  --sticker-accent: #f0ad55;
+  --sticker-soft: #dcefe5;
+  position: relative;
+  display: inline-grid;
+  width: 82px;
+  height: 82px;
+  flex: 0 0 auto;
+  place-items: center;
+  isolation: isolate;
+  color: var(--sticker-main);
+}
+
+.sticker[data-size='small'] {
+  width: 36px;
+  height: 36px;
+}
+
+.sticker[data-size='large'] {
+  width: 126px;
+  height: 126px;
+}
+
+.sticker[data-variant='meditate'] {
+  --sticker-main: #8a76b2;
+  --sticker-accent: #df987d;
+  --sticker-soft: #ece6f5;
+}
+
+.sticker[data-variant='read'] {
+  --sticker-main: #9a6a2f;
+  --sticker-accent: #4d9985;
+  --sticker-soft: #fff0c9;
+}
+
+.sticker[data-variant='video'] {
+  --sticker-main: #cf765e;
+  --sticker-accent: #7c6fa7;
+  --sticker-soft: #f9ded3;
+}
+
+.sticker[data-variant='journal'] {
+  --sticker-main: #a3712f;
+  --sticker-accent: #3d7a6e;
+  --sticker-soft: #f8e8b7;
+}
+
+.sticker[data-variant='community'] {
+  --sticker-main: #c76e69;
+  --sticker-accent: #f2b24f;
+  --sticker-soft: #f8ddd5;
+}
+
+.sticker[data-variant='complete'] {
+  --sticker-main: #db9638;
+  --sticker-accent: #347766;
+  --sticker-soft: #fff0b9;
+}
+
+.sticker[data-variant='rest'] {
+  --sticker-main: #7669a5;
+  --sticker-accent: #e1a651;
+  --sticker-soft: #e9e3f4;
+}
+
+.halo {
+  position: absolute;
+  inset: 5%;
+  z-index: -1;
+  border: 1px solid color-mix(in srgb, var(--sticker-main) 25%, transparent);
+  border-radius: 48% 52% 44% 56%;
+  background:
+    radial-gradient(circle at 32% 28%, #fff 0 7%, transparent 8%),
+    var(--sticker-soft);
+  box-shadow:
+    0 14px 24px -18px color-mix(in srgb, var(--sticker-main) 65%, transparent),
+    inset 0 0 0 5px rgb(255 255 255 / 32%);
+  animation: stickerHalo var(--motion-slow) var(--ease-emphasis) both;
+}
+
+.sticker svg {
+  width: 65%;
+  height: 65%;
+  overflow: visible;
+  fill: currentColor;
+  stroke: none;
+  filter: drop-shadow(0 6px 5px rgb(43 79 67 / 14%));
+  animation: stickerFloat 3.4s var(--ease-standard) infinite;
+}
+
+.sticker .line {
+  fill: none;
+  stroke: #fffaf2;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sticker .cutout {
+  fill: #fffaf2;
+}
+
+.sticker .accent {
+  fill: var(--sticker-accent);
+}
+
+.sparkOne,
+.sparkTwo {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  background: var(--sticker-accent);
+  clip-path: polygon(
+    50% 0,
+    62% 37%,
+    100% 50%,
+    62% 63%,
+    50% 100%,
+    38% 63%,
+    0 50%,
+    38% 37%
+  );
+  animation: stickerTwinkle 1.9s ease-in-out infinite;
+}
+
+.sparkOne {
+  top: 4%;
+  right: 7%;
+}
+
+.sparkTwo {
+  bottom: 8%;
+  left: 4%;
+  width: 6px;
+  height: 6px;
+  animation-delay: -0.8s;
+}
+
+@keyframes stickerFloat {
+  50% {
+    transform: translateY(-5%) rotate(2deg);
+  }
+}
+
+@keyframes stickerHalo {
+  from {
+    transform: scale(0.82) rotate(-7deg);
+    opacity: 0;
+  }
+}
+
+@keyframes stickerTwinkle {
+  0%,
+  100% {
+    transform: scale(0.65) rotate(0deg);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.15) rotate(90deg);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .halo,
+  .sticker svg,
+  .sparkOne,
+  .sparkTwo {
+    animation: none;
+  }
+}

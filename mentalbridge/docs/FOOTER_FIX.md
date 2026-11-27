@@ -266,4 +266,3 @@ Layout:
 2. Changed `max-height` to `min-height` for table
 3. Used `flex: 1` for flexible table height
 4. Footer naturally sits at bottom
-

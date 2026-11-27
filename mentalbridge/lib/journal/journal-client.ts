@@ -4,16 +4,21 @@ import { ApiError } from '@/lib/api/api-error'
 import { isProblemDetails } from '@/lib/api/problem-details'
 import { readJournalServerConfig } from '@/lib/config/server'
 import type {
+  AnalysisJob,
   JournalCreate,
   JournalEntry,
   JournalPage,
   JournalTombstone,
   JournalWrite,
+  CreateLongitudinalAnalysisRequest,
+  LongitudinalAnalysisJob,
 } from './journal-contract'
 import {
+  parseAnalysisJob,
   parseJournalEntry,
   parseJournalPage,
   parseTombstone,
+  parseLongitudinalAnalysisJob,
 } from './journal-validation'
 
 type Options<T> = Readonly<{
@@ -212,6 +217,64 @@ export const journalClient = {
       correlationId,
       idempotencyKey: key,
       parse: parseTombstone,
+    })
+  },
+  requestAnalysis(
+    accessToken: string,
+    journalId: string,
+    revision: number,
+    key: string,
+    correlationId: string,
+  ): Promise<AnalysisJob> {
+    return request({
+      method: 'POST',
+      path: `/api/v1/journals/${journalId}/revisions/${revision}/analysis-jobs`,
+      accessToken,
+      correlationId,
+      idempotencyKey: key,
+      parse: parseAnalysisJob,
+    })
+  },
+  analysisJob(
+    accessToken: string,
+    jobId: string,
+    correlationId: string,
+  ): Promise<AnalysisJob> {
+    return request({
+      method: 'GET',
+      path: `/api/v1/analysis-jobs/${jobId}`,
+      accessToken,
+      correlationId,
+      parse: parseAnalysisJob,
+    })
+  },
+  createLongitudinalAnalysis(
+    accessToken: string,
+    body: CreateLongitudinalAnalysisRequest,
+    key: string,
+    correlationId: string,
+  ): Promise<LongitudinalAnalysisJob> {
+    return request({
+      method: 'POST',
+      path: '/api/v1/longitudinal-analysis-jobs',
+      accessToken,
+      correlationId,
+      idempotencyKey: key,
+      body,
+      parse: parseLongitudinalAnalysisJob,
+    })
+  },
+  longitudinalAnalysisJob(
+    accessToken: string,
+    jobId: string,
+    correlationId: string,
+  ): Promise<LongitudinalAnalysisJob> {
+    return request({
+      method: 'GET',
+      path: `/api/v1/longitudinal-analysis-jobs/${jobId}`,
+      accessToken,
+      correlationId,
+      parse: parseLongitudinalAnalysisJob,
     })
   },
 }

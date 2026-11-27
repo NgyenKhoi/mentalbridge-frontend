@@ -1,0 +1,88 @@
+{
+  "projectId": "1256373820415012052",
+  "nativeInstantPrototype": "CREATED_BY_USER_PLAY_NOT_VERIFIED",
+  "nativePrototypeNodeId": "678423c41ebc47d49538c0d6b85ebe38",
+  "nativePrototypeUrl": "https://stitch.withgoogle.com/projects/1256373820415012052?node-id=678423c41ebc47d49538c0d6b85ebe38",
+  "screens": [
+    {
+      "id": "39e99acd6c8046c49437ddc287466d98",
+      "title": "MB-642 D01 · Hôm nay",
+      "viewport": "desktop",
+      "stem": "desktop-01",
+      "htmlFile": "screens/desktop-01.html",
+      "pngFile": "screens/desktop-01.png"
+    },
+    {
+      "id": "0b2377cdfbf446959d641fa7e93d5936",
+      "title": "MB-642 D02 · Viết nhật ký",
+      "viewport": "desktop",
+      "stem": "desktop-02",
+      "htmlFile": "screens/desktop-02.html",
+      "pngFile": "screens/desktop-02.png"
+    },
+    {
+      "id": "bcca9223cf994a5eaa95a050f77ad1ed",
+      "title": "MB-642 D03 · Lưu chưa thành công",
+      "viewport": "desktop",
+      "stem": "desktop-03",
+      "htmlFile": "screens/desktop-03.html",
+      "pngFile": "screens/desktop-03.png"
+    },
+    {
+      "id": "0dc61f1f10644c6da7edea674ddb2c77",
+      "title": "MB-642 D04 · Đã lưu nhật ký",
+      "viewport": "desktop",
+      "stem": "desktop-04",
+      "htmlFile": "screens/desktop-04.html",
+      "pngFile": "screens/desktop-04.png"
+    },
+    {
+      "id": "3a93c07d2e644ed4b02fe0c7da2b4c6f",
+      "title": "MB-642 D05 · Quay lại hoạt động",
+      "viewport": "desktop",
+      "stem": "desktop-05",
+      "htmlFile": "screens/desktop-05.html",
+      "pngFile": "screens/desktop-05.png"
+    },
+    {
+      "id": "08b6c4513ff24cbd8646160f0d183028",
+      "title": "MB-642 M01 · Hôm nay",
+      "viewport": "mobile",
+      "stem": "mobile-01",
+      "htmlFile": "screens/mobile-01.html",
+      "pngFile": "screens/mobile-01.png"
+    },
+    {
+      "id": "9864e19eb48848a38ab9fd724c03e5b8",
+      "title": "MB-642 M02 · Viết nhật ký",
+      "viewport": "mobile",
+      "stem": "mobile-02",
+      "htmlFile": "screens/mobile-02.html",
+      "pngFile": "screens/mobile-02.png"
+    },
+    {
+      "id": "2bceb5c2534541daad46fc308a7cb516",
+      "title": "MB-642 M03 · Lưu chưa thành công",
+      "viewport": "mobile",
+      "stem": "mobile-03",
+      "htmlFile": "screens/mobile-03.html",
+      "pngFile": "screens/mobile-03.png"
+    },
+    {
+      "id": "11923c0ce26641ffb577ad15337401ee",
+      "title": "MB-642 M04 · Đã lưu nhật ký",
+      "viewport": "mobile",
+      "stem": "mobile-04",
+      "htmlFile": "screens/mobile-04.html",
+      "pngFile": "screens/mobile-04.png"
+    },
+    {
+      "id": "af068e85e56e427c9d8c36a585866664",
+      "title": "MB-642 M05 · Quay lại hoạt động",
+      "viewport": "mobile",
+      "stem": "mobile-05",
+      "htmlFile": "screens/mobile-05.html",
+      "pngFile": "screens/mobile-05.png"
+    }
+  ]
+}

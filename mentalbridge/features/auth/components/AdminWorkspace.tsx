@@ -1,42 +1,151 @@
+'use client'
+
 import Link from 'next/link'
+import { useEffect, useRef, useState } from 'react'
+import { motion } from 'framer-motion'
+import {
+  LayoutDashboard,
+  ShieldAlert,
+  Users,
+  UserCheck,
+  BookOpen,
+  BrainCircuit,
+  ShieldCheck,
+  Calendar,
+  FileText,
+  BarChart3,
+  CreditCard,
+  Coins,
+  ArrowLeftRight,
+  User,
+} from 'lucide-react'
 
 import SessionActions from './SessionActions'
 import WorkspaceSwitcher from './WorkspaceSwitcher'
 import AdminContentSection from './AdminContentSection'
-import styles from './AdminWorkspace.module.css'
+import AdminSpecialistReviewSection from '@/features/specialist-profile/components/AdminSpecialistReviewSection'
+import AdminAccountManager from './AdminAccountManager'
+import AdminCommunityModerationSection from '@/features/community/components/AdminCommunityModerationSection'
+import AdminAuditLog from '@/features/audit/components/AdminAuditLog'
+import AdminOperationsDashboard from '@/features/dashboard/components/AdminOperationsDashboard'
+import AdminAppointmentMonitor from '@/features/appointments/components/AdminAppointmentMonitor'
+import AdminReportsSection from '@/features/reports/components/AdminReportsSection'
+import AdminPaymentsManager from '@/components/AdminPaymentsManager'
+import AdminPayoutsManager from '@/components/AdminPayoutsManager'
+import AdminCommercialReconciliationManager from '@/features/reconciliation/components/AdminCommercialReconciliationManager'
+import AdminRetentionGovernance from '@/features/retention/components/AdminRetentionGovernance'
+import AdminBenchmarkGovernance from '@/features/benchmarks/AdminBenchmarkGovernance'
+import { ProductJourneyMetricsPanel } from '@/components/AdminDashboardManager'
 import type { Workspace } from '../model/workspace'
 
-const SECTIONS = {
+import '@/components/SpecialistClinicalDashboard.css'
+import '@/components/role-workspace.css'
+
+export const SECTIONS = {
   dashboard: {
     label: 'Tổng quan',
+    icon: LayoutDashboard,
+  },
+  retention: {
+    label: 'Bảo lưu & xóa dữ liệu',
     description:
-      'Điểm bắt đầu cho các công cụ vận hành sẽ được tích hợp ở những story sau.',
+      'Quản trị chính sách bảo lưu và theo dõi thực thi xóa dữ liệu với bằng chứng kiểm toán.',
+    icon: ShieldAlert,
+    hidden: true,
   },
   accounts: {
     label: 'Tài khoản',
-    description:
-      'Khu vực quản lý vòng đời tài khoản. Chưa tải dữ liệu cho đến khi API quản trị được phê duyệt.',
+    icon: Users,
   },
   specialists: {
     label: 'Chuyên gia',
-    description:
-      'Khu vực xét duyệt chuyên gia. Không hiển thị hồ sơ giả hoặc dữ liệu cá nhân.',
+    icon: UserCheck,
   },
   content: {
     label: 'Tài nguyên tự chăm sóc',
-    description: 'Quản lý tài nguyên qua Content service được bảo vệ.',
+    icon: BookOpen,
+  },
+  benchmarks: {
+    label: 'Benchmark AI',
+    description: 'Quản trị bộ dữ liệu tổng hợp và báo cáo đánh giá AI.',
+    icon: BrainCircuit,
+  },
+  moderation: {
+    label: 'Kiểm duyệt Community',
+    icon: ShieldCheck,
+  },
+  appointments: {
+    label: 'Lịch hẹn',
+    icon: Calendar,
   },
   audit: {
     label: 'Nhật ký kiểm toán',
+    icon: FileText,
+    hidden: true,
+  },
+  reports: {
+    label: 'Báo cáo',
+    icon: BarChart3,
+    hidden: true,
+  },
+  payments: {
+    label: 'Thanh toán gói',
+    icon: CreditCard,
+  },
+  payouts: {
+    label: 'Chi trả chuyên gia',
+    icon: Coins,
+  },
+  reconciliation: {
+    label: 'Đối soát thương mại',
     description:
-      'Khu vực theo dõi hoạt động quản trị sau khi nguồn dữ liệu audit được tích hợp.',
+      'Đối soát vòng đời thương mại, phát hiện sai lệch và truy vết dòng tiền.',
+    icon: ArrowLeftRight,
+    hidden: true,
   },
 } as const
 
-export type AdminSection = keyof typeof SECTIONS
+import {
+  ADMIN_SECTIONS,
+  isAdminSection,
+  type AdminSection,
+} from '../model/admin-sections'
+export { ADMIN_SECTIONS, isAdminSection, type AdminSection }
 
-export function isAdminSection(value: string): value is AdminSection {
-  return Object.prototype.hasOwnProperty.call(SECTIONS, value)
+function AdminSectionContent({ section }: Readonly<{ section: AdminSection }>) {
+  switch (section) {
+    case 'dashboard':
+      return (
+        <div className="admin-unified-dashboard-grid">
+          <AdminOperationsDashboard />
+          <ProductJourneyMetricsPanel />
+        </div>
+      )
+    case 'retention':
+      return <AdminRetentionGovernance />
+    case 'accounts':
+      return <AdminAccountManager />
+    case 'specialists':
+      return <AdminSpecialistReviewSection />
+    case 'content':
+      return <AdminContentSection />
+    case 'benchmarks':
+      return <AdminBenchmarkGovernance />
+    case 'moderation':
+      return <AdminCommunityModerationSection />
+    case 'appointments':
+      return <AdminAppointmentMonitor />
+    case 'audit':
+      return <AdminAuditLog />
+    case 'reports':
+      return <AdminReportsSection />
+    case 'payments':
+      return <AdminPaymentsManager />
+    case 'payouts':
+      return <AdminPayoutsManager />
+    case 'reconciliation':
+      return <AdminCommercialReconciliationManager />
+  }
 }
 
 export default function AdminWorkspace({
@@ -46,59 +155,209 @@ export default function AdminWorkspace({
   section: AdminSection
   workspaces: readonly Workspace[]
 }>) {
-  const active = SECTIONS[section]
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const sidebarRef = useRef<HTMLElement>(null)
+  const wasMobileOpen = useRef(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setSidebarCollapsed(
+        localStorage.getItem('mentalbridge_admin_sidebar_collapsed') === 'true',
+      )
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [])
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((value) => {
+      const nextValue = !value
+      localStorage.setItem(
+        'mentalbridge_admin_sidebar_collapsed',
+        String(nextValue),
+      )
+      return nextValue
+    })
+  }
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 980) setMobileOpen(false)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  useEffect(() => {
+    if (!mobileOpen) {
+      if (wasMobileOpen.current) menuButtonRef.current?.focus()
+      wasMobileOpen.current = false
+      return
+    }
+    wasMobileOpen.current = true
+    sidebarRef.current?.querySelector<HTMLElement>('nav a')?.focus()
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.defaultPrevented)
+        setMobileOpen(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [mobileOpen])
+
+  const currentSectionLabel = SECTIONS[section]?.label ?? 'Tổng quan'
 
   return (
-    <div className={styles.shell}>
-      <aside className={styles.sidebar}>
-        <Link href="/admin/dashboard" className={styles.brand}>
-          <span>M</span>
-          <strong>MentalBridge Admin</strong>
+    <div
+      className={`role-shell role-specialist role-admin ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}
+    >
+      <motion.aside
+        ref={sidebarRef}
+        className={`role-sidebar ${mobileOpen ? 'open' : ''}`}
+        layout
+        initial={false}
+        transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}
+      >
+        <Link href="/admin/dashboard" className="role-brand">
+          <motion.span
+            className="role-brand-mark"
+            whileHover={{ rotate: -6, scale: 1.06 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+          >
+            M
+          </motion.span>
+          <span className="role-brand-copy">
+            <strong>MentalBridge Admin</strong>
+            <small>Hệ thống Quản trị</small>
+          </span>
         </Link>
-
+        <button
+          className="role-collapse"
+          onClick={toggleSidebar}
+          aria-label={
+            sidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'
+          }
+          title={sidebarCollapsed ? 'Mở rộng' : 'Thu gọn'}
+        >
+          <motion.span animate={{ rotate: sidebarCollapsed ? 180 : 0 }}>
+            ‹
+          </motion.span>
+        </button>
         <nav aria-label="Điều hướng quản trị">
-          {Object.entries(SECTIONS).map(([key, item]) => (
-            <Link
-              key={key}
-              href={`/admin/${key}`}
-              aria-current={key === section ? 'page' : undefined}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {Object.entries(SECTIONS)
+            .filter(([, item]) => !(item as { hidden?: boolean }).hidden)
+            .map(([key, item]) => {
+              const Icon = item.icon
+              const isActive = key === section
+              return (
+                <div key={key} className="role-nav-item">
+                  <Link
+                    href={`/admin/${key}`}
+                    className={isActive ? 'active' : ''}
+                    aria-current={isActive ? 'page' : undefined}
+                    onClick={() => setMobileOpen(false)}
+                    title={sidebarCollapsed ? item.label : undefined}
+                  >
+                    {isActive && (
+                      <motion.span
+                        layoutId="role-active-admin"
+                        className="role-active-pill"
+                        transition={{
+                          type: 'spring',
+                          stiffness: 380,
+                          damping: 32,
+                        }}
+                      />
+                    )}
+                    <span className="role-nav-icon" aria-hidden="true">
+                      <Icon size={16} strokeWidth={1.8} />
+                    </span>
+                    <span className="role-nav-label">{item.label}</span>
+                  </Link>
+                </div>
+              )
+            })}
         </nav>
-
-        <div className={styles.session}>
-          <WorkspaceSwitcher workspaces={workspaces} currentRole="ADMIN" />
-          <SessionActions />
+        <WorkspaceSwitcher workspaces={workspaces} currentRole="ADMIN" />
+        <div className="role-sidebar-foot">
+          <SessionActions
+            compact={sidebarCollapsed}
+            displayName="Quản trị viên"
+            avatar="AD"
+            accountKind="personal"
+            description="Hệ thống Quản trị"
+            accountLabel="Tài khoản Quản trị"
+            profileHref="/admin/accounts"
+            profileLabel="Hồ sơ quản trị"
+            showSubscription={false}
+          />
         </div>
-      </aside>
+      </motion.aside>
 
-      <main className={styles.main}>
-        {section === 'content' ? (
-          <AdminContentSection />
-        ) : (
-          <>
-            <span className={styles.eyebrow}>
-              Không gian quản trị được bảo vệ
-            </span>
-            <h1>{active.label}</h1>
-            <p>{active.description}</p>
+      <motion.main
+        className="role-main"
+        inert={mobileOpen}
+        layout="position"
+        transition={{ layout: { type: 'spring', stiffness: 330, damping: 34 } }}
+      >
+        <header className="role-topbar role-topbar-specialist role-topbar-admin">
+          <div className="clinical-topbar-left">
+            <button
+              ref={menuButtonRef}
+              className="role-menu"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              aria-label="Mở menu"
+            >
+              ☰
+            </button>
+            <div
+              className="clinical-breadcrumb"
+              aria-label="Đường dẫn điều hướng"
+            >
+              <span className="clinical-breadcrumb-parent">MentalBridge</span>
+              <span className="clinical-breadcrumb-sep" aria-hidden="true">
+                /
+              </span>
+              <span className="clinical-breadcrumb-current">
+                {section === 'accounts'
+                  ? 'Quản lý tài khoản'
+                  : section === 'dashboard'
+                    ? 'Tổng quan hệ thống'
+                    : section === 'appointments'
+                      ? 'Giám sát vòng đời lịch hẹn'
+                      : currentSectionLabel}
+              </span>
+            </div>
+          </div>
 
-            <section className={styles.empty} aria-label="Trạng thái tích hợp">
-              <span aria-hidden="true">✓</span>
-              <div>
-                <h2>Quyền ADMIN đã được xác minh</h2>
-                <p>
-                  Trang khởi đầu không tải số liệu, tên, email hoặc nội dung
-                  nhạy cảm giả. Chức năng quản trị chỉ xuất hiện khi có API và
-                  quyền tương ứng.
-                </p>
+          <div className="clinical-topbar-right">
+            <Link
+              href="/admin/dashboard"
+              className="clinical-topbar-profile-badge"
+              title="Về Tổng quan"
+            >
+              <div className="clinical-profile-avatar">AD</div>
+              <div className="clinical-profile-info">
+                <span className="clinical-profile-name">Quản trị viên</span>
+                <span className="clinical-profile-role">
+                  Admin / Quyền tối cao
+                </span>
               </div>
-            </section>
-          </>
-        )}
-      </main>
+              <User
+                size={16}
+                strokeWidth={1.75}
+                className="clinical-profile-icon"
+              />
+            </Link>
+          </div>
+        </header>
+
+        <div className="role-content role-content-admin">
+          <div className="clinical-dashboard-wrapper">
+            <AdminSectionContent section={section} />
+          </div>
+        </div>
+      </motion.main>
     </div>
   )
 }

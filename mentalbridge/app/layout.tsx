@@ -1,5 +1,12 @@
 import type { Metadata } from 'next'
-import { Fraunces, Be_Vietnam_Pro } from 'next/font/google'
+import {
+  Be_Vietnam_Pro,
+  Fraunces,
+  Lora,
+  Playfair_Display,
+} from 'next/font/google'
+import localFont from 'next/font/local'
+import CrisisSupportWidget from '../components/crisis-support/CrisisSupportWidget'
 import MotionPreferences from '../components/motion/MotionPreferences'
 import SmoothScroll from '../components/SmoothScroll'
 import { Providers } from './providers'
@@ -8,8 +15,6 @@ import './theme-sync.css'
 
 const fraunces = Fraunces({
   subsets: ['latin', 'vietnamese'],
-  weight: ['300', '400', '500', '600', '700'],
-  style: ['normal', 'italic'],
   variable: '--font-fraunces-variable',
   display: 'swap',
 })
@@ -21,9 +26,31 @@ const beVietnamPro = Be_Vietnam_Pro({
   display: 'swap',
 })
 
+const lora = Lora({
+  subsets: ['latin', 'vietnamese'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-lora-variable',
+  display: 'swap',
+})
+
+const plusJakartaSans = localFont({
+  src: './fonts/plus-jakarta-sans/PlusJakartaSans.ttf',
+  weight: '400 800',
+  style: 'normal',
+  variable: '--font-plus-jakarta',
+  display: 'swap',
+})
+
+const playfairDisplay = Playfair_Display({
+  subsets: ['latin', 'vietnamese'],
+  variable: '--font-playfair-variable',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
   title: 'MentalBridge — Cây cầu đến sự an yên',
-  description: 'Nền tảng sàng lọc sức khỏe tâm thần, đồng hành riêng tư và thấu cảm.',
+  description:
+    'Nền tảng sàng lọc sức khỏe tâm thần, đồng hành riêng tư và thấu cảm.',
 }
 
 export default function RootLayout({
@@ -33,7 +60,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi">
-      <body className={`${fraunces.variable} ${beVietnamPro.variable}`}>
+      <body
+        className={`${fraunces.variable} ${beVietnamPro.variable} ${lora.variable} ${plusJakartaSans.variable} ${playfairDisplay.variable}`}
+      >
         <div className="ambient-bg" aria-hidden="true">
           <div className="ambient-blob b1"></div>
           <div className="ambient-blob b2"></div>
@@ -42,6 +71,7 @@ export default function RootLayout({
         <MotionPreferences>
           <Providers>{children}</Providers>
         </MotionPreferences>
+        <CrisisSupportWidget />
         <SmoothScroll />
       </body>
     </html>

@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/v1/reminder-overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the USER's current reminder facts and bounded eligibility estimates
+         * @description Owner is derived only from the authenticated USER. No actor, date or timezone override is accepted. Reuses persisted notification preferences and the note-free Journal/Emotion projection. Today contains only enabled Journal/ Emotion categories with factual DUE/COMPLETED states; notification read status is never activity completion. Previews are estimates for the current local day, not scheduled jobs or guaranteed sends. Appointment email keeps its separate delivery ledger and requires owner revalidation before sending; no eligibility time is inferred from that ledger. Unsupported categories are explicit. No producer, claim, provider call or domain mutation runs on this read. Existing GET/PATCH notification-preferences remains the sole settings boundary, with its existing validation and strong If-Match.
+         */
+        get: operations["getReminderOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -99,16 +119,275 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Get an active reviewed resource for one locale */
+        /**
+         * Get an active reviewed resource for one locale
+         * @description Without contentVersion, resolves only the current active PUBLISHED resource. With contentVersion, may resolve the immutable publication snapshot for an exact historical reference after archive or correction without restoring catalogue visibility.
+         */
         get: operations["getResource"];
         put?: never;
         post?: never;
-        /** Delete a DRAFT resource (Admin) */
+        /** Delete an initial DRAFT resource with no publication history (Admin) */
         delete: operations["deleteResource"];
         options?: never;
         head?: never;
         /** Update a DRAFT resource (Admin) */
         patch: operations["updateResource"];
+        trace?: never;
+    };
+    "/api/v1/resource-progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the authenticated owner's resource progress for a bounded local-date range */
+        get: operations["listResourceProgress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resource-progress/{resourceId}/{localDate}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace one daily progress item for the authenticated owner
+         * @description resourceVersion pins the listed publication snapshot actually used. An omitted version selects the current resource version. Completion stores that exact version; a newer resource version never substitutes as evidence.
+         */
+        put: operations["saveResourceProgress"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resource-completion-evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the newest qualifying exact-version Content fact for the owner
+         * @description Owner comes from the verified USER bearer. Matches the exact resource
+         *     version and the server occurredAt converted to the requested IANA timeZone
+         *     on localDate, never a client-selected date alone. Qualifying facts are a
+         *     measured 60-7200 second practice session (occurredAt = server completed_at
+         *     minus duration_seconds, including legacy sessions), or a
+         *     completed resource_daily_progress row (occurredAt = completed_at).
+         *     Practice factId is the session UUID; completion factId is the deterministic
+         *     resourceId:localDate of its stored daily-progress row. resourceVersion is
+         *     the fact revision. Learning completion and Bingo self-confirmation are
+         *     excluded. Candidates are ordered by recorded completed_at, newest first.
+         *     Callers can exclude fact IDs already accepted as occurrence evidence.
+         *     No remaining fact returns 404; dependency uncertainty returns 503.
+         */
+        get: operations["getResourceCompletionEvidence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resource-bookmarks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the authenticated owner's private resource bookmarks */
+        get: operations["listResourceBookmarks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resource-bookmarks/{resourceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resourceId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Save the current exact reviewed version of one resource for the authenticated owner */
+        put: operations["saveResourceBookmark"];
+        post?: never;
+        /** Remove one private resource bookmark for the authenticated owner */
+        delete: operations["deleteResourceBookmark"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resource-bingo/{weekStart}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one persisted weekly resource Bingo board and its exact evidence
+         * @description Self-confirmed marks are owner statements and remain distinct from Content-verified resource completion or eligible plan-bound practice evidence. Historical boards are retained by their local Monday and original IANA time zone. Returns the most recently synced board when multiple SupportPlans have boards in the same week. This read never resyncs current or historical boards.
+         */
+        get: operations["getResourceBingo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resource-bingo/{weekStart}/plan-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Synchronize current-week Bingo with the owner's current Care resource actions
+         * @description Reads Care with the owner's Authorization and X-Correlation-Id, then
+         *     synchronizes under Content's owner/week advisory lock. Only the current
+         *     local week may be synced. Boards are scoped to owner, week and SupportPlan;
+         *     a plan switch creates a different board and preserves the former board.
+         *     Uses plan order with at most nine items and no catalogue padding. Existing
+         *     items remain in their ordinal and are retired when absent, preserving
+         *     evidence and counting toward the nine-item limit. Resource version changes
+         *     rebind in place and clear self-confirmation; a returning resource is
+         *     unretired. Multiple actions on one resource share one tile. actionVersion
+         *     changes alone do not churn tiles. Identical projections do not bump the
+         *     board version. Unlisted exact resource versions and actions beyond board
+         *     capacity are reported in unavailableActions. A definite Care NONE retires
+         *     the latest board; with no board it returns an empty nonpersisted board
+         *     shape with version "0". Care failure leaves all persisted state unchanged.
+         */
+        put: operations["syncResourceBingoPlan"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resource-bingo/{weekStart}/items/{position}/self-confirmation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace one owner self-confirmation on a persisted Bingo item
+         * @description Self-confirmation is undoable and never Care completion evidence. Retired items cannot be changed.
+         */
+        put: operations["setResourceBingoSelfConfirmation"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resource-rewards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read authoritative participation rewards for the authenticated owner
+         * @description Calculates bounded XP from persisted reviewed resource completion and verified practice evidence. XP records participation only and is not a treatment, adherence, recovery or mental-health score.
+         */
+        get: operations["getResourceRewards"];
+        /** Replace the authenticated owner's optional reward visibility preference */
+        put: operations["setResourceRewardVisibility"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/achievements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the authenticated owner's private multi-domain achievement collection
+         * @description Returns deterministic facts from minimized owner projections. Journal and emotion content, clinical scores, consultation data and inferred recovery states never enter this boundary. A failed domain source is reported explicitly and does not reuse stale facts.
+         */
+        get: operations["getAchievements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/achievements/preference": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace the owner's private collection visibility preference */
+        put: operations["setAchievementVisibility"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resource-journeys/{localDate}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Materialize and return a stable plan-aligned daily resource journey
+         * @description The trusted BFF supplies the authenticated owner's current ACTIVE support-plan snapshot. Repeating this request for the same owner, date and plan version returns the same persisted assignment and weekly bingo board.
+         */
+        put: operations["materializeResourceJourney"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/resources/{id}/publish": {
@@ -120,8 +399,42 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Publish a reviewed DRAFT resource (blocked pending MB-251 policy approval) */
+        /** Publish an exact approved DRAFT resource version */
         post: operations["publishResource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resources/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record a configured-authority decision for one exact draft */
+        post: operations["reviewResource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resources/{id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start a correction draft after archiving an exact publication */
+        post: operations["createResourceVersion"];
         delete?: never;
         options?: never;
         head?: never;
@@ -145,10 +458,586 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/resources/{id}/versions/{contentVersion}/eligibility-publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish immutable exact-version SupportPlan eligibility (Admin) */
+        post: operations["publishResourceEligibility"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resources/{id}/versions/{contentVersion}/eligibility-publications/withdrawal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw an exact-version eligibility publication (Admin) */
+        post: operations["withdrawResourceEligibility"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/resource-eligibility:resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve exact-version resource eligibility for Care in one bounded batch
+         * @description Care forwards the authenticated USER bearer credential and correlation ID. Results preserve request order. A successful provider response never infers eligibility from resource type, review, or publication alone. Dependency uncertainty is represented by HTTP 503; Care maps it to UNAVAILABLE and commits no proposal mutation.
+         */
+        post: operations["resolveResourceEligibility"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/resources/current-versions:resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve current Content-owned resource versions for Care in one bounded batch
+         * @description Care forwards the authenticated USER bearer credential and correlation ID before its exact-version eligibility check. Results preserve request order. A version is metadata only and never implies eligibility; DRAFT and ARCHIVED rows still return their current version so the exact resolver decides publication status. contentVersion is null only for an ID with no resource row. Dependency uncertainty is HTTP 503 with no partial result.
+         */
+        post: operations["resolveResourceCurrentVersions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/safety-directory/admin/entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List directory records for administration */
+        get: operations["listSafetyDirectoryEntriesForAdmin"];
+        put?: never;
+        /** Create an inactive unreviewed directory record */
+        post: operations["createSafetyDirectoryEntry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/safety-directory/admin/entries/{entryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Replace reviewed fields and invalidate prior review */
+        patch: operations["updateSafetyDirectoryEntry"];
+        trace?: never;
+    };
+    "/api/v1/safety-directory/admin/entries/{entryId}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Review, verify, and activate the exact directory version */
+        post: operations["reviewSafetyDirectoryEntry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/safety-directory/admin/entries/{entryId}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deactivate a directory record without deleting review history */
+        post: operations["deactivateSafetyDirectoryEntry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/safety-directory:lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve active reviewed current records for one deliberate coarse area
+         * @description Public read-only owner lookup used by Care. Manual text is matched only against reviewed area labels; no geocoding, proximity, or location sharing occurs.
+         */
+        post: operations["lookupSafetyDirectory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notification-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the authenticated user's persisted notification preferences */
+        get: operations["getNotificationPreferences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Partially update the authenticated user's notification preferences */
+        patch: operations["updateNotificationPreferences"];
+        trace?: never;
+    };
+    "/api/v1/push-devices/{installationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description App-generated installation UUID; it is not a hardware identifier. */
+                installationId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Idempotently register or rotate the authenticated owner's push device */
+        put: operations["registerPushDevice"];
+        post?: never;
+        /** Revoke an owned installation after sign-out or push opt-out */
+        delete: operations["revokePushDevice"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/notifications/{notificationId}/live-eligibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Revalidate one currently eligible specialist inbox notification
+         * @description Realtime forwards the socket's existing Identity bearer. Only exact SPECIALIST role is admitted; the owner comes exclusively from verified sub, never from recipient input. The row must be owned by that SPECIALIST, APPOINTMENT kind, CONSULTATION_APPOINTMENT_V1 source, DELIVERED, undeleted and unexpired, with current master, in-app and appointment-group preferences enabled. Absent, foreign or suppressed rows uniformly return 404 NOTIFICATION_NOT_FOUND. Eligibility is authoritative at the owner query; subsequent concurrent changes are reconciled through REST. This read supplies no socket receipt or replay.
+         */
+        get: operations["getNotificationLiveEligibility"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the authenticated user's active inbox newest first */
+        get: operations["listNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/wellbeing-digest/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preview today's privacy-safe wellbeing email digest */
+        get: operations["previewWellbeingDigest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/{notificationId}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Mark one owned notification read idempotently */
+        patch: operations["markNotificationRead"];
+        trace?: never;
+    };
+    "/api/v1/notifications/mark-all-read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark every active unread notification owned by the user read */
+        post: operations["markAllNotificationsRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/{notificationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Tombstone one notification owned by the authenticated user */
+        delete: operations["deleteNotification"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/notifications/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Retrieve operational delivery facts for platform notifications and reminders */
+        get: operations["getNotificationOperationsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        NotificationLiveEligibility: {
+            /** Format: uuid */
+            notificationId: string;
+        };
+        /** @enum {string} */
+        NotificationKind: "REMINDER" | "MESSAGE" | "APPOINTMENT" | "SYSTEM_RESOURCE" | "ASSESSMENT_REASSESSMENT" | "STREAK_MILESTONE" | "JOURNAL_REMINDER" | "EMOTION_CHECKIN_REMINDER" | "JOURNAL_STREAK_MILESTONE" | "EMOTION_STREAK_MILESTONE" | "COMMUNITY_COMMENT" | "COMMUNITY_REPLY" | "COMMUNITY_REACTION" | "COMMUNITY_MESSAGE" | "COMMUNITY_REQUEST" | "COMMUNITY_INVITATION" | "ASSESSMENT_RESULT_AVAILABLE" | "SUPPORT_GUIDE_AVAILABLE" | "ACCOUNT_STATUS" | "SUPPORT_PLAN_DAILY_REMINDER";
+        /** @enum {string} */
+        NotificationPriority: "LOW" | "NORMAL" | "HIGH";
+        /** @enum {string} */
+        NotificationActionType: "OPEN_JOURNAL" | "OPEN_MESSAGES" | "OPEN_APPOINTMENTS" | "OPEN_APPOINTMENT" | "OPEN_SPECIALIST_APPOINTMENTS" | "OPEN_RESOURCES" | "OPEN_ASSESSMENTS" | "OPEN_RESOURCE" | "OPEN_COMMUNITY_POST" | "OPEN_COMMUNITY_CONVERSATION" | "OPEN_COMMUNITY_REQUEST" | "OPEN_COMMUNITY_INVITATION" | "OPEN_SUPPORT_GUIDE" | "OPEN_SUPPORT_PLAN";
+        NotificationAction: {
+            type: components["schemas"]["NotificationActionType"];
+            /** Format: uuid */
+            targetId: string | null;
+            /** @description Server-derived relative route from the approved action type; never a producer URL. */
+            href: string;
+        };
+        Notification: {
+            /** Format: uuid */
+            id: string;
+            kind: components["schemas"]["NotificationKind"];
+            title: string;
+            body: string;
+            priority: components["schemas"]["NotificationPriority"];
+            /** Format: date-time */
+            occurredAt: string;
+            /** Format: date-time */
+            createdAt: string;
+            read: boolean;
+            /** Format: date-time */
+            readAt: string | null;
+            action: components["schemas"]["NotificationAction"] | null;
+            /** @constant */
+            lifecycleState: "ACTIVE";
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        NotificationPage: {
+            items: components["schemas"]["Notification"][];
+            nextCursor: string | null;
+            hasMore: boolean;
+            unreadCount: number;
+        };
+        NotificationBulkReadResult: {
+            updatedCount: number;
+        };
+        NotificationChannels: {
+            inApp: boolean;
+            email: boolean;
+            /** @description Owner opt-in; delivery also requires an active permitted registration and enabled provider worker. */
+            push: boolean;
+        };
+        NotificationChannelsPatch: {
+            inApp?: boolean;
+            email?: boolean;
+            push?: boolean;
+        };
+        NotificationContentGroups: {
+            journalReminder: boolean;
+            emotionCheckIn: boolean;
+            streakMilestone: boolean;
+            screeningReassessment: boolean;
+            appointmentMessage: boolean;
+            resourceSystem: boolean;
+            communityInteraction: boolean;
+            /** @description USER opt-out for the generic daily SupportPlan reminder; always false for SPECIALIST owners. */
+            supportPlanReminder: boolean;
+        };
+        NotificationContentGroupsPatch: {
+            journalReminder?: boolean;
+            emotionCheckIn?: boolean;
+            streakMilestone?: boolean;
+            screeningReassessment?: boolean;
+            appointmentMessage?: boolean;
+            resourceSystem?: boolean;
+            communityInteraction?: boolean;
+            /** @description USER only; a SPECIALIST patch containing it is rejected with 422. */
+            supportPlanReminder?: boolean;
+        };
+        QuietHours: {
+            enabled: boolean;
+            start: string;
+            end: string;
+            /** @description IANA time zone used to evaluate the local-day quiet window, including windows crossing midnight. */
+            timeZone: string;
+        };
+        QuietHoursPatch: {
+            enabled?: boolean;
+            start?: string;
+            end?: string;
+            timeZone?: string;
+        };
+        /** @enum {string} */
+        EmailCadence: "IMMEDIATE" | "DAILY_DIGEST" | "WEEKLY_DIGEST";
+        EmailPreferences: {
+            cadence: components["schemas"]["EmailCadence"];
+            wellbeingDigestEnabled: boolean;
+            resourceRemindersEnabled: boolean;
+            dailyDigestTime: string;
+            resourceReminderTime: string;
+            appointmentRemindersEnabled?: boolean;
+        };
+        EmailPreferencesPatch: {
+            cadence?: components["schemas"]["EmailCadence"];
+            wellbeingDigestEnabled?: boolean;
+            resourceRemindersEnabled?: boolean;
+            dailyDigestTime?: string;
+            resourceReminderTime?: string;
+            appointmentRemindersEnabled?: boolean;
+        };
+        WellbeingDigestResourceItem: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+        };
+        WellbeingDigestPreview: {
+            /** Format: date */
+            localDate: string;
+            timeZone: string;
+            scheduledTime: string;
+            eligibleNow: boolean;
+            resourceItems: components["schemas"]["WellbeingDigestResourceItem"][];
+            includeJournalPrompt: boolean;
+            includeEmotionPrompt: boolean;
+            empty: boolean;
+        };
+        NotificationPreferences: {
+            notificationsEnabled: boolean;
+            channels: components["schemas"]["NotificationChannels"];
+            contentGroups: components["schemas"]["NotificationContentGroups"];
+            quietHours: components["schemas"]["QuietHours"];
+            email: components["schemas"]["EmailPreferences"];
+            /** @description Local HH:mm in quietHours.timeZone from which daily journal, emotion and SupportPlan reminders are delivered; defaults to 20:00. */
+            dailyReminderTime: string;
+            /** Format: int64 */
+            version: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        PushDeviceRegistrationRequest: {
+            /** @enum {string} */
+            platform: "ANDROID" | "IOS";
+            /** @enum {string} */
+            provider: "EXPO";
+            providerToken: string;
+            /** @enum {string} */
+            permissionStatus: "GRANTED" | "DENIED";
+            appVersion?: string;
+        };
+        PushDeviceRegistration: {
+            /** Format: uuid */
+            installationId: string;
+            /** @enum {string} */
+            platform: "ANDROID" | "IOS";
+            /** @enum {string} */
+            provider: "EXPO";
+            /** @enum {string} */
+            permissionStatus: "GRANTED" | "DENIED";
+            /** @enum {string} */
+            status: "ACTIVE" | "DISABLED" | "REVOKED" | "INVALID";
+            appVersion: string | null;
+            /** Format: date-time */
+            lastRegisteredAt: string;
+            /** Format: int64 */
+            version: number;
+        };
+        NotificationPreferencePatch: {
+            notificationsEnabled?: boolean;
+            channels?: components["schemas"]["NotificationChannelsPatch"];
+            contentGroups?: components["schemas"]["NotificationContentGroupsPatch"];
+            quietHours?: components["schemas"]["QuietHoursPatch"];
+            email?: components["schemas"]["EmailPreferencesPatch"];
+            /** @description USER only; a SPECIALIST patch containing it is rejected with 422. */
+            dailyReminderTime?: string;
+        };
+        /** @enum {string} */
+        SafetyDirectoryEntryType: "FACILITY" | "HOTLINE";
+        /** @enum {string} */
+        SafetyDirectoryCoverageLevel: "NATIONWIDE" | "PROVINCE" | "DISTRICT";
+        SafetyDirectoryCoverage: {
+            level: components["schemas"]["SafetyDirectoryCoverageLevel"];
+            provinceCode: string | null;
+            provinceName: string | null;
+            districtCode: string | null;
+            districtName: string | null;
+        };
+        SafetyDirectoryEntryWrite: {
+            name: string;
+            type: components["schemas"]["SafetyDirectoryEntryType"];
+            phone: string;
+            address: string | null;
+            coverage: components["schemas"]["SafetyDirectoryCoverage"][];
+            sourceName: string;
+            sourceReference: string;
+            /** Format: date-time */
+            sourceRetrievedAt: string;
+            sourceChecksum?: string | null;
+        };
+        /** @enum {string} */
+        SafetyDirectoryReviewState: "UNREVIEWED" | "CURRENT" | "STALE" | "INACTIVE";
+        SafetyDirectoryPublicEntry: {
+            /** Format: uuid */
+            directoryEntryId: string;
+            name: string;
+            type: components["schemas"]["SafetyDirectoryEntryType"];
+            phone: string;
+            address: string | null;
+            coverage: components["schemas"]["SafetyDirectoryCoverage"][];
+            sourceName: string;
+            sourceReference: string;
+            /** Format: date-time */
+            reviewedAt: string;
+            /** Format: date-time */
+            verifiedAt: string;
+        };
+        SafetyDirectoryAdminEntry: components["schemas"]["SafetyDirectoryPublicEntry"] & ({
+            /** Format: int64 */
+            recordVersion: number;
+            active: boolean;
+            reviewState: components["schemas"]["SafetyDirectoryReviewState"];
+            /** Format: uuid */
+            reviewedBy: string | null;
+            /** Format: uuid */
+            verifiedBy: string | null;
+            /** Format: date-time */
+            sourceRetrievedAt: string;
+            sourceChecksum: string | null;
+            readonly seedKey: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        } & {
+            [key: string]: unknown;
+        });
+        SafetyDirectoryLookupRequest: {
+            provinceCode?: string;
+            districtCode?: string;
+            manualLocation?: string;
+        } & (unknown | unknown);
+        /** @enum {string} */
+        SafetyDirectoryLookupState: "RESULTS" | "EMPTY" | "INVALID_AREA";
+        SafetyDirectoryLookupResponse: {
+            state: components["schemas"]["SafetyDirectoryLookupState"];
+            /** @constant */
+            wording: "Cơ sở trong khu vực đã chọn";
+            resolvedProvinceCode: string | null;
+            resolvedDistrictCode: string | null;
+            entries: components["schemas"]["SafetyDirectoryPublicEntry"][];
+        } & {
+            [key: string]: unknown;
+        };
         LiveResponse: {
             /** @example ok */
             status: string;
@@ -193,14 +1082,300 @@ export interface components {
         ResourceCategory: "BREATHING" | "MEDITATION" | "ARTICLE" | "VIDEO" | "JOURNALING" | "COMMUNITY";
         /** @enum {string} */
         ResourceStatus: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+        /**
+         * @description Daily participation state. COMPLETED is terminal for a resource and local date; later checklist edits cannot return it to IN_PROGRESS.
+         * @enum {string}
+         */
+        ResourceProgressStatus: "IN_PROGRESS" | "COMPLETED";
+        ResourceProgressItem: {
+            /** Format: uuid */
+            resourceId: string;
+            /** Format: date */
+            localDate: string;
+            contentVersion: string;
+            status: components["schemas"]["ResourceProgressStatus"];
+            /** @description Current user-managed checklist selections. These selections remain editable after COMPLETED without reversing the recorded completion. */
+            completedActionIds: string[];
+            /**
+             * Format: uuid
+             * @description Client-generated idempotency key for one completed repeatable practice session. Omit for ordinary checklist edits and one-time learning resources.
+             */
+            practiceSessionId?: string;
+            /**
+             * Format: date-time
+             * @deprecated
+             * @description Ignored client instant. Practice start is derived from server completion time minus measured duration.
+             */
+            practiceStartedAt?: string;
+            /** @description Optional measured duration for the practice session. */
+            practiceDurationSeconds?: number;
+            /** Format: date-time */
+            completedAt: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+            version: string;
+        };
+        ResourceProgressList: {
+            items: components["schemas"]["ResourceProgressItem"][];
+        };
+        ResourceProgressUpdate: {
+            /** @description Exact listed publication snapshot actually used; omitted selects the current version. */
+            resourceVersion?: string;
+            /**
+             * Format: uuid
+             * @description Client-generated idempotency key for one completed repeatable practice session.
+             */
+            practiceSessionId?: string;
+            /**
+             * Format: date-time
+             * @deprecated
+             * @description Ignored client instant retained for compatibility. Practice start is server completion time minus measured duration.
+             */
+            practiceStartedAt?: string;
+            /** @description Measured duration; requires practiceSessionId. Evidence requires 60 through 7200 seconds. */
+            practiceDurationSeconds?: number;
+            status: components["schemas"]["ResourceProgressStatus"];
+            /** @description Current user-managed checklist selections. These selections remain editable after COMPLETED without reversing the recorded completion. */
+            completedActionIds: string[];
+        };
+        ResourceBookmark: {
+            /** Format: uuid */
+            resourceId: string;
+            contentVersion: string;
+            /** Format: date-time */
+            savedAt: string;
+            version: string;
+        };
+        ResourceBookmarkList: {
+            items: components["schemas"]["ResourceBookmark"][];
+        };
+        ResourceCompletionEvidence: {
+            /** @enum {string} */
+            factKind: "RESOURCE_PRACTICE_SESSION" | "RESOURCE_COMPLETION";
+            /** @description Practice session UUID or deterministic resourceId:localDate daily-progress identity. */
+            factId: string;
+            resourceVersion: string;
+            /**
+             * Format: date-time
+             * @description Server practice completed_at minus duration_seconds, or daily-progress completed_at; never client started_at or localDate.
+             */
+            occurredAt: string;
+            /** Format: date-time */
+            verifiedAt: string;
+        };
+        /** @enum {string} */
+        ResourceBingoEvidence: "NONE" | "SELF_CONFIRMED" | "CONTENT_VERIFIED";
+        /** @enum {string} */
+        ResourceBingoVerificationSource: "RESOURCE_COMPLETION" | "PRACTICE_SESSION";
+        ResourceBingoItemState: {
+            position: number;
+            /** Format: uuid */
+            resourceId: string;
+            /** @description Care native action or v2 adapter slot identity; null for legacy catalogue items. */
+            actionId: string | null;
+            /** @description No longer in this plan; retained in its ordinal with history and no self-confirmation edits. */
+            retired: boolean;
+            contentVersion: string;
+            label: string;
+            /** @description Action-bound CONTENT_VERIFIED requires an exact-version owner Content fact whose server occurredAt falls inside this board week in its timeZone. Practice duration must be 60-7200 seconds. Only legacy items retain journey-assignment binding. A retired tile keeps history. */
+            evidence: components["schemas"]["ResourceBingoEvidence"];
+            /** Format: date-time */
+            selfConfirmedAt: string | null;
+            /** Format: date-time */
+            verifiedAt: string | null;
+            verificationSource: components["schemas"]["ResourceBingoVerificationSource"] | null;
+        };
+        ResourceBingoBoard: {
+            /** Format: date */
+            weekStart: string;
+            timeZone: string;
+            version: string;
+            /** Format: date-time */
+            updatedAt: string;
+            items: components["schemas"]["ResourceBingoItemState"][];
+        };
+        ResourceBingoPlanSync: {
+            /** Format: date */
+            weekStart: string;
+            timeZone: string;
+            version: string;
+            /** Format: date-time */
+            updatedAt: string;
+            items: components["schemas"]["ResourceBingoItemState"][];
+            /** @description Current plan actions skipped without exposing resource rationale or copied content. */
+            unavailableActions: {
+                actionId: string;
+                /** @enum {string} */
+                reason: "RESOURCE_VERSION_UNAVAILABLE" | "BOARD_FULL";
+            }[];
+        };
+        ResourceBingoSelfConfirmationUpdate: {
+            selfConfirmed: boolean;
+        };
+        /** @enum {string} */
+        ResourceRewardVisibility: "VISIBLE" | "HIDDEN";
+        ResourceRewardVisibilityUpdate: {
+            visibilityState: components["schemas"]["ResourceRewardVisibility"];
+        };
+        ResourceRewardGrant: {
+            grantId: string;
+            /** @enum {string} */
+            kind: "RESOURCE_COMPLETION" | "VERIFIED_PRACTICE";
+            xp: number;
+            /** Format: uuid */
+            resourceId: string;
+            contentVersion: string;
+            /** Format: date */
+            localDate: string;
+            /** Format: date-time */
+            grantedAt: string;
+            sourceReference: string;
+            ruleVersion: string;
+        };
+        ResourceRewardReadModel: {
+            totalXp: number;
+            level: number;
+            nextLevelXp: number | null;
+            visibilityState: components["schemas"]["ResourceRewardVisibility"];
+            preferenceVersion: string;
+            policyVersion: string;
+            /** @enum {string} */
+            sourceAvailability: "AVAILABLE";
+            /** Format: date-time */
+            calculatedAt: string;
+            recentGrants: components["schemas"]["ResourceRewardGrant"][];
+        };
+        /** @enum {string} */
+        AchievementVisibility: "VISIBLE" | "HIDDEN";
+        AchievementPreferenceUpdate: {
+            visibilityState: components["schemas"]["AchievementVisibility"];
+        };
+        AchievementProgress: {
+            current: number;
+            target: number;
+            /** @enum {string} */
+            unit: "EVENT" | "CONSECUTIVE_DAY" | "DISTINCT_RESOURCE" | "PRACTICE_DAY";
+        };
+        AchievementItem: {
+            definitionId: string;
+            /** @enum {string} */
+            domain: "JOURNAL" | "EMOTION_CHECK_IN" | "RESOURCE" | "JOURNEY";
+            /** @enum {string} */
+            kind: "MILESTONE" | "CONSISTENCY" | "JOURNEY";
+            /** @enum {string} */
+            tier: "FIRST_STEP" | "STEADY_STEP" | "DEEPENING_STEP" | "JOURNEY";
+            title: string;
+            description: string;
+            /** @enum {string} */
+            status: "EARNED" | "UNEARNED" | "SOURCE_UNAVAILABLE" | "GRANDFATHERED" | "DEFERRED";
+            /** @enum {string} */
+            evidenceClass: "OWNER_SOURCE_FACT" | "OWNER_STREAK_MILESTONE" | "OWNER_PRACTICE_WINDOW" | "USER_CONFIRMED_JOURNEY";
+            /** Format: date-time */
+            unlockedAt: string | null;
+            /** @enum {string} */
+            ruleVersion: "achievement-rules-v1";
+            /** @enum {string} */
+            privacy: "PRIVATE";
+            progress: components["schemas"]["AchievementProgress"] | null;
+        };
+        AchievementSource: {
+            /** @enum {string} */
+            domain: "JOURNAL" | "EMOTION_CHECK_IN" | "RESOURCE" | "JOURNEY";
+            /** @enum {string} */
+            availability: "AVAILABLE" | "UNAVAILABLE" | "DEFERRED";
+            /** Format: date */
+            asOfLocalDate: string | null;
+        };
+        AchievementCollection: {
+            visibilityState: components["schemas"]["AchievementVisibility"];
+            preferenceVersion: string;
+            /** @enum {string} */
+            policyVersion: "achievement-rules-v1";
+            /** Format: date-time */
+            calculatedAt: string;
+            sources: components["schemas"]["AchievementSource"][];
+            items: components["schemas"]["AchievementItem"][];
+        };
+        /** @enum {string} */
+        ResourceKind: "LEARNING" | "PRACTICE" | "HABIT" | "ACTION" | "REFLECTION";
+        /** @enum {string} */
+        ResourceInteractionType: "STRUCTURED_READER" | "VIDEO_TRANSCRIPT" | "BREATHING_PACER" | "GROUNDING_GUIDE" | "PROGRESSIVE_RELAXATION" | "WALK_TIMER" | "STRETCH_SEQUENCE" | "PROBLEM_SOLVING_WORKSHEET" | "BEHAVIORAL_ACTIVATION_PLANNER" | "SELF_COMPASSION_PROMPTS" | "UNHOOKING_PROMPTS" | "PREPARE_FOR_SPECIALIST_CHECKLIST" | "REFLECTION";
+        /** @enum {string} */
+        ResourceRepeatability: "ONE_TIME" | "REPEATABLE";
+        /** @enum {string} */
+        ResourceCompletionMode: "EXPLICIT" | "STEPS" | "TIMED" | "VIDEO_CONFIRMATION";
+        ResourceJourneyRequest: {
+            /** @example Asia/Ho_Chi_Minh */
+            timeZone: string;
+            supportPlan: {
+                /** Format: uuid */
+                supportPlanId: string;
+                version: number;
+                /** @enum {string} */
+                status: "ACTIVE";
+                /** Format: date-time */
+                activatedAt: string;
+                domains: ("DEPRESSIVE_SYMPTOMS" | "ANXIETY_SYMPTOMS")[];
+                selectedResourceIds: string[];
+            };
+        };
+        ResourceJourneyAssignmentItem: {
+            position: number;
+            resource: components["schemas"]["ResourceSummary"];
+            /** @enum {string} */
+            reason: "PLAN_SELECTED" | "PLAN_DOMAIN" | "CONTINUITY" | "BALANCE";
+        };
+        ResourceJourneyProgress: {
+            dailyCompleted: number;
+            dailyTotal: number;
+            learningCompleted: number;
+            learningTotal: number;
+            practiceStreakDays: number;
+        };
+        ResourceJourneyBingoItem: {
+            position: number;
+            /** Format: uuid */
+            resourceId: string;
+            label: string;
+            stamped: boolean;
+        };
+        ResourceJourney: {
+            /** Format: uuid */
+            assignmentId: string;
+            /** Format: date */
+            localDate: string;
+            /** Format: uuid */
+            planId: string;
+            planVersion: number;
+            planDay: number;
+            /** @enum {string} */
+            planStage: "ORIENTATION" | "CORE_PRACTICE" | "REINFORCEMENT" | "MAINTENANCE" | "REVIEW";
+            items: components["schemas"]["ResourceJourneyAssignmentItem"][];
+            progress: components["schemas"]["ResourceJourneyProgress"];
+            /** Format: date */
+            weekStart: string;
+            /** @description Read-only items from the week's most recently synced persisted board, or [] when none exists. Journey materialization never creates or alters a Bingo board. Use plan-sync to update the current week. */
+            bingo: components["schemas"]["ResourceJourneyBingoItem"][];
+        };
         ResourceSummary: {
             /** Format: uuid */
             id: string;
             category: components["schemas"]["ResourceCategory"];
+            resourceKind: components["schemas"]["ResourceKind"];
+            interactionType: components["schemas"]["ResourceInteractionType"];
+            repeatability: components["schemas"]["ResourceRepeatability"];
+            completionMode: components["schemas"]["ResourceCompletionMode"];
+            streakEligible: boolean;
+            expectedDurationMinutes: number;
+            cooldownDays: number;
+            recommendedFrequencyPerWeek: number;
+            planTags: string[];
             locale: string;
             title: string;
             summary: string;
             externalUrl?: string | null;
+            /** @description Simple accountable source label for catalogue cards. */
+            sourceOrganization?: string | null;
             status: components["schemas"]["ResourceStatus"];
             /** Format: date-time */
             reviewedAt?: string | null;
@@ -210,7 +1385,26 @@ export interface components {
             updatedAt?: string;
         };
         PublicResourceDetail: components["schemas"]["ResourceSummary"] & {
+            /** @description Exact immutable resource version represented by this detail response. */
+            contentVersion: string;
             contentBody: string | null;
+            sourceTitle?: string | null;
+            /** Format: uri */
+            sourceUrl?: string | null;
+            sourceReviewNote?: string | null;
+            structuredContent: {
+                [key: string]: unknown;
+            };
+            interactionConfig: {
+                [key: string]: unknown;
+            };
+            safetyNotes: string[];
+            /** Format: date-time */
+            sourceRetrievedAt: string | null;
+            sourceContentHash: string | null;
+            contentVersionLabel: string;
+            /** @enum {string} */
+            sourceReviewStatus: "REVIEWED" | "REVIEW_REQUIRED" | "NEEDS_SOURCE_REVIEW";
             /** Format: date-time */
             effectiveAt: string | null;
             /** Format: date-time */
@@ -220,6 +1414,10 @@ export interface components {
             /** Format: uuid */
             reviewedBy: string | null;
             version: number;
+            /** @description Immutable configured-authority decision for this exact version. */
+            reviewDecision: components["schemas"]["ResourceReviewDecision"] | null;
+            /** @description True when this draft follows preserved publication history and cannot be deleted. */
+            isCorrectionDraft: boolean;
         };
         ResourceListResponse: {
             data: components["schemas"]["ResourceSummary"][];
@@ -244,8 +1442,44 @@ export interface components {
             title: string;
             summary: string;
             contentBody?: string | null;
-            /** Format: uri */
+            /**
+             * Format: uri
+             * @description VIDEO resources require a verified HTTPS YouTube URL.
+             */
             externalUrl?: string | null;
+            resourceKind?: components["schemas"]["ResourceKind"];
+            interactionType?: components["schemas"]["ResourceInteractionType"];
+            repeatability?: components["schemas"]["ResourceRepeatability"];
+            completionMode?: components["schemas"]["ResourceCompletionMode"];
+            streakEligible?: boolean;
+            expectedDurationMinutes?: number;
+            cooldownDays?: number;
+            recommendedFrequencyPerWeek?: number;
+            planTags?: string[];
+            /** @default {} */
+            structuredContent: {
+                [key: string]: unknown;
+            };
+            /** @default {} */
+            interactionConfig: {
+                [key: string]: unknown;
+            };
+            safetyNotes?: string[];
+            /**
+             * @default DIRECT_ONLY
+             * @enum {string}
+             */
+            catalogueVisibility: "LISTED" | "DIRECT_ONLY";
+            /** @default draft-v1 */
+            contentVersionLabel: string;
+            sourceOrganization?: string | null;
+            sourceTitle?: string | null;
+            /** Format: uri */
+            sourceUrl?: string | null;
+            sourceReviewNote?: string | null;
+            /** Format: date-time */
+            sourceRetrievedAt?: string | null;
+            sourceContentHash?: string | null;
             /** Format: date-time */
             effectiveAt?: string | null;
             /** Format: date-time */
@@ -256,12 +1490,260 @@ export interface components {
             title?: string;
             summary?: string;
             contentBody?: string | null;
-            /** Format: uri */
+            /**
+             * Format: uri
+             * @description VIDEO resources require a verified HTTPS YouTube URL.
+             */
             externalUrl?: string | null;
+            resourceKind?: components["schemas"]["ResourceKind"];
+            interactionType?: components["schemas"]["ResourceInteractionType"];
+            repeatability?: components["schemas"]["ResourceRepeatability"];
+            completionMode?: components["schemas"]["ResourceCompletionMode"];
+            streakEligible?: boolean;
+            expectedDurationMinutes?: number;
+            cooldownDays?: number;
+            recommendedFrequencyPerWeek?: number;
+            planTags?: string[];
+            structuredContent?: {
+                [key: string]: unknown;
+            };
+            interactionConfig?: {
+                [key: string]: unknown;
+            };
+            safetyNotes?: string[];
+            /** @enum {string} */
+            catalogueVisibility?: "LISTED" | "DIRECT_ONLY";
+            contentVersionLabel?: string;
+            sourceOrganization?: string | null;
+            sourceTitle?: string | null;
+            /** Format: uri */
+            sourceUrl?: string | null;
+            sourceReviewNote?: string | null;
+            /** Format: date-time */
+            sourceRetrievedAt?: string | null;
+            sourceContentHash?: string | null;
             /** Format: date-time */
             effectiveAt?: string | null;
             /** Format: date-time */
             expiresAt?: string | null;
+        };
+        ResourceReviewRequest: {
+            /** @enum {string} */
+            decision: "APPROVED" | "REJECTED";
+            reasonCode: string;
+        };
+        ResourceReviewDecision: {
+            /** Format: uuid */
+            resourceId: string;
+            contentVersion: string;
+            /** @enum {string} */
+            decision: "APPROVED" | "REJECTED";
+            reasonCode: string;
+            authorityVersion: string;
+            /** Format: uuid */
+            reviewedBy: string;
+            /** Format: date-time */
+            reviewedAt: string;
+        };
+        /** @enum {string} */
+        EligibilityPolicyVersion: "content-eligibility-v1";
+        /**
+         * @description V1 screening domains only; GENERAL_WELLBEING and BOTH_SCREENED_DOMAINS are invalid.
+         * @enum {string}
+         */
+        ScreeningDomain: "DEPRESSIVE_SYMPTOMS" | "ANXIETY_SYMPTOMS";
+        /** @enum {string} */
+        EligibilityRole: "PRIMARY" | "ADJUNCT";
+        /**
+         * @description PRIMARY_OR_ADJUNCT is valid only for an optional SupportPlan slot.
+         * @enum {string}
+         */
+        RequiredEligibilityRole: "PRIMARY" | "PRIMARY_OR_ADJUNCT";
+        /** @enum {string} */
+        ScreeningInstrument: "PHQ_9" | "GAD_7";
+        /** @enum {string} */
+        ScreeningLevel: "MINIMAL" | "MILD" | "MODERATE" | "MODERATELY_SEVERE" | "SEVERE";
+        /** @enum {string} */
+        SupportTier: "SELF_GUIDED_SUPPORT" | "PROFESSIONAL_SUPPORT_RECOMMENDED" | "SAFETY_FOLLOW_UP_RECOMMENDED";
+        /** @enum {string} */
+        EligibilityPublicationState: "PUBLISHED" | "WITHDRAWN";
+        EligibilityDeclaration: {
+            targetDomain: components["schemas"]["ScreeningDomain"];
+            role: components["schemas"]["EligibilityRole"];
+            instrument: components["schemas"]["ScreeningInstrument"];
+            screeningLevels: components["schemas"]["ScreeningLevel"][];
+            supportTiers: components["schemas"]["SupportTier"][];
+        };
+        PublishResourceEligibilityRequest: {
+            policyVersion: components["schemas"]["EligibilityPolicyVersion"];
+            locale: string;
+            /** Format: date-time */
+            effectiveAt: string;
+            /** Format: date-time */
+            expiresAt?: string | null;
+            declarations: components["schemas"]["EligibilityDeclaration"][];
+        };
+        WithdrawResourceEligibilityRequest: {
+            policyVersion: components["schemas"]["EligibilityPolicyVersion"];
+            /** @enum {string} */
+            reasonCode: "CONTENT_WITHDRAWN" | "POLICY_WITHDRAWN" | "SUPERSEDED";
+        };
+        ResourceEligibilityPublication: {
+            /** Format: uuid */
+            publicationId: string;
+            /** Format: uuid */
+            resourceId: string;
+            contentVersion: string;
+            policyVersion: components["schemas"]["EligibilityPolicyVersion"];
+            locale: string;
+            state: components["schemas"]["EligibilityPublicationState"];
+            /** Format: date-time */
+            effectiveAt: string;
+            /** Format: date-time */
+            expiresAt?: string | null;
+            declarations: components["schemas"]["EligibilityDeclaration"][];
+            /** Format: date-time */
+            publishedAt: string;
+            /** Format: date-time */
+            withdrawnAt?: string | null;
+            /** @enum {string|null} */
+            withdrawalReasonCode?: "CONTENT_WITHDRAWN" | "POLICY_WITHDRAWN" | "SUPERSEDED" | null;
+        } & {
+            [key: string]: unknown;
+        };
+        ResourceEligibilityQuery: {
+            /** Format: uuid */
+            requestId: string;
+            /** Format: uuid */
+            resourceId: string;
+            contentVersion: string;
+            targetDomain: components["schemas"]["ScreeningDomain"];
+            requiredRole: components["schemas"]["RequiredEligibilityRole"];
+            instrument: components["schemas"]["ScreeningInstrument"];
+            screeningLevel: components["schemas"]["ScreeningLevel"];
+            supportTier: components["schemas"]["SupportTier"];
+            locale: string;
+        };
+        ResourceEligibilityBatchRequest: {
+            requests: components["schemas"]["ResourceEligibilityQuery"][];
+        };
+        /**
+         * @description UNAVAILABLE is a Care fail-closed fallback and is never emitted in a provider HTTP 200 response.
+         * @enum {string}
+         */
+        ResourceEligibilityOutcome: "ELIGIBLE" | "INELIGIBLE" | "STALE" | "WITHDRAWN" | "NOT_FOUND" | "UNAVAILABLE";
+        /** @enum {string} */
+        ResourceEligibilityReasonCode: "ELIGIBLE_MATCH" | "RESOURCE_NOT_FOUND" | "CONTENT_VERSION_STALE" | "NO_ELIGIBILITY_PUBLICATION" | "DOMAIN_OR_PATHWAY_NOT_ELIGIBLE" | "PRIMARY_REQUIRED" | "NOT_YET_EFFECTIVE" | "EFFECTIVE_WINDOW_ENDED" | "RESOURCE_ARCHIVED" | "RESOURCE_NOT_PUBLISHED" | "LOCALE_MISMATCH" | "ELIGIBILITY_WITHDRAWN" | "DEPENDENCY_UNAVAILABLE";
+        ResourceEligibilityResult: {
+            /** Format: uuid */
+            requestId: string;
+            /** Format: uuid */
+            resourceId: string;
+            contentVersion: string;
+            outcome: components["schemas"]["ResourceEligibilityOutcome"];
+            reasonCode: components["schemas"]["ResourceEligibilityReasonCode"];
+            role?: components["schemas"]["EligibilityRole"] | null;
+            /** Format: uuid */
+            publicationId?: string | null;
+            /** @description Present only for an eligible exact version so Care can persist the approved display snapshot. */
+            category?: components["schemas"]["ResourceCategory"] | null;
+            title?: string | null;
+            summary?: string | null;
+            /** Format: uri */
+            externalUrl?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        ResourceEligibilityBatchResponse: {
+            policyVersion: components["schemas"]["EligibilityPolicyVersion"];
+            /** Format: date-time */
+            resolvedAt: string;
+            results: components["schemas"]["ResourceEligibilityResult"][];
+        } & {
+            [key: string]: unknown;
+        };
+        ResourceCurrentVersionBatchRequest: {
+            resourceIds: string[];
+        };
+        ResourceCurrentVersion: {
+            /** Format: uuid */
+            resourceId: string;
+            /** @description Current resource row version; null only when no resource row exists. */
+            contentVersion: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        ResourceCurrentVersionBatchResponse: {
+            results: components["schemas"]["ResourceCurrentVersion"][];
+        } & {
+            [key: string]: unknown;
+        };
+        NotificationOperationsSummary: {
+            /** @example CONTENT_NOTIFICATION */
+            source: string;
+            /** Format: date-time */
+            asOf: string;
+            inApp: components["schemas"]["InAppNotificationOperationsSummary"];
+            emailReminders: components["schemas"]["EmailReminderOperationsSummary"];
+        };
+        InAppNotificationOperationsSummary: {
+            total: number;
+            delivered: number;
+            pending: number;
+            failed: number;
+            cancelled: number;
+            unread: number;
+            read: number;
+        };
+        EmailReminderOperationsSummary: {
+            total: number;
+            pending: number;
+            processing: number;
+            delivered: number;
+            failed: number;
+            suppressed: number;
+            invalidated: number;
+        };
+        ReminderOverview: {
+            /** @constant */
+            schemaVersion: "1.0";
+            /** Format: date-time */
+            asOf: string;
+            /** Format: date */
+            localDate: string;
+            timeZone: string;
+            preferences: components["schemas"]["NotificationPreferences"];
+            today: components["schemas"]["ReminderActivity"][];
+            previews: components["schemas"]["ReminderPreview"][];
+            unavailableCategories: ("SUPPORT_PLAN" | "RESOURCES" | "ASSESSMENT" | "PUSH")[];
+        };
+        ReminderActivity: {
+            id: string;
+            /** @enum {string} */
+            category: "JOURNAL" | "EMOTION_CHECK_IN";
+            /** @enum {string} */
+            status: "DUE" | "COMPLETED";
+            /** @enum {string} */
+            action: "OPEN_JOURNAL" | "OPEN_EMOTION_CHECK_IN";
+        };
+        ReminderPreview: {
+            /** @enum {string} */
+            kind: "JOURNAL_REMINDER" | "EMOTION_CHECKIN_REMINDER" | "DAILY_DIGEST" | "RESOURCE_REMINDER" | "APPOINTMENT_EMAIL";
+            /** @enum {string} */
+            channel: "IN_APP" | "EMAIL";
+            /** @enum {string} */
+            state: "ELIGIBLE" | "SCHEDULED" | "QUIET_HOURS" | "PAUSED" | "DISABLED" | "COMPLETED" | "NOT_NEEDED" | "ALREADY_DELIVERED" | "IN_PROGRESS" | "UNAVAILABLE";
+            /** Format: date-time */
+            nextEligibleAt: string | null;
+            /** @constant */
+            estimate: true;
+            latestDelivery: null | components["schemas"]["ReminderDeliveryFact"];
+        };
+        ReminderDeliveryFact: {
+            /** @enum {string} */
+            state: "PENDING" | "PROCESSING" | "CLAIMED" | "DELIVERED" | "FAILED" | "CANCELLED" | "INVALIDATED" | "SUPPRESSED" | "EXPIRED" | "UNKNOWN";
+            /** Format: date-time */
+            recordedAt: string;
         };
     };
     responses: {
@@ -292,6 +1774,23 @@ export interface components {
                 "application/problem+json": components["schemas"]["ProblemDetails"];
             };
         };
+        /** @description The authenticated owner exceeded the bounded push-device command rate */
+        PushDeviceRateLimited: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "type": "https://mentalbridge.io/errors/PUSH_DEVICE_RATE_LIMITED",
+                 *       "title": "Push device request rate exceeded",
+                 *       "status": 429,
+                 *       "code": "PUSH_DEVICE_RATE_LIMITED"
+                 *     }
+                 */
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
         /** @description The actor reused an idempotency key with a different create payload */
         IdempotencyConflict: {
             headers: {
@@ -301,7 +1800,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["ProblemDetails"];
             };
         };
-        /** @description Publish is unavailable until an approved MB-251 review decision is recorded */
+        /** @description The exact draft lacks an approved configured-authority review decision */
         ReviewApprovalRequired: {
             headers: {
                 [name: string]: unknown;
@@ -392,8 +1891,46 @@ export interface components {
                 "application/problem+json": components["schemas"]["ProblemDetails"];
             };
         };
+        /** @description If-Match does not equal the current owner preference version */
+        PreferenceVersionMismatch: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description If-Match is required for a preference update */
+        PreferenceVersionRequired: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description The notification does not exist for the authenticated owner */
+        NotificationNotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description The owned notification was deleted or expired before the read command */
+        NotificationGone: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
     };
     parameters: {
+        /** @description Caller correlation identifier; the server generates one when omitted */
+        CorrelationId: string;
         ResourceId: string;
         /** @description Opaque key reused only for an unchanged logical create request by this actor. */
         IdempotencyKey: string;
@@ -401,13 +1938,85 @@ export interface components {
         Category: components["schemas"]["ResourceCategory"];
         Limit: number;
         Cursor: string;
+        /** @description Exact non-negative 64-bit content version encoded as a JSON-safe decimal string. */
+        ContentVersion: string;
+        DirectoryEntryId: string;
+        DirectoryVersion: number;
+        /** @description Strong ETag from the last owner preference read. */
+        NotificationPreferenceIfMatch: string;
+        NotificationId: string;
     };
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description Strong ETag containing the current preference version. */
+        NotificationPreferenceETag: string;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getReminderOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current owner facts and at most five reminder previews */
+            200: {
+                headers: {
+                    "Cache-Control"?: "private, no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReminderOverview"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description USER role required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Preferences changed while composing the overview; retry the read */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Query parameters are unsupported */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Preferences, delivery storage or current activity authority unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     getLive: {
         parameters: {
             query?: never;
@@ -608,6 +2217,8 @@ export interface operations {
         parameters: {
             query?: {
                 locale?: components["parameters"]["Locale"];
+                /** @description Exact non-negative content version requested by a persisted consumer reference. When present, the exact immutable publication is returned and no newer version is substituted. */
+                contentVersion?: string;
             };
             header?: never;
             path: {
@@ -686,6 +2297,532 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listResourceProgress: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-scoped progress ordered by local date and recent activity */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceProgressList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    saveResourceProgress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resourceId: string;
+                localDate: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceProgressUpdate"];
+            };
+        };
+        responses: {
+            /** @description Persisted daily progress */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceProgressItem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description RESOURCE_VERSION_UNAVAILABLE; supplied version is not a listed publication snapshot */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "https://mentalbridge.io/errors/RESOURCE_VERSION_UNAVAILABLE",
+                     *       "title": "Resource version unavailable",
+                     *       "status": 409,
+                     *       "code": "RESOURCE_VERSION_UNAVAILABLE",
+                     *       "correlationId": "78000000-0000-4000-8000-000000000001"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getResourceCompletionEvidence: {
+        parameters: {
+            query: {
+                resourceId: string;
+                resourceVersion: string;
+                localDate: string;
+                timeZone: string;
+                /** @description Fact IDs already used for this owner, resource and exact revision; omitted considers every candidate. */
+                excludedFactIds?: string[];
+            };
+            header?: {
+                "X-Correlation-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest qualifying minimized owner fact */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "factKind": "RESOURCE_PRACTICE_SESSION",
+                     *       "factId": "77000000-0000-4000-8000-000000000001",
+                     *       "resourceVersion": "2",
+                     *       "occurredAt": "2026-10-21T12:00:00Z",
+                     *       "verifiedAt": "2026-10-21T12:02:00Z"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ResourceCompletionEvidence"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description RESOURCE_EVIDENCE_NOT_FOUND; no qualifying exact-version owner fact for this local date */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "https://mentalbridge.io/errors/RESOURCE_EVIDENCE_NOT_FOUND",
+                     *       "title": "Resource evidence not found",
+                     *       "status": 404,
+                     *       "code": "RESOURCE_EVIDENCE_NOT_FOUND",
+                     *       "correlationId": "78000000-0000-4000-8000-000000000001"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listResourceBookmarks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-scoped bookmarks ordered by the original saved instant */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceBookmarkList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    saveResourceBookmark: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resourceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Saved bookmark; an identical retry returns the existing fact */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceBookmark"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    deleteResourceBookmark: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resourceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bookmark absent after this idempotent command */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getResourceBingo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                weekStart: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Persisted owner-scoped board */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceBingoBoard"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    syncResourceBingoPlan: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Correlation-Id"?: string;
+            };
+            path: {
+                weekStart: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    timeZone: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Current plan board and skipped actions; strong ETag matches version */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "weekStart": "2026-10-19",
+                     *       "timeZone": "Asia/Ho_Chi_Minh",
+                     *       "version": "1",
+                     *       "updatedAt": "2026-10-21T12:03:00Z",
+                     *       "items": [
+                     *         {
+                     *           "position": 1,
+                     *           "resourceId": "73000000-0000-4000-8000-000000000001",
+                     *           "contentVersion": "2",
+                     *           "actionId": "72000000-0000-4000-8000-000000000001",
+                     *           "retired": false,
+                     *           "label": "Slow breathing practice",
+                     *           "evidence": "CONTENT_VERIFIED",
+                     *           "selfConfirmedAt": null,
+                     *           "verifiedAt": "2026-10-21T12:02:00Z",
+                     *           "verificationSource": "PRACTICE_SESSION"
+                     *         }
+                     *       ],
+                     *       "unavailableActions": [
+                     *         {
+                     *           "actionId": "72000000-0000-4000-8000-000000000002",
+                     *           "reason": "RESOURCE_VERSION_UNAVAILABLE"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ResourceBingoPlanSync"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description RESOURCE_BINGO_WEEK_NOT_CURRENT; past or future weeks cannot be resynced */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "https://mentalbridge.io/errors/RESOURCE_BINGO_WEEK_NOT_CURRENT",
+                     *       "title": "Bingo week is not current",
+                     *       "status": 409,
+                     *       "code": "RESOURCE_BINGO_WEEK_NOT_CURRENT",
+                     *       "correlationId": "78000000-0000-4000-8000-000000000001"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+            /** @description RESOURCE_BINGO_CARE_UNAVAILABLE for Care failure, or persistence dependency unavailable; board unchanged */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "https://mentalbridge.io/errors/RESOURCE_BINGO_CARE_UNAVAILABLE",
+                     *       "title": "Care resource actions unavailable",
+                     *       "status": 503,
+                     *       "code": "RESOURCE_BINGO_CARE_UNAVAILABLE",
+                     *       "correlationId": "78000000-0000-4000-8000-000000000001"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    setResourceBingoSelfConfirmation: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                weekStart: string;
+                position: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceBingoSelfConfirmationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Current board after an idempotent, version-checked update */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceBingoBoard"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description RESOURCE_BINGO_ITEM_RETIRED; retired items are read-only */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "https://mentalbridge.io/errors/RESOURCE_BINGO_ITEM_RETIRED",
+                     *       "title": "Bingo item retired",
+                     *       "status": 409,
+                     *       "code": "RESOURCE_BINGO_ITEM_RETIRED",
+                     *       "correlationId": "78000000-0000-4000-8000-000000000001"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            412: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationError"];
+            428: components["responses"]["RequestRejected"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getResourceRewards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-scoped reward read model with source and rule provenance */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceRewardReadModel"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    setResourceRewardVisibility: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceRewardVisibilityUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated preference and freshly calculated reward read model */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceRewardReadModel"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getAchievements: {
+        parameters: {
+            query: {
+                timezone: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Private owner-scoped collection */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AchievementCollection"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    setAchievementVisibility: {
+        parameters: {
+            query: {
+                timezone: string;
+            };
+            header: {
+                "If-Match": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AchievementPreferenceUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated preference and freshly calculated collection */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AchievementCollection"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            412: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationError"];
+            428: components["responses"]["RequestRejected"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    materializeResourceJourney: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                localDate: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceJourneyRequest"];
+            };
+        };
+        responses: {
+            /** @description Stable daily assignment, progress dimensions and weekly bingo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceJourney"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     publishResource: {
@@ -701,10 +2838,81 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Immutable exact-version publication created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceSummary"];
+                };
+            };
             400: components["responses"]["RequestRejected"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            409: components["responses"]["ReviewApprovalRequired"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    reviewResource: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["ResourceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Immutable review decision for the exact draft version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceReviewDecision"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    createResourceVersion: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["ResourceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description New editable content version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminResourceDetail"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
         };
     };
     archiveResource: {
@@ -733,6 +2941,651 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    publishResourceEligibility: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Opaque key reused only for an unchanged logical create request by this actor. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["ResourceId"];
+                /** @description Exact non-negative 64-bit content version encoded as a JSON-safe decimal string. */
+                contentVersion: components["parameters"]["ContentVersion"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishResourceEligibilityRequest"];
+            };
+        };
+        responses: {
+            /** @description Immutable eligibility publication created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceEligibilityPublication"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    withdrawResourceEligibility: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Opaque key reused only for an unchanged logical create request by this actor. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["ResourceId"];
+                /** @description Exact non-negative 64-bit content version encoded as a JSON-safe decimal string. */
+                contentVersion: components["parameters"]["ContentVersion"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WithdrawResourceEligibilityRequest"];
+            };
+        };
+        responses: {
+            /** @description Eligibility publication withdrawn or an identical command replayed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceEligibilityPublication"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    resolveResourceEligibility: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceEligibilityBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Deterministic exact-version eligibility outcomes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceEligibilityBatchResponse"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    resolveResourceCurrentVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceCurrentVersionBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Current version per requested resource, in request order */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceCurrentVersionBatchResponse"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listSafetyDirectoryEntriesForAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All current administrative records, including inactive and stale entries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SafetyDirectoryAdminEntry"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    createSafetyDirectoryEntry: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Opaque key reused only for an unchanged logical create request by this actor. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SafetyDirectoryEntryWrite"];
+            };
+        };
+        responses: {
+            /** @description Inactive unreviewed record created or identical command replayed */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SafetyDirectoryAdminEntry"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["IdempotencyConflict"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    updateSafetyDirectoryEntry: {
+        parameters: {
+            query: {
+                version: components["parameters"]["DirectoryVersion"];
+            };
+            header?: never;
+            path: {
+                entryId: components["parameters"]["DirectoryEntryId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SafetyDirectoryEntryWrite"];
+            };
+        };
+        responses: {
+            /** @description Record updated, deactivated, and returned to unreviewed state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SafetyDirectoryAdminEntry"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    reviewSafetyDirectoryEntry: {
+        parameters: {
+            query: {
+                version: components["parameters"]["DirectoryVersion"];
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                entryId: components["parameters"]["DirectoryEntryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exact record version reviewed, verified with server time, and activated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SafetyDirectoryAdminEntry"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    deactivateSafetyDirectoryEntry: {
+        parameters: {
+            query: {
+                version: components["parameters"]["DirectoryVersion"];
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                entryId: components["parameters"]["DirectoryEntryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Record is inactive; repeating against the current inactive version is safe */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SafetyDirectoryAdminEntry"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    lookupSafetyDirectory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SafetyDirectoryLookupRequest"];
+            };
+        };
+        responses: {
+            /** @description Current records or an explicit empty/invalid-area outcome */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SafetyDirectoryLookupResponse"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getNotificationPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current preferences, creating the stable defaults when first accessed */
+            200: {
+                headers: {
+                    ETag: components["headers"]["NotificationPreferenceETag"];
+                    "Cache-Control"?: "private, no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPreferences"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    updateNotificationPreferences: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Strong ETag from the last owner preference read. */
+                "If-Match": components["parameters"]["NotificationPreferenceIfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationPreferencePatch"];
+            };
+        };
+        responses: {
+            /** @description Persisted preferences */
+            200: {
+                headers: {
+                    ETag: components["headers"]["NotificationPreferenceETag"];
+                    "Cache-Control"?: "private, no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPreferences"];
+                };
+            };
+            400: components["responses"]["RequestRejected"];
+            401: components["responses"]["Unauthorized"];
+            412: components["responses"]["PreferenceVersionMismatch"];
+            422: components["responses"]["ValidationError"];
+            428: components["responses"]["PreferenceVersionRequired"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    registerPushDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description App-generated installation UUID; it is not a hardware identifier. */
+                installationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushDeviceRegistrationRequest"];
+            };
+        };
+        responses: {
+            /** @description Current owner-scoped device registration without its provider token */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushDeviceRegistration"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["PushDeviceRateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    revokePushDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description App-generated installation UUID; it is not a hardware identifier. */
+                installationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Device registration is revoked or was already revoked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["PushDeviceRateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getNotificationLiveEligibility: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notificationId: components["parameters"]["NotificationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exact currently eligible notification pointer */
+            200: {
+                headers: {
+                    "Cache-Control"?: "private, no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "notificationId": "44444444-4444-4444-8444-444444444444"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["NotificationLiveEligibility"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description Authenticated actor does not have exact SPECIALIST role */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Absent, foreign or currently suppressed notification; NOTIFICATION_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "type": "https://mentalbridge.io/errors/NOTIFICATION_NOT_FOUND",
+                     *       "title": "Notification not found",
+                     *       "status": 404,
+                     *       "code": "NOTIFICATION_NOT_FOUND",
+                     *       "correlationId": "22222222-2222-4222-8222-222222222222"
+                     *     }
+                     */
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+            /** @description Current notification eligibility storage is unavailable or uncertain */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    listNotifications: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque continuation token returned by the previous page. */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active, non-expired notifications owned by the authenticated user */
+            200: {
+                headers: {
+                    "Cache-Control"?: "private, no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    previewWellbeingDigest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current local-day digest preview built from real pending items */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WellbeingDigestPreview"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    markNotificationRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notificationId: components["parameters"]["NotificationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current notification with the original or newly assigned read time */
+            200: {
+                headers: {
+                    "Cache-Control"?: "private, no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notification"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotificationNotFound"];
+            410: components["responses"]["NotificationGone"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    markAllNotificationsRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Number of notifications changed by this idempotent operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationBulkReadResult"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    deleteNotification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notificationId: components["parameters"]["NotificationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Notification is deleted or was already deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotificationNotFound"];
+            422: components["responses"]["ValidationError"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getNotificationOperationsSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aggregate delivery statistics across in-app notifications and email reminders */
+            200: {
+                headers: {
+                    "Cache-Control"?: "private, no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationOperationsSummary"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
 }

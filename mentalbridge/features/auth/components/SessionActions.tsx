@@ -1,15 +1,93 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 
 import { terminateSession, type LogoutMode } from '../api/browser-auth'
 import styles from './SessionActions.module.css'
 
-export default function SessionActions({ compact = false }) {
+function Icon({ children }: { children: React.ReactNode }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {children}
+    </svg>
+  )
+}
+
+export default function SessionActions({
+  compact = false,
+  displayName = 'Người dùng',
+  avatar = 'N',
+  accountKind = 'personal',
+  accountLabel,
+  description,
+  profileHref,
+  profileLabel,
+  showSubscription,
+  onReplayTour,
+}: {
+  compact?: boolean
+  displayName?: string
+  avatar?: ReactNode
+  accountKind?: 'personal' | 'specialist'
+  accountLabel?: string
+  description?: string
+  profileHref?: string
+  profileLabel?: string
+  showSubscription?: boolean
+  onReplayTour?: () => void
+}) {
   const router = useRouter()
+  const menuId = useId()
+  const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const actionPending = useRef(false)
+  const [open, setOpen] = useState(false)
   const [pendingMode, setPendingMode] = useState<LogoutMode | null>(null)
+  const specialist = accountKind === 'specialist'
+  const resolvedAccountLabel =
+    description ??
+    accountLabel ??
+    (specialist ? 'Tài khoản chuyên gia' : 'Tài khoản cá nhân')
+  const resolvedProfileHref =
+    profileHref ?? (specialist ? '/specialist/profile' : '/profile')
+  const resolvedProfileLabel =
+    profileLabel ?? (specialist ? 'Hồ sơ chuyên gia' : 'Hồ sơ cá nhân')
+  const subscriptionEnabled = showSubscription ?? !specialist
+
+  useEffect(() => {
+    if (!open) return
+
+    const closeFromOutside = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !rootRef.current?.contains(event.target)
+      )
+        setOpen(false)
+    }
+    const closeFromKeyboard = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      setOpen(false)
+      triggerRef.current?.focus()
+    }
+
+    document.addEventListener('pointerdown', closeFromOutside)
+    document.addEventListener('keydown', closeFromKeyboard)
+    return () => {
+      document.removeEventListener('pointerdown', closeFromOutside)
+      document.removeEventListener('keydown', closeFromKeyboard)
+    }
+  }, [open])
 
   const endSession = async (mode: LogoutMode) => {
     if (actionPending.current) return
@@ -28,20 +106,169 @@ export default function SessionActions({ compact = false }) {
   }
 
   return (
-    <div className={styles.actions} data-compact={compact || undefined}>
+    <div
+      ref={rootRef}
+      className={styles.root}
+      data-compact={compact || undefined}
+      data-account-kind={accountKind}
+    >
+      {open ? (
+        <div
+          id={menuId}
+          className={styles.menu}
+          role="menu"
+          aria-label={
+            specialist ? 'Tài khoản chuyên gia' : 'Tài khoản người dùng'
+          }
+        >
+          <div className={styles.menuHeader}>
+            <span className={styles.headerAvatar}>{avatar}</span>
+            <span>
+              <strong>{displayName}</strong>
+              <small>{resolvedAccountLabel}</small>
+            </span>
+          </div>
+          <Link
+            href={resolvedProfileHref}
+            className={styles.menuItem}
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            title={compact ? resolvedProfileLabel : undefined}
+          >
+            <span className={styles.itemIcon}>
+              <Icon>
+                <circle cx="12" cy="8" r="3.4" />
+                <path d="M4.5 20c1.2-4 4-6 7.5-6s6.3 2 7.5 6" />
+              </Icon>
+            </span>
+            <span className={styles.itemLabel}>{resolvedProfileLabel}</span>
+          </Link>
+          {subscriptionEnabled && (
+            <>
+              <Link
+                href="/achievements"
+                className={styles.menuItem}
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                title={compact ? 'Dấu mốc của bạn' : undefined}
+              >
+                <span className={styles.itemIcon}>
+                  <Icon>
+                    <path d="M12 3c1.2 3.2 3.4 5.2 6.5 6.2-3.1 1-5.3 3-6.5 6.2-1.2-3.2-3.4-5.2-6.5-6.2C8.6 8.2 10.8 6.2 12 3Z" />
+                    <path d="M6 15c.6 1.7 1.7 2.8 3.4 3.4C7.7 19 6.6 20.1 6 21.8c-.6-1.7-1.7-2.8-3.4-3.4C4.3 17.8 5.4 16.7 6 15Z" />
+                  </Icon>
+                </span>
+                <span className={styles.itemLabel}>Dấu mốc của bạn</span>
+              </Link>
+              <Link
+                href="/subscription"
+                className={styles.menuItem}
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                title={compact ? 'Gói dịch vụ' : undefined}
+              >
+                <span className={styles.itemIcon}>
+                  <Icon>
+                    <rect x="3" y="6" width="18" height="12" rx="2.5" />
+                    <path d="M3 10h18" />
+                  </Icon>
+                </span>
+                <span className={styles.itemLabel}>Gói dịch vụ</span>
+              </Link>
+            </>
+          )}
+          {onReplayTour && (
+            <button
+              type="button"
+              className={styles.menuItem}
+              role="menuitem"
+              disabled={pendingMode !== null}
+              onClick={() => {
+                setOpen(false)
+                triggerRef.current?.focus()
+                onReplayTour()
+              }}
+            >
+              <span className={styles.itemIcon}>
+                <Icon>
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="m16 8-2 6-6 2 2-6 6-2Z" />
+                </Icon>
+              </span>
+              <span className={styles.itemLabel}>Xem lại hướng dẫn</span>
+            </button>
+          )}
+          <div className={styles.separator} role="separator" />
+          <button
+            type="button"
+            className={`${styles.menuItem} ${styles.logoutItem}`}
+            role="menuitem"
+            onClick={() => void endSession('current')}
+            disabled={pendingMode !== null}
+            title={compact ? 'Đăng xuất' : undefined}
+          >
+            <span className={styles.itemIcon}>
+              <Icon>
+                <path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10" />
+              </Icon>
+            </span>
+            <span className={styles.itemLabel}>
+              {pendingMode === 'current' ? 'Đang đăng xuất...' : 'Đăng xuất'}
+            </span>
+          </button>
+          <button
+            type="button"
+            className={`${styles.menuItem} ${styles.logoutItem}`}
+            role="menuitem"
+            onClick={() => void endSession('all')}
+            disabled={pendingMode !== null}
+            title={compact ? 'Đăng xuất mọi thiết bị' : undefined}
+          >
+            <span className={styles.itemIcon}>
+              <Icon>
+                <path d="M8 5H4v14h4M14 8l4 4-4 4M8 12h10" />
+                <path d="M11 4h9v16h-9" />
+              </Icon>
+            </span>
+            <span className={styles.itemLabel}>
+              {pendingMode === 'all'
+                ? 'Đang xử lý...'
+                : 'Đăng xuất mọi thiết bị'}
+            </span>
+          </button>
+        </div>
+      ) : null}
       <button
+        ref={triggerRef}
+        data-onboarding={onReplayTour ? 'profile' : undefined}
         type="button"
-        onClick={() => endSession('current')}
-        disabled={pendingMode !== null}
+        className={styles.trigger}
+        aria-label={`${open ? 'Đóng' : 'Mở'} menu tài khoản${specialist ? ' chuyên gia' : ''}`}
+        title={compact ? `${displayName} · ${resolvedAccountLabel}` : undefined}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        onClick={() => setOpen((current) => !current)}
       >
-        {pendingMode === 'current' ? 'Đang đăng xuất...' : 'Đăng xuất'}
-      </button>
-      <button
-        type="button"
-        onClick={() => endSession('all')}
-        disabled={pendingMode !== null}
-      >
-        {pendingMode === 'all' ? 'Đang xử lý...' : 'Đăng xuất mọi thiết bị'}
+        <span className={styles.avatar} aria-hidden="true">
+          {avatar}
+        </span>
+        <span className={styles.triggerCopy}>
+          <strong>{displayName}</strong>
+          <small>{resolvedAccountLabel}</small>
+        </span>
+        <svg
+          className={styles.chevron}
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="m6 8 4 4 4-4" />
+        </svg>
       </button>
     </div>
   )

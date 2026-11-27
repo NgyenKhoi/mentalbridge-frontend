@@ -33,6 +33,8 @@ import {
 } from '@/app/api/admin/resources/[id]/route'
 import { POST as publish } from '@/app/api/admin/resources/[id]/publish/route'
 import { POST as archive } from '@/app/api/admin/resources/[id]/archive/route'
+import { POST as review } from '@/app/api/admin/resources/[id]/review/route'
+import { POST as createVersion } from '@/app/api/admin/resources/[id]/versions/route'
 
 const RESOURCE_ID = '123e4567-e89b-42d3-a456-426614174000'
 const CORRELATION_ID = '223e4567-e89b-42d3-a456-426614174000'
@@ -57,11 +59,14 @@ const summary = {
 }
 const fullDetail = {
   ...summary,
+  contentVersion: '0',
   contentBody: 'Body',
   reviewedBy: null,
   effectiveAt: null,
   expiresAt: null,
   version: 0,
+  reviewDecision: null,
+  isCorrectionDraft: false,
 }
 
 function json(body: unknown, status = 200, contentType = 'application/json') {
@@ -146,6 +151,19 @@ describe('Content admin BFF boundary', () => {
       title: 'Draft',
       summary: 'Summary',
       contentBody: 'Body',
+      resourceKind: 'ACTION',
+      interactionType: 'PROBLEM_SOLVING_WORKSHEET',
+      repeatability: 'REPEATABLE',
+      completionMode: 'STEPS',
+      streakEligible: true,
+      expectedDurationMinutes: 8,
+      cooldownDays: 1,
+      recommendedFrequencyPerWeek: 3,
+      planTags: ['ANXIETY_SYMPTOMS'],
+      structuredContent: { overview: 'Reviewed overview' },
+      interactionConfig: {
+        steps: [{ id: 'define', label: 'Define the problem' }],
+      },
     }
 
     expect(
@@ -177,6 +195,13 @@ describe('Content admin BFF boundary', () => {
         }),
       }),
     )
+    const request = fetchMock.mock.calls.at(-1)?.[1]
+    expect(JSON.parse(String(request?.body))).toMatchObject({
+      resourceKind: 'ACTION',
+      interactionType: 'PROBLEM_SOLVING_WORKSHEET',
+      recommendedFrequencyPerWeek: 3,
+      structuredContent: { overview: 'Reviewed overview' },
+    })
   })
 
   it('validates malformed requests before contacting Content', async () => {
@@ -195,6 +220,38 @@ describe('Content admin BFF boundary', () => {
     expect(response.headers.get('content-type')).toContain(
       'application/problem+json',
     )
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects attempts to forge the server-owned review state', async () => {
+    const fetchMock = vi.spyOn(global, 'fetch')
+    const createResponse = await create(
+      req('/api/admin/resources', {
+        method: 'POST',
+        body: JSON.stringify({
+          category: 'ARTICLE',
+          title: 'Draft',
+          summary: 'Summary',
+          contentBody: 'Body',
+          sourceReviewStatus: 'REVIEWED',
+        }),
+        headers: {
+          'content-type': 'application/json',
+          'idempotency-key': 'forged-review-state',
+        },
+      }),
+    )
+    const updateResponse = await update(
+      req(`/api/admin/resources/${RESOURCE_ID}?version=0`, {
+        method: 'PATCH',
+        body: JSON.stringify({ sourceReviewStatus: 'REVIEWED' }),
+        headers: { 'content-type': 'application/json' },
+      }),
+      context,
+    )
+
+    expect(createResponse.status).toBe(422)
+    expect(updateResponse!.status).toBe(422)
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -226,12 +283,23 @@ describe('Content admin BFF boundary', () => {
       (await update(
         req(`/api/admin/resources/${RESOURCE_ID}?version=0`, {
           method: 'PATCH',
-          body: JSON.stringify({ title: 'Updated' }),
+          body: JSON.stringify({
+            title: 'Updated',
+            interactionType: 'SELF_COMPASSION_PROMPTS',
+            recommendedFrequencyPerWeek: 4,
+          }),
           headers: { 'content-type': 'application/json' },
         }),
         context,
       ))!.status,
     ).toBe(200)
+    expect(
+      JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)),
+    ).toMatchObject({
+      title: 'Updated',
+      interactionType: 'SELF_COMPASSION_PROMPTS',
+      recommendedFrequencyPerWeek: 4,
+    })
     expect(
       (await remove(
         req(`/api/admin/resources/${RESOURCE_ID}?version=0`, {
@@ -261,6 +329,96 @@ describe('Content admin BFF boundary', () => {
       ).status,
     ).toBe(200)
     expect(fetchMock).toHaveBeenCalledTimes(4)
+  })
+
+  it('forwards exact-version review, publish, and correction-version transitions', async () => {
+    const decision = {
+      resourceId: RESOURCE_ID,
+      contentVersion: '0',
+      decision: 'APPROVED',
+      reasonCode: 'SOURCE_AND_CONTENT_APPROVED',
+      authorityVersion: 'RESOURCE_REVIEW_AUTHORITY_V1',
+      reviewedBy: '323e4567-e89b-42d3-a456-426614174000',
+      reviewedAt: '2026-10-11T00:00:00Z',
+    }
+    const fetchMock = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(json(decision))
+      .mockResolvedValueOnce(
+        json({
+          ...decision,
+          contentVersion: '1',
+          decision: 'REJECTED',
+          reasonCode: 'SOURCE_REQUIRES_REVISION',
+        }),
+      )
+      .mockResolvedValueOnce(
+        json({
+          ...summary,
+          status: 'PUBLISHED',
+          reviewedAt: decision.reviewedAt,
+        }),
+      )
+      .mockResolvedValueOnce(
+        json({
+          ...fullDetail,
+          contentVersion: '1',
+          version: 1,
+        }),
+      )
+
+    const reviewResponse = await review(
+      req(`/api/admin/resources/${RESOURCE_ID}/review?version=0`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          decision: 'APPROVED',
+          reasonCode: 'SOURCE_AND_CONTENT_APPROVED',
+        }),
+      }),
+      context,
+    )
+    expect(reviewResponse.status).toBe(200)
+    expect(await reviewResponse.json()).toEqual(decision)
+
+    const rejectionResponse = await review(
+      req(`/api/admin/resources/${RESOURCE_ID}/review?version=1`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          decision: 'REJECTED',
+          reasonCode: 'SOURCE_REQUIRES_REVISION',
+        }),
+      }),
+      context,
+    )
+    expect(rejectionResponse.status).toBe(200)
+
+    const publishResponse = await publish(
+      req(`/api/admin/resources/${RESOURCE_ID}/publish?version=0`, {
+        method: 'POST',
+      }),
+      context,
+    )
+    expect(publishResponse.status).toBe(200)
+
+    const versionResponse = await createVersion(
+      req(`/api/admin/resources/${RESOURCE_ID}/versions?version=0`, {
+        method: 'POST',
+      }),
+      context,
+    )
+    expect(versionResponse.status).toBe(200)
+    expect((await versionResponse.json()).contentVersion).toBe('1')
+
+    expect(
+      fetchMock.mock.calls.map(([input]) => new URL(String(input)).pathname),
+    ).toEqual([
+      `/api/v1/resources/${RESOURCE_ID}/review`,
+      `/api/v1/resources/${RESOURCE_ID}/review`,
+      `/api/v1/resources/${RESOURCE_ID}/publish`,
+      `/api/v1/resources/${RESOURCE_ID}/versions`,
+    ])
   })
 
   it('sanitizes malformed upstream errors and unknown mutation outcomes', async () => {

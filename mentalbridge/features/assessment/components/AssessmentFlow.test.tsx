@@ -157,8 +157,25 @@ describe('AssessmentFlow', () => {
 
     await screen.findByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' })
     expect(screen.getByText('1')).toBeVisible()
-    expect(screen.getByText('Dương tính theo quy tắc sàng lọc')).toBeVisible()
+    expect(screen.getByText('Có câu trả lời cần bạn lưu ý')).toBeVisible()
+    expect(
+      screen.getByRole('link', {
+        name: 'Xem hỗ trợ trong khu vực đã chọn',
+      }),
+    ).toHaveAttribute('href', '/safety-directory?trigger=positive-item-9')
     expect(screen.getByText(/không giám sát con người 24\/7/i)).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: /Đọc và thực hành/ }),
+    ).toHaveAttribute('href', '/resources')
+    expect(
+      screen.getByRole('link', { name: /Trao đổi với chuyên gia/ }),
+    ).toHaveAttribute('href', '/specialists')
+    expect(
+      screen.getByText(/kết quả này không được đăng tự động/i),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('link', { name: /Theo dõi kế hoạch hỗ trợ/ }),
+    ).not.toBeInTheDocument()
     expect(screen.queryByText(/hotline/i)).not.toBeInTheDocument()
     expect(received).toHaveBeenCalledWith({
       body: {
@@ -320,8 +337,10 @@ describe('AssessmentFlow', () => {
     )
 
     await screen.findByRole('heading', { name: 'Kết quả sàng lọc PHQ-9' })
-    await userEvent.click(screen.getByText('Nội dung và thang điểm đã dùng'))
+    await userEvent.click(
+      screen.getByText('Nội dung và thang điểm của bài này'),
+    )
     expect(screen.getByText(oldQuestion)).toBeVisible()
-    expect(screen.getAllByText(/phq9-vi-vn-capstone-v1/i)).toHaveLength(2)
+    expect(screen.getAllByText(/phq9-vi-vn-capstone-v1/i)).toHaveLength(1)
   })
 })

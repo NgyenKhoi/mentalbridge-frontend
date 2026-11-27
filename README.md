@@ -1,11 +1,15 @@
 # MentalBridge frontend
 
-The repository contains the MentalBridge web UI. The Next.js application and
-all npm commands live in [`mentalbridge/`](mentalbridge/).
+The repository contains two MentalBridge delivery clients:
+
+- [`mentalbridge/`](mentalbridge/) is the Next.js web application.
+- [`mobile/`](mobile/) is the Expo/React Native Android and iOS application.
 
 Start with:
 
 - [`mentalbridge/README.md`](mentalbridge/README.md) for setup and runtime facts.
+- [`mobile/README.md`](mobile/README.md) for the mobile runtime, local builds,
+  configuration, and quality commands.
 - [`mentalbridge/docs/README.md`](mentalbridge/docs/README.md) for architecture
   and engineering decisions.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`AGENTS.md`](AGENTS.md) before making

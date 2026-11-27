@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { lockBodyScroll } from '@/lib/dom/body-scroll-lock'
 import './NewAppointmentModal.css'
 
 export type NewAppointment = {
@@ -47,14 +48,13 @@ export default function NewAppointmentModal({ initialSpecialistId, onClose, onBo
   const selectedSpecialist = SPECIALISTS.find(item => item.id === specialistId) ?? SPECIALISTS[0]
 
   useEffect(() => {
-    const previousOverflow = document.body.style.overflow
+    const releaseScrollLock = lockBodyScroll()
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !isSubmitting) onClose()
     }
-    document.body.style.overflow = 'hidden'
     document.addEventListener('keydown', closeOnEscape)
     return () => {
-      document.body.style.overflow = previousOverflow
+      releaseScrollLock()
       document.removeEventListener('keydown', closeOnEscape)
     }
   }, [isSubmitting, onClose])

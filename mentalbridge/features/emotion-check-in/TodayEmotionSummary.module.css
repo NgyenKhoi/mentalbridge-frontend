@@ -1,0 +1,81 @@
+.card {
+  padding: 18px;
+  border: 1px solid var(--rs-line);
+  border-radius: 18px;
+  background: #fff;
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.heading h2 {
+  margin: 0;
+  color: var(--rs-ink);
+  font-size: 16px;
+}
+
+.heading a,
+.state button {
+  color: #126e52;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.state {
+  margin: 16px 0 8px;
+  color: var(--rs-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.state p {
+  margin: 0 0 8px;
+}
+
+.state button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.record {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0 8px;
+  padding: 13px;
+  border-radius: 14px;
+  background: #eef7f2;
+}
+
+.emoji {
+  font-size: 28px;
+}
+
+.record div {
+  display: grid;
+  gap: 2px;
+}
+
+.record strong {
+  color: var(--rs-ink);
+  font-size: 15px;
+}
+
+.record span,
+.record small,
+.note {
+  color: var(--rs-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.note {
+  margin: 8px 0 0;
+}

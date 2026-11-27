@@ -1,0 +1,96 @@
+{
+  "scope": "Current production build; isolated synthetic Identity and browser Community responses, no shared DB/provider requests.",
+  "checks": [
+    "1440x900: real UI, fonts, no overflow, picker44",
+    "1280x800: real UI, fonts, no overflow, picker44",
+    "768x1024: real UI, fonts, no overflow, picker44",
+    "375x812: real UI, fonts, no overflow, picker44",
+    "640x400: real UI, fonts, no overflow, picker44",
+    "Browser Back cancel preserves local File and name draft",
+    "Save failure preserves photo/name; retry reuses ready media and commits confirmed photo",
+    "Authoritative reload retains selected photo and saved independent name",
+    "Remove Escape/cancel restores trigger after pending/error rerenders, failure keeps current photo",
+    "Confirmed remove returns to actual saved SPROUT and picker focus",
+    "Reload from name conflict also clears photo conflict without discarding either draft",
+    "Confirmed browser Back returns to previous feed, reduced motion preserves feedback"
+  ],
+  "captures": [
+    "initial-1440x900.png",
+    "initial-1280x800.png",
+    "initial-768x1024.png",
+    "initial-375x812.png",
+    "initial-640x400.png",
+    "staged-desktop.png",
+    "remove-pending.png",
+    "remove-error.png",
+    "staged-mobile-reduced-motion.png"
+  ],
+  "runtimeErrors": [],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/topics"
+    },
+    {
+      "method": "GET",
+      "path": "/feed"
+    },
+    {
+      "method": "GET",
+      "path": "/profile"
+    },
+    {
+      "method": "POST",
+      "path": "/media/upload-intents"
+    },
+    {
+      "method": "POST",
+      "path": "/media/30000000-0000-4000-8000-000000000091/finalize"
+    },
+    {
+      "method": "PUT",
+      "path": "/profile/avatar"
+    },
+    {
+      "method": "PUT",
+      "path": "/profile/avatar"
+    },
+    {
+      "method": "PUT",
+      "path": "/profile"
+    },
+    {
+      "method": "GET",
+      "path": "/profile"
+    },
+    {
+      "method": "PUT",
+      "path": "/profile/avatar"
+    },
+    {
+      "method": "PUT",
+      "path": "/profile/avatar"
+    },
+    {
+      "method": "POST",
+      "path": "/media/upload-intents"
+    },
+    {
+      "method": "POST",
+      "path": "/media/30000000-0000-4000-8000-000000000091/finalize"
+    },
+    {
+      "method": "PUT",
+      "path": "/profile/avatar"
+    },
+    {
+      "method": "PUT",
+      "path": "/profile"
+    },
+    {
+      "method": "GET",
+      "path": "/profile"
+    }
+  ],
+  "result": "passed"
+}

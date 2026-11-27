@@ -97,9 +97,9 @@ export default function AssessmentsPage() {
         Xem tất cả lịch sử
       </button>
 
-      <AssessmentHistoryModal 
-        isOpen={isHistoryOpen} 
-        onClose={() => setIsHistoryOpen(false)} 
+      <AssessmentHistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
       />
     </>
   )
@@ -246,4 +246,3 @@ export default function AssessmentsPage() {
 **Performance**: ⭐⭐⭐⭐⭐ Excellent
 **Accessibility**: ⭐⭐⭐⭐ Good (can improve)
 **Design**: ⭐⭐⭐⭐⭐ Beautiful
-

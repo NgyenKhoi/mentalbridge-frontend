@@ -1,0 +1,14 @@
+/*
+ * Lets the last row of a page scroll clear of the dock. Loaded with the light
+ * `MamDock` gate, not the lazy host, so the space is there before the dock and
+ * stays if the host fails to load (MB-781).
+ */
+:global(body):has(.space) :global(.ref-main) {
+  padding-bottom: 104px;
+}
+
+@media (max-width: 900px) {
+  :global(body):has(.space) :global(.ref-main) {
+    padding-bottom: 96px;
+  }
+}

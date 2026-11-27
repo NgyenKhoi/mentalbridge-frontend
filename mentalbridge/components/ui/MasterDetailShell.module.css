@@ -1,0 +1,204 @@
+.shell {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  background: var(--surface, #ffffff);
+}
+
+/* LEFT PANE - MASTER / CONVERSATION LIST */
+.listPane {
+  width: 380px;
+  min-width: 340px;
+  max-width: 420px;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--line, #e2e8f0);
+  background: var(--surface-subtle, #f8fafc);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.listHeader {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--line, #e2e8f0);
+  background: #ffffff;
+  z-index: 3;
+}
+
+.listBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+  scrollbar-gutter: stable;
+}
+
+.listBody:hover {
+  scrollbar-color: rgba(0, 0, 0, 0.35) transparent;
+}
+
+.listBody::-webkit-scrollbar {
+  width: 6px;
+}
+
+.listBody::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+
+.listBody:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.listFooter {
+  flex-shrink: 0;
+  border-top: 1px solid var(--line, #e2e8f0);
+  background: #ffffff;
+}
+
+/* RIGHT PANE - DETAIL / CHAT VIEW */
+.detailPane {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  position: relative;
+  z-index: 1;
+}
+
+.detailHeader {
+  flex-shrink: 0;
+  min-height: 64px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--line, #e2e8f0);
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  z-index: 3;
+}
+
+.mobileBackBtn {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line, #e2e8f0);
+  background: #ffffff;
+  color: var(--color-primary, #1e5646);
+  font-weight: 600;
+  font-size: 0.84rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.mobileBackBtn:hover {
+  background: var(--surface-soft, #edf5f1);
+  border-color: var(--color-primary, #1e5646);
+}
+
+.detailBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px 32px 36px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+  scrollbar-gutter: stable;
+}
+
+.detailBody:hover {
+  scrollbar-color: rgba(0, 0, 0, 0.35) transparent;
+}
+
+.detailBody::-webkit-scrollbar {
+  width: 6px;
+}
+
+.detailBody::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+
+.detailBody:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.detailFooter {
+  flex-shrink: 0;
+  padding: 16px 28px;
+  border-top: 1px solid var(--line, #e2e8f0);
+  background: #ffffff;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04);
+  z-index: 3;
+}
+
+.emptyStateWrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+}
+
+/* RESPONSIVE (< 1024px) */
+@media (max-width: 1023px) {
+  .mobileBackBtn {
+    display: inline-flex;
+  }
+
+  .listPane {
+    width: 100%;
+    max-width: none;
+    border-right: none;
+  }
+
+  .shell.hasSelection .listPane {
+    display: none;
+  }
+
+  .shell:not(.hasSelection) .detailPane {
+    display: none;
+  }
+
+  .shell.hasSelection .detailPane {
+    display: flex;
+    width: 100%;
+  }
+
+  .detailHeader {
+    padding: 10px 16px;
+    min-height: 56px;
+  }
+
+  .detailBody {
+    padding: 16px 16px 24px;
+  }
+
+  .detailFooter {
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+}

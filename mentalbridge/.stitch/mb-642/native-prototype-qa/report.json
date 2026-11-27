@@ -1,0 +1,266 @@
+{
+  "target": "https://stitch.withgoogle.com/projects/1256373820415012052?node-id=678423c41ebc47d49538c0d6b85ebe38",
+  "observedAt": "2026-10-14T05:53:33.975Z",
+  "mode": "fresh unauthenticated Chrome; normal automatic page initialization; no personal profile, sign-in or user interactions",
+  "remote": {
+    "status": 200,
+    "url": "https://stitch.withgoogle.com/projects/1256373820415012052",
+    "title": "Stitch - Projects",
+    "text": "",
+    "headings": [],
+    "buttons": [],
+    "links": [],
+    "iframes": [
+      {
+        "title": "Stitch - Design with AI",
+        "origin": "https://app-companion-430619.appspot.com",
+        "path": "/projects/1256373820415012052"
+      }
+    ],
+    "scripts": [
+      {
+        "src": "https://apis.google.com/_/scs/abc-static/_/js/k=gapi.lb.en.gh7qIZtzO5w.O/m=gapi_iframes/rt=j/sv=1/d=1/ed=1/rs=AHpOoo84YKT1RVy0T6hcXi5rH3LooB1WCw/cb=gapi.loaded_0",
+        "inlineCharacters": 0
+      },
+      {
+        "src": null,
+        "inlineCharacters": 4793
+      },
+      {
+        "src": null,
+        "inlineCharacters": 7448
+      },
+      {
+        "src": null,
+        "inlineCharacters": 50
+      },
+      {
+        "src": null,
+        "inlineCharacters": 0
+      },
+      {
+        "src": null,
+        "inlineCharacters": 160
+      },
+      {
+        "src": "https://www.googletagmanager.com/gtag/js",
+        "inlineCharacters": 0
+      },
+      {
+        "src": null,
+        "inlineCharacters": 385
+      },
+      {
+        "src": "https://apis.google.com/js/api.js",
+        "inlineCharacters": 0
+      },
+      {
+        "src": "https://www.gstatic.com/_/mss/boq-pitchfork/_/js/k=boq-pitchfork.Nemo.en_US.NtfEJDMtLAA.2018.O/d=1/excm=_b/ed=1/dg=0/br=1/wt=2/ujg=1/rs=AFTLRiez3fg7z2xlcXXmL59b-0v2EKMlsg/ee=Pjplud:PoEs9b;QGR0gd:Mlhmy;ScI3Yc:e7Hzgb;YIZmRd:A1yn5d;cEt90b:ws9Tlc;dowIGb:ebZ3mb/dti=1/m=_b",
+        "inlineCharacters": 0
+      }
+    ],
+    "inlineEventAttributes": [],
+    "overflow": false,
+    "frameEvidence": [
+      {
+        "origin": "https://stitch.withgoogle.com",
+        "path": "/projects/1256373820415012052",
+        "title": "Stitch - Projects",
+        "text": "",
+        "buttons": []
+      },
+      {
+        "origin": "https://app-companion-430619.appspot.com",
+        "path": "/projects/1256373820415012052",
+        "title": "Stitch",
+        "text": "Docs\nSign In\n404\nThis page doesn't exist or isn't shared with you.\nGo to Homepage",
+        "buttons": [
+          "What's New",
+          "",
+          "Sign In",
+          "Appearance"
+        ]
+      }
+    ],
+    "errors": [],
+    "failed": [
+      {
+        "host": "www.googletagmanager.com",
+        "reason": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+      }
+    ],
+    "blocked": [
+      {
+        "method": "GET",
+        "host": "www.googletagmanager.com",
+        "path": "/gtag/js"
+      }
+    ]
+  },
+  "export": {
+    "url": "http://127.0.0.1:64812/",
+    "title": "MentalBridge — Kế hoạch Hỗ trợ cá nhân",
+    "text": "MentalBridge\nHealth Tech\n‹\nTỔNG QUAN\ndashboard\nTổng quan\nedit_note\nNhật ký\nquiz\nBài sàng lọc\nlightbulb\nGợi ý hỗ trợ\ncalendar_today\nKế hoạch hỗ trợ\nCHĂM SÓC\npsychology\nChuyên gia\nevent_available\nLịch hẹn\nchat\nTin nhắn\nTHÔNG TIN\ngroup\nCộng đồng\nmenu_book\nTài nguyên\nworkspace_premium\nThành tựu\ninsights\nPhân tích\nmedical_services\nGói dịch vụ\nnotifications_none\nThông báo\nDM\nNgười dùng mẫu\nTài khoản cá nhân\nexpand_more\nKhông gian của bạn\nKế hoạch hỗ trợ\nsearch\n⌘ K\nCộng đồng\nnotifications_none\nDM\nThứ Ba, 14 tháng 10\nĐiều chỉnh kế hoạch\n● KẾ HOẠCH HỖ TRỢ\nHôm nay, mình đi một bước nhỏ\n\nKế hoạch này gom những việc hữu ích vào đúng lúc, để bạn không phải tự nhớ mọi thứ.\n\nHôm nay\nKế hoạch\nTiến triển\nĐiều chỉnh\nHoạt động của tôi\n\nHoạt động hôm nay · Thứ Ba, 14/10/2026\n\nViết nhật ký · 19:05 · 5 phút\nViết một suy nghĩ ngắn\n\nDành vài phút để ghi lại điều bạn muốn giữ cho riêng mình.\n\nlock\nNội dung nhật ký vẫn riêng tư. Kế hoạch chỉ ghi nhận việc bạn đã lưu bài.\nChưa ghi nhận hoàn thành\n\nMở nhật ký cá nhân để viết đôi dòng tự do theo ý bạn.\n\nedit_note\nViết nhật ký\nair\nBài thở 4 – 6\nThư giãn · 4 phút\n\nHít vào 4 giây và thở chậm 6 giây để làm dịu nhịp tim và hệ thần kinh.\n\nplay_circle\nBắt đầu\nNhịp hôm nay\n\nChưa có hoạt động nào được xếp lịch. Bạn không cần lấp đầy khoảng trống để kế hoạch có ý nghĩa.\n\nsupport_agent\nKhi cần thêm hỗ trợ\n\nNếu bạn đang trải qua những ngày cảm xúc nặng nề hơn bình thường, đội ngũ tư vấn luôn sẵn sàng lắng nghe.\n\nTìm chuyên gia\narrow_forward\nXem thư mục hỗ trợ an toàn\nopen_in_new\nĐiều chỉnh nhịp\n\nThay đổi khi kế hoạch không còn vừa sức\n\nTạm dừng kế hoạch\nKết thúc kế hoạch\nXem các cách điều chỉnh\nCần hỗ trợ ngay",
+    "headings": [
+      "Hôm nay, mình đi một bước nhỏ",
+      "Hoạt động của tôi",
+      "Viết một suy nghĩ ngắn",
+      "Bài thở 4 – 6",
+      "Nhịp hôm nay",
+      "Khi cần thêm hỗ trợ",
+      "Điều chỉnh nhịp"
+    ],
+    "buttons": [
+      {
+        "text": "‹",
+        "label": "Thu gọn sidebar"
+      },
+      {
+        "text": "expand_more",
+        "label": "Tùy chọn tài khoản"
+      },
+      {
+        "text": "Điều chỉnh kế hoạch",
+        "label": null
+      },
+      {
+        "text": "Hôm nay",
+        "label": null
+      },
+      {
+        "text": "Kế hoạch",
+        "label": null
+      },
+      {
+        "text": "Tiến triển",
+        "label": null
+      },
+      {
+        "text": "Điều chỉnh",
+        "label": null
+      },
+      {
+        "text": "play_circle\nBắt đầu",
+        "label": null
+      },
+      {
+        "text": "Tạm dừng kế hoạch",
+        "label": null
+      },
+      {
+        "text": "Kết thúc kế hoạch",
+        "label": null
+      },
+      {
+        "text": "Xem các cách điều chỉnh",
+        "label": null
+      },
+      {
+        "text": "Cần hỗ trợ ngay",
+        "label": "Mở hỗ trợ khẩn cấp"
+      }
+    ],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "dashboard\nTổng quan",
+        "href": "/dashboard"
+      },
+      {
+        "text": "edit_note\nNhật ký",
+        "href": "/journal"
+      },
+      {
+        "text": "quiz\nBài sàng lọc",
+        "href": "/assessments"
+      },
+      {
+        "text": "lightbulb\nGợi ý hỗ trợ",
+        "href": "/support-guides"
+      },
+      {
+        "text": "calendar_today\nKế hoạch hỗ trợ",
+        "href": "/support-plan"
+      },
+      {
+        "text": "psychology\nChuyên gia",
+        "href": "/specialists"
+      },
+      {
+        "text": "event_available\nLịch hẹn",
+        "href": "/appointments"
+      },
+      {
+        "text": "chat\nTin nhắn",
+        "href": "/messages"
+      },
+      {
+        "text": "group\nCộng đồng",
+        "href": "/community"
+      },
+      {
+        "text": "menu_book\nTài nguyên",
+        "href": "/resources"
+      },
+      {
+        "text": "workspace_premium\nThành tựu",
+        "href": "/achievements"
+      },
+      {
+        "text": "insights\nPhân tích",
+        "href": "/analytics"
+      },
+      {
+        "text": "medical_services\nGói dịch vụ",
+        "href": "/subscription"
+      },
+      {
+        "text": "notifications_none\nThông báo",
+        "href": "/notifications"
+      },
+      {
+        "text": "Cộng đồng",
+        "href": "/community"
+      },
+      {
+        "text": "notifications_none",
+        "href": "/notifications"
+      },
+      {
+        "text": "DM",
+        "href": "/profile"
+      },
+      {
+        "text": "edit_note\nViết nhật ký",
+        "href": "/journal"
+      },
+      {
+        "text": "Tìm chuyên gia\narrow_forward",
+        "href": "/specialists"
+      },
+      {
+        "text": "Xem thư mục hỗ trợ an toàn\nopen_in_new",
+        "href": "/safety-directory"
+      }
+    ],
+    "iframes": [],
+    "scripts": [
+      {
+        "src": "https://cdn.tailwindcss.com/",
+        "inlineCharacters": 0
+      },
+      {
+        "src": null,
+        "inlineCharacters": 447
+      }
+    ],
+    "inlineEventAttributes": [],
+    "overflow": false,
+    "errors": [],
+    "blocked": [],
+    "source": "get_screen HTML export; not assumed to include native runtime connections"
+  }
+}

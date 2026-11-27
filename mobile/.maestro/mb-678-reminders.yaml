@@ -1,0 +1,42 @@
+appId: com.mentalbridge.mobile
+name: MB-678 reminder center against the MB-676 owner contract
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: 'sign-in-email-input'
+- inputText: '${MAESTRO_MB_REMINDER_USER_EMAIL}'
+- tapOn:
+    id: 'sign-in-password-input'
+- inputText: '${MAESTRO_MB_REMINDER_USER_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn:
+    id: 'reminders-entry'
+- assertVisible: 'Hôm nay của bạn'
+- assertVisible: 'Nhật ký · Cần làm'
+- assertVisible: 'Cảm xúc · Đã hoàn thành'
+- tapOn: 'Tải lại lịch'
+- assertVisible: 'Nhật ký · Cần làm'
+- runFlow: 'mb-678-reminders-owner-data.yaml'
+- scrollUntilVisible:
+    element: 'Xem thông báo'
+    direction: DOWN
+- tapOn: 'Xem thông báo'
+- assertVisible: 'Thông báo của bạn'
+- back
+- scrollUntilVisible:
+    element: 'Tùy chọn lời nhắc'
+    direction: DOWN
+- tapOn: 'Tùy chọn lời nhắc'
+- assertVisible: 'Nhận thông báo theo ý bạn'
+- back
+- scrollUntilVisible:
+    element: 'Về không gian của bạn'
+    direction: UP
+- tapOn: 'Về không gian của bạn'
+- assertVisible: 'Chào mừng bạn quay lại'

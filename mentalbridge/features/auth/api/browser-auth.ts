@@ -1,5 +1,7 @@
 import { ApiError } from '@/lib/api/api-error'
 import { browserApiClient } from '@/lib/api/browser-client'
+import { clearAllCompanionDrafts } from '@/features/ai-companion/components/companion-draft-storage'
+import { clearCompanionState } from '@/features/mam/companion-state'
 
 import type {
   PublicRegistrationRole,
@@ -47,23 +49,36 @@ function invalidSession() {
   })
 }
 
+export async function resolveCurrentWorkspace() {
+  const response = await browserApiClient.get('/identity/session')
+  const account = parseCurrentAccountResponse(response.data)
+  const path = account && primaryWorkspacePath(account.roles)
+  const workspaces = account && resolveWorkspaces(account.roles)
+  const workspace = workspaces?.[0]
+
+  if (
+    !account ||
+    !isUsableAccount(account) ||
+    !path ||
+    !workspaces ||
+    !workspace
+  ) {
+    throw invalidSession()
+  }
+
+  return {
+    account,
+    path,
+    workspace,
+    workspaces,
+  }
+}
+
 export async function loginAndResolveWorkspace(credentials: LoginCredentials) {
   await browserApiClient.post('/identity/login', credentials)
 
   try {
-    const response = await browserApiClient.get('/identity/session')
-    const account = parseCurrentAccountResponse(response.data)
-    const path = account && primaryWorkspacePath(account.roles)
-
-    if (!account || !isUsableAccount(account) || !path) {
-      throw invalidSession()
-    }
-
-    return {
-      account,
-      path,
-      workspaces: resolveWorkspaces(account.roles) ?? [],
-    }
+    return await resolveCurrentWorkspace()
   } catch (error) {
     await browserApiClient.post('/identity/logout').catch(() => undefined)
     throw error
@@ -72,6 +87,9 @@ export async function loginAndResolveWorkspace(credentials: LoginCredentials) {
 
 export async function terminateSession(mode: LogoutMode) {
   const endpoint = mode === 'all' ? '/identity/logout-all' : '/identity/logout'
+  // Before the request: the caller redirects to /login even when it fails.
+  clearAllCompanionDrafts()
+  clearCompanionState()
   await browserApiClient.post(endpoint)
 }
 

@@ -1,0 +1,55 @@
+appId: com.mentalbridge.mobile
+name: MB-630 real discovery request and persisted owner appointment
+---
+- runFlow: mb-629-discovery.yaml
+- scrollUntilVisible:
+    element:
+      id: discovery-book-handoff
+    direction: DOWN
+- tapOn:
+    id: discovery-book-handoff
+- scrollUntilVisible:
+    element:
+      text: 'Kiểm tra giờ đã chọn'
+    direction: DOWN
+- tapOn: 'Kiểm tra giờ đã chọn'
+- scrollUntilVisible:
+    element:
+      id: appointment-confirm
+    direction: DOWN
+- assertVisible: 'Gửi yêu cầu đặt lịch'
+- tapOn:
+    id: appointment-confirm
+- scrollUntilVisible:
+    element:
+      text: 'Chi tiết lịch hẹn'
+    direction: DOWN
+- assertVisible: 'Chi tiết lịch hẹn'
+- assertVisible: 'MB629 synthetic specialist'
+- scrollUntilVisible:
+    element:
+      text: 'Lượt tư vấn đang được giữ cho lịch hẹn'
+    direction: DOWN
+- assertVisible: 'Lượt tư vấn đang được giữ cho lịch hẹn'
+- stopApp
+- launchApp:
+    clearState: false
+- assertVisible: 'Chào mừng bạn quay lại'
+- tapOn: 'Lịch hẹn của tôi'
+- scrollUntilVisible:
+    element:
+      id: appointment-open-detail
+    direction: DOWN
+- tapOn:
+    id: appointment-open-detail
+- scrollUntilVisible:
+    element:
+      text: 'Chi tiết lịch hẹn'
+    direction: UP
+- assertVisible: 'Chi tiết lịch hẹn'
+- assertVisible: 'MB629 synthetic specialist'
+- scrollUntilVisible:
+    element:
+      text: 'Lượt tư vấn đang được giữ cho lịch hẹn'
+    direction: DOWN
+- assertVisible: 'Lượt tư vấn đang được giữ cho lịch hẹn'

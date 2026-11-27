@@ -1,5 +1,6 @@
 import AuthenticatedShell from '@/components/AuthenticatedShell'
 import { resolveWorkspaces } from '@/features/auth/model/workspace'
+import { MamDockSlot } from '@/features/mam/MamDockSlot'
 import { requireCurrentAccount } from '@/lib/auth/dal'
 
 import './dashboard.css'
@@ -12,8 +13,13 @@ export default async function DashboardLayout({
   const account = await requireCurrentAccount(['USER'])
 
   return (
-    <AuthenticatedShell workspaces={resolveWorkspaces(account.roles) ?? []}>
+    <AuthenticatedShell
+      key={account.accountId}
+      accountId={account.accountId}
+      workspaces={resolveWorkspaces(account.roles) ?? []}
+    >
       {children}
+      <MamDockSlot accountId={account.accountId} />
     </AuthenticatedShell>
   )
 }

@@ -1,12 +1,24 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
+import { getCareProfile } from '@/features/assessment/api/browser-care'
+import { appointmentBrowserClient } from '@/features/appointments/api/browser-client'
 import SessionActions from '@/features/auth/components/SessionActions'
+import AccountAvatar from '@/features/community/components/AccountAvatar'
+import { useOwnCommunityAvatar } from '@/features/community/components/useOwnCommunityAvatar'
 import WorkspaceSwitcher from '@/features/auth/components/WorkspaceSwitcher'
 import type { Workspace } from '@/features/auth/model/workspace'
+import { ApiError } from '@/lib/api/api-error'
+import OnboardingTour from '@/features/onboarding/OnboardingTour'
+import NotificationBell from '@/components/NotificationBell'
+import {
+  ONBOARDING_NAV_TARGETS,
+  requestOnboardingReplay,
+} from '@/features/onboarding/tour-steps'
+import '@/app/(dashboard)/user-workspace-theme.css'
 
 const Svg = ({ children }: { children: React.ReactNode }) => (
   <svg
@@ -21,25 +33,61 @@ const Svg = ({ children }: { children: React.ReactNode }) => (
     {children}
   </svg>
 )
+
+const CommunityIcon = () => (
+  <Svg>
+    <path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8A8.5 8.5 0 0 1 8.7 3.9a8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z" />
+    <path d="M8 11h8M8 15h4" />
+  </Svg>
+)
+
+// Ordered by the user's day: today, daily, the 14-day journey, real people.
+// Notifications live in the header bell; the subscription and the milestones
+// live in the account menu.
 const groups = [
   {
-    title: 'Tổng quan',
+    title: '',
     items: [
       [
         '/dashboard',
-        'Tổng quan',
+        'Hôm nay',
         <Svg key="h">
           <path d="M4 11 12 4l8 7M6 9.5V20h12V9.5" />
+        </Svg>,
+      ],
+    ],
+  },
+  {
+    title: 'Mỗi ngày cùng Mầm',
+    items: [
+      [
+        '/ai-companion',
+        'Trò chuyện với Mầm',
+        <Svg key="ai">
+          <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" />
         </Svg>,
       ],
       [
         '/journal',
         'Nhật ký',
         <Svg key="j">
-          <path d="M6 3h9l3 3v15H6V3Z" />
-          <path d="M9 9h6M9 13h6M9 17h3" />
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
         </Svg>,
       ],
+      [
+        '/resources',
+        'Tài nguyên',
+        <Svg key="r">
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="M12 8v4l3 2" />
+        </Svg>,
+      ],
+    ],
+  },
+  {
+    title: 'Hành trình 14 ngày',
+    items: [
       [
         '/assessments',
         'Bài sàng lọc',
@@ -47,10 +95,40 @@ const groups = [
           <path d="m5 13 4 4L19 7" />
         </Svg>,
       ],
+      [
+        '/support-guides',
+        'Gợi ý hỗ trợ',
+        <Svg key="g">
+          <path d="M9 18h6" />
+          <path d="M10 22h4" />
+          <path d="M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.7 3.5 6h7c2-1.3 3.5-3.5 3.5-6a7 7 0 0 0-7-7z" />
+        </Svg>,
+      ],
+      [
+        '/support-plan',
+        'Kế hoạch hỗ trợ',
+        <Svg key="sp">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+          <path d="m9 16 2 2 4-4" />
+        </Svg>,
+      ],
+      [
+        '/nhin-lai',
+        'Nhìn lại',
+        <Svg key="look-back">
+          <path d="M3 17c3-1 4-8 8-8s5 6 10-3" />
+          <circle cx="3" cy="17" r="1" />
+          <circle cx="11" cy="9" r="1" />
+          <circle cx="21" cy="6" r="1" />
+        </Svg>,
+      ],
     ],
   },
   {
-    title: 'Chăm sóc',
+    title: 'Khi cần người thật',
     items: [
       [
         '/specialists',
@@ -74,73 +152,215 @@ const groups = [
         <Svg key="m">
           <path d="M4 5h16v11H8l-4 4V5Z" />
         </Svg>,
-        '3',
-      ],
-    ],
-  },
-  {
-    title: 'Thông tin',
-    items: [
-      [
-        '/resources',
-        'Tài nguyên',
-        <Svg key="r">
-          <circle cx="12" cy="12" r="8.5" />
-          <path d="M12 8v4l3 2" />
-        </Svg>,
-      ],
-      [
-        '/analytics',
-        'Phân tích',
-        <Svg key="n">
-          <path d="M4 19V9M10 19V5M16 19v-7M22 19H2" />
-        </Svg>,
-      ],
-      [
-        '/subscription',
-        'Gói dịch vụ',
-        <Svg key="p">
-          <rect x="3" y="6" width="18" height="12" rx="2.5" />
-          <path d="M3 10h18" />
-        </Svg>,
-      ],
-      [
-        '/notifications',
-        'Thông báo',
-        <Svg key="b">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-        </Svg>,
       ],
     ],
   },
 ]
+
 const labels: Record<string, string> = {
-  '/dashboard': 'Tổng quan',
+  '/dashboard': 'Hôm nay cùng Mầm',
   '/journal': 'Nhật ký',
-  '/assessments': 'Đánh giá',
-  '/specialists': 'Chuyên gia',
+  '/assessments': 'Bài sàng lọc',
+  '/support-guides': 'Gợi ý hỗ trợ',
+  '/safety-directory': 'Hỗ trợ an toàn theo khu vực',
+  '/support-plan': 'Kế hoạch hỗ trợ',
+  '/nhin-lai': 'Nhìn lại',
+  '/specialists': 'Chuyên gia tư vấn',
   '/appointments': 'Lịch hẹn',
   '/messages': 'Tin nhắn',
+  '/ai-companion': 'Trò chuyện với Mầm',
   '/resources': 'Tài nguyên',
-  '/analytics': 'Phân tích',
+  '/achievements': 'Dấu mốc của bạn',
   '/subscription': 'Gói dịch vụ',
   '/notifications': 'Thông báo',
   '/profile': 'Hồ sơ và quyền riêng tư',
 }
 
+function resolveContextLabel(pathname: string) {
+  if (pathname.startsWith('/assessments/results/')) {
+    return 'Kết quả sàng lọc'
+  }
+
+  if (pathname.startsWith('/resources/')) return 'Chi tiết tài nguyên'
+  if (pathname.startsWith('/specialists/')) return 'Hồ sơ chuyên gia'
+  if (pathname.startsWith('/support-guides/')) return 'Chi tiết gợi ý hỗ trợ'
+  if (pathname.startsWith('/appointments/')) return 'Chi tiết lịch hẹn'
+
+  return labels[pathname] ?? 'MentalBridge'
+}
+
 export default function AuthenticatedShell({
   children,
   workspaces,
+  accountId,
 }: {
   children: React.ReactNode
   workspaces: readonly Workspace[]
+  accountId?: string
 }) {
   const pathname = usePathname()
-  const [collapsed, setCollapsed] = useState(false),
-    [mobile, setMobile] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
+  const [mobile, setMobile] = useState(false)
+  const [tourActive, setTourActive] = useState(false)
+  const shellState = useRef({ collapsed, mobile })
+  useEffect(() => {
+    shellState.current = { collapsed, mobile }
+  }, [collapsed, mobile])
+  const beforeTour = useRef<{ collapsed: boolean; mobile: boolean } | null>(
+    null,
+  )
+  const prepareTourStep = useCallback((inSidebar: boolean) => {
+    beforeTour.current ??= shellState.current
+    setTourActive(true)
+    setCollapsed(false)
+    setMobile(inSidebar && window.matchMedia('(max-width: 900px)').matches)
+  }, [])
+  const endTour = useCallback(() => {
+    const previous = beforeTour.current
+    beforeTour.current = null
+    setTourActive(false)
+    if (previous) {
+      setCollapsed(previous.collapsed)
+      setMobile(previous.mobile)
+    }
+  }, [])
+  const [profile, setProfile] = useState<{ displayName: string } | null>(null)
+  const [profileStatus, setProfileStatus] = useState<
+    'loading' | 'ready' | 'missing' | 'error'
+  >('loading')
+  const [specialistSearch, setSpecialistSearch] = useState('')
+  const [appointmentCount, setAppointmentCount] = useState<number | null>(null)
+  // MB-744: the page entrance (globals.css) plays only while a route is fresh,
+  // so dialogs, async rows and re-renders later never replay it.
+  const [enteredPath, setEnteredPath] = useState<string | null>(null)
+  const [shownPath, setShownPath] = useState(pathname)
+  if (shownPath !== pathname) {
+    // A route revisited within the window (A → B → A) enters again.
+    setShownPath(pathname)
+    setEnteredPath(null)
+  }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setEnteredPath(pathname), 1200)
+    return () => window.clearTimeout(timer)
+  }, [pathname])
+
+  useEffect(() => {
+    const resetSearch = () => setSpecialistSearch('')
+    const refreshAppointments = () => {
+      void appointmentBrowserClient
+        .list()
+        .then((result) => {
+          setAppointmentCount(
+            result.items.filter((item) =>
+              ['REQUESTED', 'CONFIRMED'].includes(item.status),
+            ).length,
+          )
+        })
+        .catch(() => setAppointmentCount(null))
+    }
+    window.addEventListener('mentalbridge:specialist-search-reset', resetSearch)
+    window.addEventListener(
+      'mentalbridge:appointment-requested',
+      refreshAppointments,
+    )
+    return () => {
+      window.removeEventListener(
+        'mentalbridge:specialist-search-reset',
+        resetSearch,
+      )
+      window.removeEventListener(
+        'mentalbridge:appointment-requested',
+        refreshAppointments,
+      )
+    }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    let latestRequest = 0
+    const loadProfile = async () => {
+      const request = ++latestRequest
+      try {
+        const data = await getCareProfile()
+        if (active && request === latestRequest) {
+          const name = data?.displayName?.trim()
+          setProfile(name ? { displayName: name } : null)
+          setProfileStatus(name ? 'ready' : 'missing')
+        }
+      } catch (error) {
+        if (active && request === latestRequest)
+          setProfileStatus(
+            error instanceof ApiError && error.status === 404
+              ? 'missing'
+              : 'error',
+          )
+      }
+    }
+
+    void loadProfile()
+
+    const handleProfileUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{ displayName?: string }>
+      const name = customEvent.detail?.displayName?.trim()
+      if (name) {
+        latestRequest++
+        setProfile({ displayName: name })
+        setProfileStatus('ready')
+      } else {
+        void loadProfile()
+      }
+    }
+
+    window.addEventListener('mb:profile-updated', handleProfileUpdate)
+    window.addEventListener('focus', loadProfile)
+    return () => {
+      active = false
+      window.removeEventListener('mb:profile-updated', handleProfileUpdate)
+      window.removeEventListener('focus', loadProfile)
+    }
+  }, [accountId])
+
+  const displayName =
+    profile?.displayName ??
+    (profileStatus === 'loading'
+      ? 'Đang tải hồ sơ…'
+      : profileStatus === 'missing'
+        ? 'Hoàn thiện hồ sơ'
+        : 'Hồ sơ của bạn')
+  const accountLabel = profile
+    ? 'Hồ sơ cá nhân'
+    : profileStatus === 'loading'
+      ? 'Thông tin của bạn'
+      : profileStatus === 'missing'
+        ? 'Thêm tên của bạn'
+        : 'Chưa tải được thông tin'
+  const isScreeningJourney = [
+    '/initial-check',
+    '/assessments',
+    '/support-guides',
+  ].some((route) => pathname === route || pathname.startsWith(`${route}/`))
+  const isProgressiveRelaxation =
+    pathname === '/resources/00000000-0000-4000-8000-000000000215' ||
+    pathname === '/resources/00000000-0000-4000-8000-000000000216'
+  const ownAvatar = useOwnCommunityAvatar()
+  const initials = useMemo(
+    () =>
+      (
+        profile?.displayName
+          ?.trim()
+          .split(/\s+/)
+          .slice(-2)
+          .map((part) => part[0])
+          .join('') || '?'
+      ).toUpperCase(),
+    [profile?.displayName],
+  )
+
   return (
     <div
-      className={`ref-shell ${collapsed ? 'collapsed' : ''} ${mobile ? 'mobile-open' : ''}`}
+      className={`ref-shell ${isScreeningJourney ? 'ref-screening-journey' : ''} ${collapsed ? 'collapsed' : ''} ${mobile ? 'mobile-open' : ''}`}
+      data-onboarding-active={tourActive || undefined}
     >
       <aside className="ref-sidebar">
         <div className="ref-brand">
@@ -149,7 +369,7 @@ export default function AuthenticatedShell({
               <path d="M12 2C7 2 3 5 3 9.5c0 3 2 5 4 6.2V21l3-1.6c.7.1 1.3.2 2 .2 5 0 9-3 9-7.6S17 2 12 2Z" />
             </Svg>
           </Link>
-          <div>
+          <div title="MentalBridge Health Tech">
             <b>MentalBridge</b>
             <span>Health Tech</span>
           </div>
@@ -160,21 +380,36 @@ export default function AuthenticatedShell({
             {collapsed ? '›' : '‹'}
           </button>
         </div>
-        <nav aria-label="Điều hướng chính">
+        <nav id="user-main-navigation" aria-label="Điều hướng chính">
           {groups.map((g) => (
-            <section key={g.title}>
-              <h2>{g.title}</h2>
+            <section key={g.title || 'today'}>
+              {g.title && <h2>{g.title}</h2>}
               {g.items.map((item) => (
                 <Link
                   key={item[0] as string}
                   href={item[0] as string}
-                  onClick={() => setMobile(false)}
-                  className={pathname === item[0] ? 'active' : ''}
+                  data-onboarding={ONBOARDING_NAV_TARGETS[item[0] as string]}
+                  onClick={() => {
+                    if (!tourActive) setMobile(false)
+                  }}
+                  className={`${pathname === item[0] ? 'active' : ''} ${item[0] === '/community' ? 'ref-community-nav' : ''}`}
+                  aria-label={
+                    item[0] === '/community' ? 'Cộng đồng' : undefined
+                  }
                   title={collapsed ? (item[1] as string) : undefined}
                 >
                   <i>{item[2]}</i>
                   <span>{item[1]}</span>
                   {item[3] && <b>{item[3]}</b>}
+                  {item[0] === '/appointments' &&
+                    appointmentCount !== null &&
+                    appointmentCount > 0 && (
+                      <b
+                        aria-label={`${appointmentCount} lịch hẹn đang hoạt động`}
+                      >
+                        {appointmentCount}
+                      </b>
+                    )}
                 </Link>
               ))}
             </section>
@@ -182,75 +417,176 @@ export default function AuthenticatedShell({
         </nav>
         <div className="ref-sidebar-foot">
           <WorkspaceSwitcher workspaces={workspaces} currentRole="USER" />
-          <Link
-            href="/profile"
-            className={pathname === '/profile' ? 'active' : ''}
-          >
-            <i>
-              <Svg>
-                <circle cx="12" cy="8" r="3.4" />
-                <path d="M4.5 20c1.2-4 4-6 7.5-6s6.3 2 7.5 6" />
-              </Svg>
-            </i>
-            <span>Hồ sơ và quyền riêng tư</span>
-          </Link>
-          <div className="ref-user">
-            <span className="ref-user-avatar">N</span>
-            <div>
-              <strong>Người dùng</strong>
-              <SessionActions compact={collapsed} />
-            </div>
-          </div>
+          <SessionActions
+            compact={collapsed && !mobile}
+            displayName={displayName}
+            avatar={<AccountAvatar avatar={ownAvatar} fallback={initials} />}
+            accountLabel={accountLabel}
+            profileLabel={
+              profileStatus === 'missing' ? 'Hoàn thiện hồ sơ' : 'Hồ sơ cá nhân'
+            }
+            onReplayTour={accountId ? requestOnboardingReplay : undefined}
+          />
         </div>
       </aside>
       <div className="ref-main">
-        <header className="ref-topbar">
+        <header
+          className={`ref-topbar ${isProgressiveRelaxation ? 'pmr-topbar' : ''}`}
+        >
           <button
             className="ref-mobile"
             onClick={() => setMobile(true)}
             aria-label="Mở menu"
+            aria-expanded={mobile}
+            aria-controls="user-main-navigation"
           >
             <Svg>
               <path d="M4 7h16M4 12h16M4 17h16" />
             </Svg>
           </button>
-          <div className="ref-context">
-            <span>Không gian của bạn</span>
-            <strong>{labels[pathname] ?? 'MentalBridge'}</strong>
+          <div className="ref-topbar-left">
+            {isProgressiveRelaxation ? (
+              <nav
+                className="ref-context pmr-top-crumb"
+                aria-label="Đường dẫn trên cùng"
+                data-onboarding="welcome"
+              >
+                <Link className="ref-context-parent" href="/resources">
+                  Tài nguyên
+                </Link>
+                <span className="ref-context-separator" aria-hidden="true">
+                  ›
+                </span>
+                <span aria-current="page">
+                  {pathname.endsWith('0216')
+                    ? 'Thả lỏng cơ theo từng vùng'
+                    : 'Thư giãn cơ tiến triển'}
+                </span>
+              </nav>
+            ) : isScreeningJourney ? (
+              <nav
+                className="ref-context ref-screening-crumb"
+                aria-label="Đường dẫn trên cùng"
+                data-onboarding="welcome"
+              >
+                <Link className="ref-context-parent" href="/dashboard">
+                  Không gian của bạn
+                </Link>
+                <span className="ref-context-separator" aria-hidden="true">
+                  ›
+                </span>
+                <span aria-current="page">{resolveContextLabel(pathname)}</span>
+              </nav>
+            ) : (
+              <nav
+                className="ref-context"
+                aria-label="Đường dẫn điều hướng"
+                data-onboarding="welcome"
+              >
+                <Link className="ref-context-parent" href="/dashboard">
+                  Không gian của bạn
+                </Link>
+                <span className="ref-context-separator" aria-hidden="true">
+                  ›
+                </span>
+                <span aria-current="page">
+                  {pathname === '/appointments'
+                    ? 'Lịch hẹn tư vấn'
+                    : resolveContextLabel(pathname)}
+                </span>
+              </nav>
+            )}
           </div>
-          <label>
-            <Svg>
-              <circle cx="11" cy="11" r="7" />
-              <path d="m21 21-4.3-4.3" />
-            </Svg>
-            <input
-              type="search"
-              placeholder="Tìm kiếm chuyên gia, nhật ký..."
-            />
-            <kbd>⌘ K</kbd>
-          </label>
+          {pathname === '/specialists' && (
+            <label>
+              <Svg>
+                <circle cx="11" cy="11" r="7" />
+                <path d="m21 21-4.3-4.3" />
+              </Svg>
+              <input
+                type="search"
+                aria-label="Tìm chuyên gia theo tên hoặc chuyên môn"
+                value={specialistSearch}
+                onChange={(event) => {
+                  setSpecialistSearch(event.target.value)
+                  window.dispatchEvent(
+                    new CustomEvent('mentalbridge:specialist-search', {
+                      detail: event.target.value,
+                    }),
+                  )
+                }}
+                placeholder="Tìm theo chuyên môn, tên bác sĩ..."
+              />
+            </label>
+          )}
           <div className="ref-top-actions">
-            <Link
-              href="/notifications"
+            {pathname === '/appointments' && (
+              <button
+                type="button"
+                className="ref-new-booking-btn"
+                onClick={() =>
+                  window.dispatchEvent(
+                    new Event('mentalbridge:open-appointment-booking'),
+                  )
+                }
+              >
+                <span>+ Đặt lịch mới</span>
+              </button>
+            )}
+            {pathname !== '/appointments' && (
+              <Link
+                href="/community"
+                className="ref-community-link"
+                onClick={() => setMobile(false)}
+              >
+                <CommunityIcon />
+                <span>Cộng đồng</span>
+              </Link>
+            )}
+            {isProgressiveRelaxation && (
+              <Link
+                href="/support-guides"
+                className="pmr-help"
+                aria-label="Trợ giúp"
+              >
+                <Svg>
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.7-2.5 2-2.5 4" />
+                  <path d="M12 17h.01" />
+                </Svg>
+              </Link>
+            )}
+            <NotificationBell
+              viewAllHref="/notifications"
               className="ref-notify"
-              aria-label="3 thông báo"
             >
               <Svg>
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
               </Svg>
-              <b>3</b>
-            </Link>
+              {isProgressiveRelaxation && (
+                <span className="pmr-notify-dot" aria-hidden="true" />
+              )}
+            </NotificationBell>
             <Link
               href="/profile"
               className="ref-avatar"
-              aria-label="Hồ sơ người dùng"
+              aria-label={`Hồ sơ ${displayName}`}
             >
-              N
+              {isProgressiveRelaxation ? (
+                <Svg>
+                  <circle cx="12" cy="8" r="3" />
+                  <path d="M5 20c.5-4 3-6 7-6s6.5 2 7 6" />
+                </Svg>
+              ) : (
+                <AccountAvatar avatar={ownAvatar} fallback={initials} />
+              )}
             </Link>
           </div>
         </header>
         <main
-          className={`ref-content ${pathname === '/dashboard' ? 'ref-content-dashboard' : 'ref-content-page'}`}
+          tabIndex={-1}
+          className={`ref-content ${pathname === '/dashboard' ? 'ref-content-dashboard' : isScreeningJourney ? 'ref-content-screening' : 'ref-content-page'}`}
+          data-entered={enteredPath === pathname ? '' : undefined}
         >
           {children}
         </main>
@@ -260,6 +596,15 @@ export default function AuthenticatedShell({
           className="ref-overlay"
           onClick={() => setMobile(false)}
           aria-label="Đóng menu"
+        />
+      )}
+      {accountId && (
+        <OnboardingTour
+          key={accountId}
+          accountId={accountId}
+          pathname={pathname}
+          prepareStep={prepareTourStep}
+          onEnd={endTour}
         />
       )}
     </div>

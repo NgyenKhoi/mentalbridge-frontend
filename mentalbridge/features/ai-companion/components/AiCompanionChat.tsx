@@ -1,0 +1,1118 @@
+'use client'
+
+import { motion } from 'framer-motion'
+import { Mic } from 'lucide-react'
+import Link from 'next/link'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
+import { useFeedback } from '@/components/ui/FeedbackProvider'
+import type {
+  CompanionConversation,
+  CompanionConversationSummary,
+  CompanionContextSources,
+  CompanionQuota,
+  CompanionSuggestion,
+} from '@/lib/companion/companion-contract'
+import {
+  getResourceCatalogue,
+  type PublicResourceSummary,
+} from '@/features/resources/api/browser-resources'
+import { getResourceProgress } from '@/features/resources/api/browser-resource-progress'
+import {
+  localDate,
+  shiftDate,
+} from '@/features/resources/model/resource-experience'
+import {
+  CompanionBrowserError,
+  companionBrowserClient,
+} from '../api/browser-client'
+import styles from './AiCompanionChat.module.css'
+import CompanionContextDialog from './CompanionContextDialog'
+import StreamingText from './StreamingText'
+import { suggestionLink } from './suggestion-link'
+import VoiceEntry from '../voice/VoiceEntry'
+import { CONNECT_DRAFT } from '@/features/mam/companion-copy'
+import { dispatchMamGuide } from '@/features/mam/mam-guide'
+import AiConsentCard from './AiConsentCard'
+import ChatCommitmentOffer from './ChatCommitmentOffer'
+import {
+  clearCompanionDraft,
+  clearCompanionPending,
+  readCompanionDraft,
+  readCompanionPending,
+  writeCompanionDraft,
+  writeCompanionPending,
+  type CompanionPending,
+} from './companion-draft-storage'
+
+const starters = [
+  'Mình đang thấy lo âu',
+  'Mình muốn nói về giấc ngủ',
+  'Mình cần ai đó lắng nghe',
+  'Giúp mình bắt đầu bằng một bước nhỏ',
+]
+
+const errorCopy: Record<string, string> = {
+  AI_CONSENT_REQUIRED:
+    'Bạn đã tắt hoặc chưa cấp đồng ý xử lý AI. Hãy cập nhật quyền riêng tư trước khi gửi tiếp.',
+  CHAT_QUOTA_EXHAUSTED:
+    'Bạn đã dùng hết lượt trả lời hôm nay. Hạn mức sẽ tự đặt lại vào thời điểm hiển thị bên dưới.',
+  CHAT_RATE_LIMITED: 'Bạn đang gửi hơi nhanh. Hãy chờ một chút rồi thử lại.',
+  CHAT_TOKEN_BUDGET_EXHAUSTED:
+    'Giới hạn sử dụng an toàn hôm nay đã đạt mức tối đa.',
+  CHAT_PROVIDER_UNAVAILABLE:
+    'Mầm đang gián đoạn. Nhật ký, kế hoạch và mục “Cần trợ giúp ngay” vẫn hoạt động độc lập.',
+  CHAT_CONTEXT_UNAVAILABLE:
+    'Không thể xác minh bối cảnh đã cho phép nên yêu cầu đã dừng an toàn.',
+  COMPANION_OUTCOME_UNKNOWN:
+    'Chưa thể xác nhận lần gửi trước. Hãy thử gửi lại; nội dung sẽ không bị lặp.',
+  COMPANION_UNAVAILABLE: 'Mầm tạm thời chưa trả lời được.',
+}
+
+const friendlyError = (error: unknown) =>
+  error instanceof CompanionBrowserError
+    ? (errorCopy[error.code] ?? error.message)
+    : 'Mầm tạm thời chưa trả lời được.'
+
+const quotaCopy = (quota: CompanionQuota | null) => {
+  if (!quota) return ''
+  if (quota.plan === 'PREMIUM')
+    return 'Premium không hiển thị giới hạn trả lời hằng ngày; giới hạn token, tốc độ và sử dụng hợp lý vẫn áp dụng.'
+  return `Còn ${String(quota.remaining)} lượt · đặt lại ${new Intl.DateTimeFormat(
+    'vi-VN',
+    { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' },
+  ).format(new Date(quota.resetAt))}`
+}
+
+const formatConversationTime = (value: string) =>
+  new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value))
+
+function Icon({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+      {children}
+    </svg>
+  )
+}
+
+function InfoIcon() {
+  return (
+    <Icon>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 10.7v5.1M12 7.7h.01" />
+    </Icon>
+  )
+}
+
+function ArrowIcon() {
+  return (
+    <Icon>
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </Icon>
+  )
+}
+
+function SuggestionAction({
+  suggestion,
+}: {
+  suggestion: CompanionSuggestion | null | undefined
+}) {
+  const link = suggestionLink(suggestion)
+  if (!link) return null
+  return (
+    <motion.div
+      className={styles.messageSuggestion}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <Link href={link.href}>
+        {link.label}
+        <ArrowIcon />
+      </Link>
+    </motion.div>
+  )
+}
+
+function SparkIcon() {
+  return (
+    <Icon>
+      <path d="M12 3.5c.6 4.1 2.4 5.9 6.5 6.5-4.1.6-5.9 2.4-6.5 6.5-.6-4.1-2.4-5.9-6.5-6.5 4.1-.6 5.9-2.4 6.5-6.5Z" />
+      <path d="M18.2 15.5c.2 1.7 1.1 2.6 2.8 2.8-1.7.3-2.6 1.1-2.8 2.8-.3-1.7-1.1-2.5-2.8-2.8 1.7-.2 2.5-1.1 2.8-2.8Z" />
+    </Icon>
+  )
+}
+
+export default function AiCompanionChat({
+  accountId,
+}: Readonly<{ accountId: string }>) {
+  const { confirm, showActionToast } = useFeedback()
+  const [conversations, setConversations] = useState<
+    CompanionConversationSummary[]
+  >([])
+  const [active, setActive] = useState<CompanionConversation | null>(null)
+  const [resources, setResources] = useState<PublicResourceSummary[]>([])
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
+  const [quota, setQuota] = useState<CompanionQuota | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState<{
+    message: string
+    retry: 'load' | 'send'
+    /** The send stopped for missing AI consent: the chat offers the consent in place. */
+    consent?: boolean
+  } | null>(null)
+  // `?opening=` and `?call=1` come from the Mầm guide; read once, then dropped from the address.
+  const guideRequest = useRef<{
+    opening?: 'FROM_JOURNAL' | 'FROM_RESULT'
+    call: boolean
+  } | null>(null)
+  const [callRequested, setCallRequested] = useState(false)
+  // `?draft=connect` (a lời hẹn to message someone): read once like the guide request, applied once loaded.
+  const connectDraft = useRef(false)
+  const [search, setSearch] = useState('')
+  const [contextOpen, setContextOpen] = useState(false)
+  const [contextSaving, setContextSaving] = useState(false)
+  const [contextNotice, setContextNotice] = useState<Record<string, string>>({})
+  const [streamingId, setStreamingId] = useState<string | null>(null)
+  const [showScrollButton, setShowScrollButton] = useState(false)
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list')
+  // One command per conversation; its key is valid only for the exact text it was issued for.
+  const pendingRef = useRef<Record<string, CompanionPending>>({})
+  const activeIdRef = useRef('')
+  const composerRef = useRef<HTMLTextAreaElement | null>(null)
+  const messagesRef = useRef<HTMLDivElement | null>(null)
+  const nearBottomRef = useRef(true)
+  const streamTextRef = useRef('')
+  const requestControllerRef = useRef<AbortController | null>(null)
+  // Takes the in-flight message back out of the thread (see `send`).
+  const dropOutgoingRef = useRef<(() => void) | null>(null)
+
+  const activeId = active?.conversationId ?? ''
+  useEffect(() => {
+    activeIdRef.current = activeId
+  }, [activeId])
+  const message = activeId ? (drafts[activeId] ?? '') : ''
+  const contextCount = active
+    ? Number(active.context.sources.plan) +
+      Number(active.context.sources.diary) +
+      Number(active.context.sources.screening) +
+      active.context.sources.resourceIds.length
+    : 0
+  // The reply the lời hẹn offer sits under: the latest message, from Mầm, finished, in a conversation of 3+ turns.
+  const lastMessage = active?.messages[active.messages.length - 1]
+  const offerAfter =
+    active &&
+    lastMessage?.role === 'ASSISTANT' &&
+    !sending &&
+    !streamingId &&
+    active.messages.filter((item) => item.role === 'USER').length >= 3
+      ? lastMessage.messageId
+      : null
+  const filteredConversations = conversations.filter((conversation) =>
+    conversation.title
+      .toLocaleLowerCase('vi')
+      .includes(search.toLocaleLowerCase('vi')),
+  )
+
+  const setMessage = (value: string) => {
+    if (!activeId) return
+    setDrafts((current) => ({ ...current, [activeId]: value }))
+    writeCompanionDraft(accountId, activeId, value)
+  }
+
+  const setContextVisibility = (open: boolean) => setContextOpen(open)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const today = localDate()
+      const [history, resourceResult] = await Promise.all([
+        companionBrowserClient.list(),
+        Promise.all([
+          getResourceCatalogue(),
+          getResourceProgress(shiftDate(today, -31), today),
+        ]).catch(() => null),
+      ])
+      setConversations(history.items)
+      const stored: Record<string, string> = {}
+      for (const item of history.items) {
+        const draft = readCompanionDraft(accountId, item.conversationId)
+        if (draft) stored[item.conversationId] = draft
+        const pending = readCompanionPending(accountId, item.conversationId)
+        if (pending) pendingRef.current[item.conversationId] ??= pending
+      }
+      setDrafts((current) => ({ ...stored, ...current }))
+      setActive(
+        history.items[0]
+          ? await companionBrowserClient.get(history.items[0].conversationId)
+          : null,
+      )
+      if (resourceResult) {
+        const [catalogue, progress] = resourceResult
+        const viewed = new Set(progress.map((item) => item.resourceId))
+        setResources(catalogue.items.filter((item) => viewed.has(item.id)))
+      } else setResources([])
+    } catch (cause) {
+      setError({ message: friendlyError(cause), retry: 'load' })
+    } finally {
+      setLoading(false)
+    }
+  }, [accountId])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const opening = params.get('opening')
+    if (params.get('draft') === 'connect') {
+      connectDraft.current = true
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+    if (!params.has('opening') && !params.has('call')) return
+    guideRequest.current = {
+      opening:
+        opening === 'FROM_JOURNAL' || opening === 'FROM_RESULT'
+          ? opening
+          : undefined,
+      call: params.get('call') === '1',
+    }
+    window.history.replaceState(null, '', window.location.pathname)
+  }, [])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void load()
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [load])
+
+  const allowConversationChange = async () => {
+    if (!message.trim()) return true
+    return confirm({
+      title: 'Bạn còn một tin nhắn chưa gửi',
+      description:
+        'Bản nháp sẽ được giữ lại trong hội thoại này. Bạn có muốn chuyển sang hội thoại khác không?',
+      confirmLabel: 'Chuyển hội thoại',
+      cancelLabel: 'Ở lại',
+      tone: 'warning',
+    })
+  }
+
+  const createConversation = async (
+    opening?: 'FROM_JOURNAL' | 'FROM_RESULT',
+  ): Promise<boolean> => {
+    if (!(await allowConversationChange())) return false
+    setError(null)
+    try {
+      const created = await companionBrowserClient.create({ opening })
+      setConversations((current) => [
+        created,
+        ...current.filter(
+          (item) => item.conversationId !== created.conversationId,
+        ),
+      ])
+      setActive(created)
+      setQuota(null)
+      setMobileView('chat')
+      showActionToast({ title: 'Đã tạo cuộc trò chuyện mới' })
+      return true
+    } catch (cause) {
+      setError({ message: friendlyError(cause), retry: 'load' })
+      return false
+    }
+  }
+
+  // The guide's request runs once the history has loaded, so the new conversation lands on top.
+  useEffect(() => {
+    const request = guideRequest.current
+    if (loading || !request) return
+    guideRequest.current = null
+    if (request.opening) void createConversation(request.opening)
+    if (request.call) setCallRequested(true)
+    // `createConversation` is recreated every render; the request is taken exactly once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading])
+
+  const focusComposerEnd = () =>
+    window.setTimeout(() => {
+      const box = composerRef.current
+      if (!box) return
+      box.focus()
+      box.setSelectionRange(box.value.length, box.value.length)
+    }, 0)
+  // Mầm's draft starter for a message to someone the user trusts. It never overwrites what the user typed,
+  // and nothing is sent: the user edits and sends it.
+  const composeConnectDraft = () => {
+    setMobileView('chat')
+    if (!message.trim()) setMessage(CONNECT_DRAFT)
+    focusComposerEnd()
+  }
+  const connectDraftStarted = useRef(false)
+  useEffect(() => {
+    if (loading || !connectDraft.current) return
+    if (activeId) {
+      connectDraft.current = false
+      window.setTimeout(composeConnectDraft, 0)
+    } else if (!connectDraftStarted.current) {
+      connectDraftStarted.current = true
+      // A refused or failed start lets the draft try again (the retry, or the conversation the user picks).
+      void createConversation().then((created) => {
+        if (!created) connectDraftStarted.current = false
+      })
+    }
+    // Runs when the history has loaded or a conversation became active; the draft is taken exactly once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, activeId])
+
+  const selectConversation = async (id: string) => {
+    if (id === activeId) {
+      setMobileView('chat')
+      return
+    }
+    if (!(await allowConversationChange())) return
+    setError(null)
+    try {
+      setActive(await companionBrowserClient.get(id))
+      setQuota(null)
+      setMobileView('chat')
+    } catch (cause) {
+      setError({ message: friendlyError(cause), retry: 'load' })
+    }
+  }
+
+  const send = async () => {
+    const text = message.trim()
+    if (!active || !text || sending) return
+    const originId = active.conversationId
+    setSending(true)
+    setError(null)
+    // Written before dispatch so a reload cannot lose the key of an unconfirmed command.
+    const stored = pendingRef.current[originId]
+    const pending =
+      stored?.text === text ? stored : { key: crypto.randomUUID(), text }
+    pendingRef.current[originId] = pending
+    writeCompanionPending(accountId, originId, pending)
+    const settle = () => {
+      delete pendingRef.current[originId]
+      clearCompanionPending(accountId, originId)
+    }
+    // The user's message shows at once and the composer empties; the server's copy replaces it on success,
+    // and a failure or a stop takes it back out and returns the text to the composer.
+    const outgoingId = `outgoing:${pending.key}`
+    // Once only: a stop takes it back at once, and the stopped request settling later must not refill the composer.
+    let dropped = false
+    const dropOutgoing = () => {
+      if (dropped) return
+      dropped = true
+      if (dropOutgoingRef.current === dropOutgoing)
+        dropOutgoingRef.current = null
+      setActive((current) =>
+        current?.conversationId === originId
+          ? {
+              ...current,
+              messages: current.messages.filter(
+                (item) => item.messageId !== outgoingId,
+              ),
+            }
+          : current,
+      )
+      setDrafts((current) => ({
+        ...current,
+        [originId]: current[originId] || text,
+      }))
+    }
+    setActive((current) =>
+      current?.conversationId === originId
+        ? {
+            ...current,
+            messages: [
+              ...current.messages,
+              {
+                messageId: outgoingId,
+                role: 'USER',
+                content: text,
+                createdAt: new Date().toISOString(),
+                contextKinds: [],
+              },
+            ],
+          }
+        : current,
+    )
+    setDrafts((current) => ({ ...current, [originId]: '' }))
+    dropOutgoingRef.current = dropOutgoing
+    const controller = new AbortController()
+    requestControllerRef.current = controller
+    let animating = false
+    try {
+      const result = await companionBrowserClient.send(
+        originId,
+        { message: text },
+        pending.key,
+        controller.signal,
+      )
+      if (controller.signal.aborted) {
+        dropOutgoing()
+        return
+      }
+      // Answered: the server's copy replaces the outgoing message below, so nothing is left to take back.
+      dropped = true
+      if (dropOutgoingRef.current === dropOutgoing)
+        dropOutgoingRef.current = null
+      // The user may have switched away; then the answer is on the server, not in view.
+      animating = activeIdRef.current === originId
+      setQuota(result.quota)
+      if (animating) {
+        streamTextRef.current = ''
+        setStreamingId(result.assistantMessageId)
+      }
+      setActive((current) =>
+        current?.conversationId === active.conversationId
+          ? {
+              ...current,
+              messages: [
+                ...current.messages.filter(
+                  (item) => item.messageId !== outgoingId,
+                ),
+                {
+                  messageId: result.userMessageId,
+                  role: 'USER',
+                  content: text,
+                  createdAt: result.createdAt,
+                  contextKinds: [],
+                },
+                {
+                  messageId: result.assistantMessageId,
+                  role: 'ASSISTANT',
+                  content: result.assistant,
+                  createdAt: result.createdAt,
+                  contextKinds: result.contextKinds,
+                  suggestion: result.suggestion ?? null,
+                },
+              ],
+              updatedAt: result.createdAt,
+            }
+          : current,
+      )
+      setConversations((current) => [
+        { ...active, updatedAt: result.createdAt },
+        ...current.filter(
+          (item) => item.conversationId !== active.conversationId,
+        ),
+      ])
+      setDrafts((current) => ({ ...current, [active.conversationId]: '' }))
+      clearCompanionDraft(accountId, originId)
+      settle()
+      dispatchMamGuide({
+        type: 'chat-replied',
+        userTurns:
+          active.messages.filter((item) => item.role === 'USER').length + 1,
+        plan: result.quota.plan,
+      })
+    } catch (cause) {
+      dropOutgoing()
+      if (controller.signal.aborted) return
+      if (
+        cause instanceof CompanionBrowserError &&
+        cause.code !== 'CHAT_REQUEST_IN_PROGRESS' &&
+        cause.code !== 'COMPANION_OUTCOME_UNKNOWN'
+      )
+        settle()
+      if (activeIdRef.current === originId)
+        setError({
+          message: friendlyError(cause),
+          retry: 'send',
+          consent:
+            cause instanceof CompanionBrowserError &&
+            cause.code === 'AI_CONSENT_REQUIRED',
+        })
+    } finally {
+      // A stopped request may settle after its replacement started: only the current one may release.
+      if (requestControllerRef.current === controller) {
+        requestControllerRef.current = null
+        if (!animating) setSending(false)
+      }
+    }
+  }
+
+  const stopResponse = () => {
+    requestControllerRef.current?.abort()
+    requestControllerRef.current = null
+    dropOutgoingRef.current?.()
+    if (streamingId) {
+      const partial = streamTextRef.current
+      setActive((current) =>
+        current
+          ? {
+              ...current,
+              messages: current.messages.map((item) =>
+                item.messageId === streamingId && partial
+                  ? { ...item, content: partial }
+                  : item,
+              ),
+            }
+          : current,
+      )
+    }
+    setStreamingId(null)
+    setSending(false)
+  }
+
+  const finishStreaming = useCallback(() => {
+    setStreamingId(null)
+    setSending(false)
+    // A suggestion mounts once streaming ends; keep it in view for a reader at the bottom.
+    if (nearBottomRef.current)
+      window.requestAnimationFrame(() => {
+        const container = messagesRef.current
+        if (container) container.scrollTop = container.scrollHeight
+      })
+  }, [])
+
+  const trackStreaming = useCallback((value: string) => {
+    streamTextRef.current = value
+    if (nearBottomRef.current) {
+      window.requestAnimationFrame(() => {
+        const container = messagesRef.current
+        if (container) container.scrollTop = container.scrollHeight
+      })
+    } else setShowScrollButton(true)
+  }, [])
+
+  const saveContext = async (sources: CompanionContextSources) => {
+    if (!active) return
+    setContextSaving(true)
+    setError(null)
+    try {
+      const updated = await companionBrowserClient.updateContext(
+        active.conversationId,
+        { sources },
+      )
+      setActive(updated)
+      setConversations((current) =>
+        current.map((item) =>
+          item.conversationId === updated.conversationId
+            ? { ...item, updatedAt: updated.updatedAt }
+            : item,
+        ),
+      )
+      const enabled = [
+        sources.plan ? 'Kế hoạch hỗ trợ' : '',
+        sources.diary ? 'Nhật ký' : '',
+        sources.screening ? 'Bài sàng lọc' : '',
+        sources.resourceIds.length > 0
+          ? `${String(sources.resourceIds.length)} tài nguyên`
+          : '',
+      ].filter(Boolean)
+      setContextNotice((current) => ({
+        ...current,
+        [updated.conversationId]: enabled.length
+          ? `Bạn đã bật ${enabled.join(', ')} cho cuộc trò chuyện này.`
+          : 'Bạn đã tắt tất cả nguồn thông tin cho cuộc trò chuyện này.',
+      }))
+      setContextVisibility(false)
+      showActionToast({ title: 'Đã lưu nguồn thông tin' })
+    } catch (cause) {
+      setError({ message: friendlyError(cause), retry: 'load' })
+    } finally {
+      setContextSaving(false)
+    }
+  }
+
+  const remove = async () => {
+    if (!active) return
+    const removedId = active.conversationId
+    const confirmed = await confirm({
+      title: 'Xóa cuộc trò chuyện?',
+      description:
+        'Toàn bộ tin nhắn trong cuộc trò chuyện này sẽ bị xóa vĩnh viễn và không thể khôi phục.',
+      confirmLabel: 'Xóa cuộc trò chuyện',
+    })
+    if (!confirmed) return
+    try {
+      await companionBrowserClient.remove(removedId)
+      clearCompanionDraft(accountId, removedId)
+      clearCompanionPending(accountId, removedId)
+      delete pendingRef.current[removedId]
+      const remaining = conversations.filter(
+        (item) => item.conversationId !== removedId,
+      )
+      // Drop the deleted conversation first: a failed load of the next one must not leave it on screen.
+      setConversations(remaining)
+      setDrafts((current) => {
+        const next = { ...current }
+        delete next[removedId]
+        return next
+      })
+      setActive(null)
+      setQuota(null)
+      setMobileView('list')
+      if (remaining[0])
+        setActive(await companionBrowserClient.get(remaining[0].conversationId))
+      showActionToast({
+        title: 'Đã xóa cuộc trò chuyện',
+        description: 'Các tin nhắn trong cuộc trò chuyện đã được xóa.',
+      })
+    } catch (cause) {
+      setError({ message: friendlyError(cause), retry: 'load' })
+    }
+  }
+
+  const chooseStarter = (starter: string) => {
+    setMessage(starter)
+    window.setTimeout(() => composerRef.current?.focus(), 0)
+  }
+
+  if (loading)
+    return (
+      <main className={styles.loading} aria-busy="true">
+        Đang tải cuộc trò chuyện với Mầm…
+      </main>
+    )
+
+  return (
+    <main className={styles.page} data-mobile-view={mobileView}>
+      <aside className={styles.sidebar} aria-label="Danh sách hội thoại">
+        <div className={styles.sidebarHeader}>
+          <div>
+            <span>Mầm · bạn đồng hành AI</span>
+            <h1>Hội thoại</h1>
+          </div>
+          <button type="button" onClick={() => void createConversation()}>
+            <span aria-hidden="true">＋</span> Cuộc trò chuyện mới
+          </button>
+        </div>
+
+        <VoiceEntry
+          placement="mobile"
+          conversation={
+            active
+              ? { conversationId: active.conversationId, title: active.title }
+              : undefined
+          }
+          autoOpen={callRequested}
+        />
+        {conversations.length > 4 ? (
+          <label className={styles.search}>
+            <span className="sr-only">Tìm kiếm hội thoại</span>
+            <Icon>
+              <circle cx="10.8" cy="10.8" r="6.3" />
+              <path d="m15.5 15.5 4 4" />
+            </Icon>
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Tìm hội thoại cũ"
+            />
+          </label>
+        ) : null}
+
+        <details className={styles.aiNote}>
+          <summary>
+            <InfoIcon />
+            <span>AI đồng hành, không thay thế chuyên gia</span>
+          </summary>
+          <p>
+            AI hỗ trợ bạn suy ngẫm; không chẩn đoán, chấm điểm, quyết định an
+            toàn hay tự thay đổi kế hoạch hỗ trợ.
+          </p>
+        </details>
+
+        <div className={styles.history}>
+          {filteredConversations.length === 0 ? (
+            <div className={styles.historyEmpty}>
+              <SparkIcon />
+              <p>
+                {search
+                  ? 'Không tìm thấy hội thoại phù hợp.'
+                  : 'Chưa có cuộc trò chuyện nào.'}
+              </p>
+            </div>
+          ) : (
+            filteredConversations.map((conversation, index) => (
+              <button
+                type="button"
+                key={conversation.conversationId}
+                style={
+                  {
+                    '--entry-delay': `${Math.min(index, 7) * 45}ms`,
+                  } as CSSProperties
+                }
+                className={
+                  activeId === conversation.conversationId
+                    ? styles.activeConversation
+                    : undefined
+                }
+                onClick={() =>
+                  void selectConversation(conversation.conversationId)
+                }
+              >
+                <span className={styles.conversationCopy}>
+                  <strong>{conversation.title}</strong>
+                  <small>
+                    {activeId === conversation.conversationId &&
+                    active?.messages.at(-1)
+                      ? active.messages.at(-1)?.content
+                      : 'Tiếp tục cuộc trò chuyện của bạn'}
+                  </small>
+                </span>
+                <time dateTime={conversation.updatedAt}>
+                  {formatConversationTime(conversation.updatedAt)}
+                </time>
+              </button>
+            ))
+          )}
+        </div>
+      </aside>
+
+      <section className={styles.chat} aria-label="Trò chuyện với Mầm">
+        <header className={styles.chatHeader}>
+          <div className={styles.chatIdentity}>
+            <button
+              type="button"
+              className={styles.mobileBack}
+              aria-label="Quay lại danh sách hội thoại"
+              onClick={() => setMobileView('list')}
+            >
+              <Icon>
+                <path d="m15 5-7 7 7 7" />
+              </Icon>
+            </button>
+            <span className={styles.companionMark} aria-hidden="true">
+              <SparkIcon />
+            </span>
+            <div>
+              <strong>{active?.title ?? 'Trò chuyện với Mầm'}</strong>
+              <small>
+                {active
+                  ? `Bắt đầu ${formatConversationTime(active.createdAt)}${quota ? ` · ${quotaCopy(quota)}` : ''}`
+                  : 'Một không gian riêng để bạn chia sẻ'}
+              </small>
+            </div>
+          </div>
+          <div className={styles.headerActions}>
+            <VoiceEntry
+              placement="desktop"
+              conversation={
+                active
+                  ? {
+                      conversationId: active.conversationId,
+                      title: active.title,
+                    }
+                  : undefined
+              }
+              autoOpen={callRequested}
+            />
+            {active ? (
+              <button
+                type="button"
+                className={styles.headerInfoButton}
+                aria-label="Nguồn thông tin AI được đọc"
+                onClick={() => setContextVisibility(true)}
+              >
+                <InfoIcon />
+              </button>
+            ) : null}
+            <Link
+              href="/safety-directory"
+              className={styles.safetyAction}
+              aria-label="Cần trợ giúp ngay"
+            >
+              <Icon>
+                <path d="M12 21s-7-4.4-7-11a4 4 0 0 1 7-2.7A4 4 0 0 1 19 10c0 6.6-7 11-7 11Z" />
+                <path d="M9 12h6M12 9v6" />
+              </Icon>
+              <span>Cần trợ giúp ngay</span>
+            </Link>
+            {active ? (
+              <details className={styles.moreMenu}>
+                <summary aria-label="Tùy chọn hội thoại">
+                  <span aria-hidden="true">•••</span>
+                </summary>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setContextVisibility(true)}
+                  >
+                    Nguồn thông tin AI được đọc
+                  </button>
+                  <button type="button" onClick={() => void remove()}>
+                    Xóa cuộc trò chuyện
+                  </button>
+                </div>
+              </details>
+            ) : null}
+          </div>
+        </header>
+
+        {error?.consent ? (
+          <AiConsentCard
+            onGranted={() => {
+              setError(null)
+              void send()
+            }}
+          />
+        ) : error ? (
+          <div className={styles.error} role="alert">
+            <p>{error.message}</p>
+            {error.retry === 'load' || (active && message.trim()) ? (
+              <button
+                type="button"
+                disabled={loading || sending}
+                onClick={() => {
+                  if (error.retry === 'send') void send()
+                  else void load()
+                }}
+              >
+                {error.retry === 'send' ? 'Gửi lại' : 'Tải lại'}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {!active ? (
+          <div className={styles.empty}>
+            <span className={styles.emptyMascot} aria-hidden="true">
+              <SparkIcon />
+            </span>
+            <h2>Bắt đầu khi bạn sẵn sàng</h2>
+            <p>
+              Nội dung trò chuyện được mã hóa và tự xóa theo thời hạn lưu giữ.
+            </p>
+            <button type="button" onClick={() => void createConversation()}>
+              Bắt đầu trò chuyện
+            </button>
+          </div>
+        ) : (
+          <>
+            <div
+              ref={messagesRef}
+              className={styles.messages}
+              aria-live="polite"
+              onScroll={(event) => {
+                const element = event.currentTarget
+                const distance =
+                  element.scrollHeight -
+                  element.scrollTop -
+                  element.clientHeight
+                nearBottomRef.current = distance <= 80
+                if (nearBottomRef.current) setShowScrollButton(false)
+              }}
+            >
+              {active.messages.length === 0 ? (
+                <div className={styles.welcome}>
+                  <span className={styles.welcomeMascot} aria-hidden="true">
+                    <SparkIcon />
+                  </span>
+                  <span className={styles.eyebrow}>
+                    Không cần bắt đầu hoàn hảo
+                  </span>
+                  <h2>Mình đang lắng nghe</h2>
+                  <p>
+                    Chọn một gợi ý hoặc chia sẻ theo cách tự nhiên nhất với bạn.
+                  </p>
+                  <div className={styles.starters} aria-label="Gợi ý mở đầu">
+                    {starters.map((starter) => (
+                      <button
+                        type="button"
+                        key={starter}
+                        onClick={() => chooseStarter(starter)}
+                      >
+                        {starter}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                active.messages.map((item) => (
+                  <article
+                    key={item.messageId}
+                    className={`${styles.messageRow} ${item.role === 'USER' ? styles.userMessage : styles.aiMessage}`}
+                    data-surface={item.role === 'USER' ? 'dark' : undefined}
+                  >
+                    <span className={styles.avatar} aria-hidden="true">
+                      {item.role === 'USER' ? 'B' : <SparkIcon />}
+                    </span>
+                    <div className={styles.messageBubble}>
+                      <header>
+                        <strong>{item.role === 'USER' ? 'Bạn' : 'Mầm'}</strong>
+                        <time dateTime={item.createdAt}>
+                          {new Intl.DateTimeFormat('vi-VN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          }).format(new Date(item.createdAt))}
+                        </time>
+                      </header>
+                      {item.channel === 'VOICE' ? (
+                        <div className={styles.voiceCaption}>
+                          <Mic size={12} aria-hidden="true" />
+                          Qua giọng nói
+                        </div>
+                      ) : null}
+                      <p>
+                        {streamingId === item.messageId ? (
+                          <StreamingText
+                            key={`${item.messageId}:${item.content}`}
+                            text={item.content}
+                            onProgress={trackStreaming}
+                            onComplete={finishStreaming}
+                          />
+                        ) : (
+                          item.content
+                        )}
+                      </p>
+                      {/* The action arrives only once the reply has finished streaming. */}
+                      {streamingId === item.messageId ? null : (
+                        <SuggestionAction suggestion={item.suggestion} />
+                      )}
+                      {/* A quiet lời hẹn offer under the latest reply, once the talk has some depth. */}
+                      {item.messageId === offerAfter ? (
+                        <ChatCommitmentOffer
+                          accountId={accountId}
+                          conversationId={activeId}
+                          onCompose={composeConnectDraft}
+                          onClose={focusComposerEnd}
+                        />
+                      ) : null}
+                    </div>
+                  </article>
+                ))
+              )}
+              {contextNotice[activeId] ? (
+                <div className={styles.contextTimelineNotice} role="status">
+                  <InfoIcon />
+                  <span>{contextNotice[activeId]}</span>
+                </div>
+              ) : null}
+              {sending && !streamingId ? (
+                <article className={`${styles.messageRow} ${styles.aiMessage}`}>
+                  <span className={styles.avatar} aria-hidden="true">
+                    <SparkIcon />
+                  </span>
+                  <div
+                    className={`${styles.messageBubble} ${styles.thinking}`}
+                    role="status"
+                  >
+                    <span>Mầm đang suy nghĩ</span>
+                    <i aria-hidden="true">
+                      <i />
+                      <i />
+                      <i />
+                    </i>
+                  </div>
+                </article>
+              ) : null}
+            </div>
+
+            {showScrollButton ? (
+              <button
+                type="button"
+                className={styles.scrollToBottom}
+                onClick={() => {
+                  const container = messagesRef.current
+                  if (container) container.scrollTop = container.scrollHeight
+                  nearBottomRef.current = true
+                  setShowScrollButton(false)
+                }}
+              >
+                Cuộn xuống ↓
+              </button>
+            ) : null}
+
+            <div className={styles.composer}>
+              <div className={styles.composerContextRow}>
+                <button
+                  type="button"
+                  onClick={() => setContextVisibility(true)}
+                >
+                  <InfoIcon />
+                  {/* Which sources is a setting, not a per-answer counter (owner 2026-11-27). */}
+                  {contextCount > 0
+                    ? 'Điều Mầm được biết về bạn'
+                    : 'Chọn điều Mầm được biết về bạn'}
+                </button>
+              </div>
+              <div className={styles.composerBox}>
+                <button
+                  type="button"
+                  className={styles.contextShortcut}
+                  aria-label="Chọn thông tin để AI hiểu bạn hơn"
+                  onClick={() => setContextVisibility(true)}
+                >
+                  <InfoIcon />
+                </button>
+                <label htmlFor="companion-message" className="sr-only">
+                  Tin nhắn
+                </label>
+                <textarea
+                  ref={composerRef}
+                  id="companion-message"
+                  value={message}
+                  maxLength={2_000}
+                  rows={2}
+                  disabled={sending}
+                  onChange={(event) => setMessage(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                      event.preventDefault()
+                      void send()
+                    }
+                  }}
+                  placeholder="Chia sẻ điều bạn đang nghĩ…"
+                />
+                <button
+                  type="button"
+                  className={styles.sendButton}
+                  aria-label={sending ? 'Dừng phản hồi' : 'Gửi'}
+                  disabled={!sending && message.trim().length === 0}
+                  onClick={() => (sending ? stopResponse() : void send())}
+                >
+                  {sending ? (
+                    <>
+                      <span>Dừng</span>
+                      <span className={styles.stopIcon} aria-hidden="true" />
+                    </>
+                  ) : (
+                    <>
+                      <span>Gửi</span>
+                      <Icon>
+                        <path d="m5 12 14-7-4 14-3-6-7-1Z" />
+                        <path d="m12 13 7-8" />
+                      </Icon>
+                    </>
+                  )}
+                </button>
+              </div>
+              <div className={styles.composerMeta}>
+                <small>
+                  AI có thể mắc lỗi. Hãy kiểm tra thông tin quan trọng.
+                </small>
+                <small>{message.length}/2000</small>
+              </div>
+            </div>
+          </>
+        )}
+      </section>
+      {active && contextOpen ? (
+        <CompanionContextDialog
+          sources={active.context.sources}
+          resources={resources}
+          saving={contextSaving}
+          onClose={() => setContextVisibility(false)}
+          onSave={(sources) => void saveContext(sources)}
+        />
+      ) : null}
+    </main>
+  )
+}

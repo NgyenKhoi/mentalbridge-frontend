@@ -1,31 +1,185 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('./SessionActions', () => ({
   default: () => <div>Session actions</div>,
 }))
 
-import AdminWorkspace from './AdminWorkspace'
+vi.mock('./WorkspaceSwitcher', () => ({
+  default: () => <div>Workspace switcher</div>,
+}))
+
+vi.mock('@/features/dashboard/components/AdminOperationsDashboard', () => ({
+  default: () => <section aria-label="operations-dashboard" />,
+}))
+
+vi.mock('@/components/AdminDashboardManager', () => ({
+  ProductJourneyMetricsPanel: () => (
+    <section aria-label="product-journey-metrics" />
+  ),
+}))
+
+vi.mock('./AdminAccountManager', () => ({
+  default: () => <section aria-label="accounts-authority" />,
+}))
+
+vi.mock(
+  '@/features/specialist-profile/components/AdminSpecialistReviewSection',
+  () => ({
+    default: () => <section aria-label="specialists-authority" />,
+  }),
+)
+
+vi.mock('./AdminContentSection', () => ({
+  default: () => <section aria-label="content-authority" />,
+}))
+
+vi.mock('@/features/benchmarks/AdminBenchmarkGovernance', () => ({
+  default: () => <section aria-label="benchmarks-authority" />,
+}))
+
+vi.mock(
+  '@/features/community/components/AdminCommunityModerationSection',
+  () => ({
+    default: () => <section aria-label="moderation-authority" />,
+  }),
+)
+
+vi.mock('@/features/appointments/components/AdminAppointmentMonitor', () => ({
+  default: () => <section aria-label="appointments-authority" />,
+}))
+
+vi.mock('@/features/audit/components/AdminAuditLog', () => ({
+  default: () => <section aria-label="audit-authority" />,
+}))
+
+vi.mock('@/features/reports/components/AdminReportsSection', () => ({
+  default: () => <section aria-label="reports-authority" />,
+}))
+
+vi.mock('@/components/AdminPaymentsManager', () => ({
+  default: () => <section aria-label="payments-authority" />,
+}))
+
+vi.mock('@/components/AdminPayoutsManager', () => ({
+  default: () => <section aria-label="payouts-authority" />,
+}))
+
+vi.mock(
+  '@/features/reconciliation/components/AdminCommercialReconciliationManager',
+  () => ({
+    default: () => <section aria-label="reconciliation-authority" />,
+  }),
+)
+
+vi.mock('@/features/retention/components/AdminRetentionGovernance', () => ({
+  default: () => <section aria-label="retention-authority" />,
+}))
+
+import AdminWorkspace, { type AdminSection } from './AdminWorkspace'
+
+const workspaces = [
+  { role: 'ADMIN' as const, label: 'Quản trị', path: '/admin/dashboard' },
+]
+
+function renderSection(section: AdminSection) {
+  return render(<AdminWorkspace section={section} workspaces={workspaces} />)
+}
 
 describe('AdminWorkspace', () => {
-  it('renders protected navigation without fabricated sensitive records', () => {
-    const { container } = render(
-      <AdminWorkspace
-        section="dashboard"
-        workspaces={[
-          { role: 'ADMIN', label: 'Quản trị', path: '/admin/dashboard' },
-        ]}
-      />,
-    )
+  it('exposes only the consolidated authoritative admin routes', () => {
+    const { container } = renderSection('dashboard')
+    const navigation = screen.getByRole('navigation', {
+      name: 'Điều hướng quản trị',
+    })
 
+    expect(within(navigation).getAllByRole('link')).toHaveLength(9)
     expect(
-      screen.getByRole('navigation', { name: 'Điều hướng quản trị' }),
-    ).toBeVisible()
-    expect(
-      screen.getByRole('heading', { name: 'Quyền ADMIN đã được xác minh' }),
-    ).toBeVisible()
+      within(navigation)
+        .getAllByRole('link')
+        .map((link) => link.getAttribute('href')),
+    ).toEqual([
+      '/admin/dashboard',
+      '/admin/accounts',
+      '/admin/specialists',
+      '/admin/content',
+      '/admin/benchmarks',
+      '/admin/moderation',
+      '/admin/appointments',
+      '/admin/payments',
+      '/admin/payouts',
+    ])
     expect(container).not.toHaveTextContent('@example.com')
     expect(container).not.toHaveTextContent('Nguyễn Minh Anh')
     expect(container).not.toHaveTextContent('12.480')
+    expect(
+      within(navigation).queryByRole('link', { name: 'Bảo lưu & xóa dữ liệu' }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(navigation).queryByRole('link', { name: 'Nhật ký kiểm toán' }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(navigation).queryByRole('link', { name: 'Báo cáo' }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(navigation).queryByRole('link', { name: 'Đối soát thương mại' }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(navigation).getByRole('link', { name: 'Thanh toán gói' }),
+    ).toHaveAttribute('href', '/admin/payments')
+    expect(
+      within(navigation).getByRole('link', { name: 'Chi trả chuyên gia' }),
+    ).toHaveAttribute('href', '/admin/payouts')
+    expect(
+      within(navigation).getByRole('link', { name: 'Benchmark AI' }),
+    ).toHaveAttribute('href', '/admin/benchmarks')
+  })
+
+  it('combines the authoritative operations and journey projections on the dashboard', () => {
+    renderSection('dashboard')
+
+    expect(
+      screen.getByRole('region', { name: 'operations-dashboard' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('region', { name: 'product-journey-metrics' }),
+    ).toBeVisible()
+  })
+
+  it.each([
+    ['accounts', 'accounts-authority'],
+    ['retention', 'retention-authority'],
+    ['specialists', 'specialists-authority'],
+    ['content', 'content-authority'],
+    ['benchmarks', 'benchmarks-authority'],
+    ['moderation', 'moderation-authority'],
+    ['appointments', 'appointments-authority'],
+    ['audit', 'audit-authority'],
+    ['reports', 'reports-authority'],
+    ['payments', 'payments-authority'],
+    ['payouts', 'payouts-authority'],
+    ['reconciliation', 'reconciliation-authority'],
+  ] satisfies ReadonlyArray<readonly [AdminSection, string]>)(
+    'maps /admin/%s to its delivered owner-backed section',
+    (section, accessibleName) => {
+      renderSection(section)
+
+      expect(screen.getByRole('region', { name: accessibleName })).toBeVisible()
+    },
+  )
+
+  it('renders administrator profile badge in topbar with proper admin identity without clinical doctor prefix', () => {
+    renderSection('dashboard')
+
+    const profileBadge = screen.getByRole('link', { name: /quản trị viên/i })
+    expect(profileBadge).toHaveAttribute('href', '/admin/dashboard')
+    expect(within(profileBadge).getByText('AD')).toBeInTheDocument()
+    expect(within(profileBadge).getByText('Quản trị viên')).toBeInTheDocument()
+    expect(
+      within(profileBadge).getByText(/admin \/ quyền tối cao/i),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/BS\. Hoàng Khang/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Hệ thống ổn định/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 })

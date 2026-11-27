@@ -1,0 +1,5 @@
+name: mam-v08
+main: companion_main
+logs:
+  file: build/rive.log
+  problems: build/problems.log

@@ -3,6 +3,8 @@ import {
   readIdentityServerConfig,
   readCareServerConfig,
   readContentServerConfig,
+  readConsultationServerConfig,
+  readRealtimeServerConfig,
 } from './server'
 
 describe('readIdentityServerConfig', () => {
@@ -67,6 +69,47 @@ describe('readIdentityServerConfig', () => {
         IDENTITY_API_BASE_URL: 'http://localhost:8080?query=value',
       }),
     ).toThrow('must not contain credentials, query parameters, or a fragment')
+  })
+})
+
+describe('readConsultationServerConfig', () => {
+  it('parses the server-only URL and timeout', () => {
+    expect(
+      readConsultationServerConfig({
+        CONSULTATION_SERVICE_URL: 'http://localhost:8082',
+        CONSULTATION_SERVICE_TIMEOUT_MS: '4500',
+      }),
+    ).toEqual({ baseUrl: 'http://localhost:8082/', timeoutMs: 4500 })
+  })
+
+  it('requires an absolute Consultation URL', () => {
+    expect(() => readConsultationServerConfig({})).toThrow(
+      'CONSULTATION_SERVICE_URL is required',
+    )
+  })
+})
+
+describe('readRealtimeServerConfig', () => {
+  it('separates the internal service URL from the browser socket endpoint', () => {
+    expect(
+      readRealtimeServerConfig({
+        REALTIME_SERVICE_URL: 'http://realtime:3004',
+        REALTIME_PUBLIC_URL: 'https://chat.example.test',
+        REALTIME_SERVICE_TIMEOUT_MS: '2500',
+      }),
+    ).toEqual({
+      baseUrl: 'http://realtime:3004/',
+      publicUrl: 'https://chat.example.test/',
+      timeoutMs: 2500,
+    })
+  })
+
+  it('requires an explicit public endpoint', () => {
+    expect(() =>
+      readRealtimeServerConfig({
+        REALTIME_SERVICE_URL: 'http://realtime:3004',
+      }),
+    ).toThrow('REALTIME_PUBLIC_URL is required')
   })
 })
 

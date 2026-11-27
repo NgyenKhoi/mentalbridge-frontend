@@ -3,37 +3,18 @@
 import Link from 'next/link'
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 
-import ResourcesList from '@/components/ResourcesList'
-import type {
-  Assessment,
-  ScreeningLevel,
-  SupportEvaluation,
-  SupportTier,
-} from '@/features/assessment/api/care-contract'
+import { useFeedback } from '@/components/ui/FeedbackProvider'
 import {
   createInitialCheckEvaluation,
   getInitialCheckState,
   resetInitialCheck,
 } from '@/features/assessment/api/browser-care'
 import AssessmentFlow from '@/features/assessment/components/AssessmentFlow'
+import { CombinedMeaningCard } from '@/features/assessment/components/CombinedMeaningCard'
 import type { InitialCheckState } from '@/features/initial-check/api/initial-check-contract'
 import { ApiError } from '@/lib/api/api-error'
 
 import './guided-initial-check.css'
-
-const screeningLabels: Record<ScreeningLevel, string> = {
-  MINIMAL: 'Tối thiểu',
-  MILD: 'Nhẹ',
-  MODERATE: 'Trung bình',
-  MODERATELY_SEVERE: 'Khá nặng',
-  SEVERE: 'Nặng',
-}
-
-const tierLabels: Record<SupportTier, string> = {
-  SELF_GUIDED_SUPPORT: 'Tự hỗ trợ có hướng dẫn',
-  PROFESSIONAL_SUPPORT_RECOMMENDED: 'Nên cân nhắc hỗ trợ chuyên môn',
-  SAFETY_FOLLOW_UP_RECOMMENDED: 'Nên ưu tiên theo dõi an toàn',
-}
 
 type JourneyIconName =
   | 'check'
@@ -153,26 +134,35 @@ function JourneyProgress({ phase }: { phase: InitialCheckState['phase'] }) {
           ? 3
           : 0
 
+  const steps = ['Sẵn sàng', 'PHQ-9', 'GAD-7', 'Kết quả đã lưu']
+
   return (
     <nav
       className="initial-check-progress"
-      aria-label="Tiến trình kiểm tra ban đầu"
+      aria-label="Tiến trình bài sàng lọc"
     >
       <ol>
-        {['Sẵn sàng', 'PHQ-9', 'GAD-7', 'Kết quả'].map((label, index) => (
-          <li
-            key={label}
-            className={
-              index < active ? 'completed' : index === active ? 'active' : ''
-            }
-            aria-current={index === active ? 'step' : undefined}
-          >
-            <span className="initial-check-step-marker">
-              {index < active ? <JourneyIcon name="check" /> : index + 1}
-            </span>
-            <span className="initial-check-step-label">{label}</span>
-          </li>
-        ))}
+        {steps.map((label, index) => {
+          const isCompleted =
+            index < active || (phase === 'COMPLETED' && index === 3)
+          const isActive = index === active && phase !== 'COMPLETED'
+          return (
+            <li
+              key={label}
+              className={isCompleted ? 'completed' : isActive ? 'active' : ''}
+              aria-current={
+                isActive || (phase === 'COMPLETED' && index === 3)
+                  ? 'step'
+                  : undefined
+              }
+            >
+              <span className="initial-check-step-marker">
+                {isCompleted ? <JourneyIcon name="check" /> : index + 1}
+              </span>
+              <span className="initial-check-step-label">{label}</span>
+            </li>
+          )
+        })}
       </ol>
       <p className="initial-check-progress-summary" aria-live="polite">
         Bước {active + 1} trên 4
@@ -183,10 +173,21 @@ function JourneyProgress({ phase }: { phase: InitialCheckState['phase'] }) {
 
 function ReadinessStep({
   phase,
+  purpose,
+  planReview,
 }: {
   phase: 'PROFILE_REQUIRED' | 'CONSENT_REQUIRED'
+  purpose: 'INITIAL_CHECK' | 'REASSESSMENT'
+  planReview: boolean
 }) {
   const needsProfile = phase === 'PROFILE_REQUIRED'
+  // The plan-review token survives the profile/privacy detour (MB-645).
+  const returnTo =
+    purpose !== 'REASSESSMENT'
+      ? '/initial-check'
+      : planReview
+        ? '/initial-check?purpose=reassessment&returnTo=plan-review'
+        : '/initial-check?purpose=reassessment'
   return (
     <section
       className="initial-check-readiness"
@@ -201,7 +202,7 @@ function ReadinessStep({
       </h1>
       <p>
         {needsProfile
-          ? 'Bạn cần một hồ sơ để Care lưu đúng các kết quả trong tài khoản của bạn.'
+          ? 'Bạn cần một hồ sơ để lưu các kết quả vào đúng tài khoản của mình.'
           : 'Bạn cần đọc và đồng ý với thông báo xử lý dữ liệu hiện hành trước khi làm bài.'}
       </p>
       <p className="initial-check-privacy-note">
@@ -209,100 +210,12 @@ function ReadinessStep({
       </p>
       <Link
         className="btn btn-primary"
-        href="/profile?returnTo=%2Finitial-check"
+        href={`/profile?returnTo=${encodeURIComponent(returnTo)}`}
       >
         {needsProfile
           ? 'Tạo hồ sơ và tiếp tục'
           : 'Xem quyền riêng tư và tiếp tục'}
       </Link>
-    </section>
-  )
-}
-
-function AssessmentEvidence({
-  title,
-  assessment,
-}: {
-  title: string
-  assessment: Assessment
-}) {
-  const maximum = assessment.instrument === 'PHQ9' ? 27 : 21
-  return (
-    <section
-      className="initial-check-evidence"
-      aria-labelledby={`${assessment.instrument}-title`}
-    >
-      <header className="initial-check-section-header">
-        <div className="initial-check-section-title">
-          <span className="initial-check-section-icon">
-            <JourneyIcon name="clipboard" />
-          </span>
-          <div>
-            <span>Kết quả đã lưu</span>
-            <h2 id={`${assessment.instrument}-title`}>{title}</h2>
-          </div>
-        </div>
-        <span className="initial-check-complete-badge">
-          <JourneyIcon name="check" /> Đã hoàn tất
-        </span>
-      </header>
-      <div className="initial-check-score-row">
-        <p>
-          <strong>{assessment.result.totalScore}</strong>
-          <span>/ {maximum} điểm</span>
-        </p>
-        <p>
-          Mức sàng lọc
-          <strong>{screeningLabels[assessment.result.screeningLevel]}</strong>
-        </p>
-      </div>
-      <progress
-        className="initial-check-score-progress"
-        value={assessment.result.totalScore}
-        max={maximum}
-        aria-label={`${title}: ${assessment.result.totalScore} trên ${maximum} điểm`}
-      />
-      <small className="initial-check-score-context">
-        Phản ánh câu trả lời tự khai trong 14 ngày gần đây
-      </small>
-    </section>
-  )
-}
-
-function SafetyBlock({ evaluation }: { evaluation: SupportEvaluation }) {
-  const phq9 = evaluation.evidence.find((item) => item.instrument === 'PHQ9')!
-  const positive = phq9.safetyStatus === 'POSITIVE_SAFETY_SCREEN'
-  return (
-    <section
-      className={`initial-check-safety ${positive ? 'positive' : ''}`}
-      aria-labelledby="initial-check-safety-title"
-    >
-      <header className="initial-check-section-header">
-        <div className="initial-check-section-title">
-          <span className="initial-check-section-icon">
-            <JourneyIcon name="shield" />
-          </span>
-          <div>
-            <span>Thông tin an toàn</span>
-            <h2 id="initial-check-safety-title">
-              {positive
-                ? 'Ưu tiên xem hướng dẫn an toàn'
-                : 'Mục an toàn không kích hoạt hướng dẫn bổ sung'}
-            </h2>
-          </div>
-        </div>
-        <span className="initial-check-priority-badge">
-          {positive ? 'Cần ưu tiên' : 'Đã kiểm tra'}
-        </span>
-      </header>
-      <p>
-        {evaluation.safetyGuidance ??
-          'Kết quả PHQ-9 âm tính theo quy tắc sàng lọc của bộ câu hỏi. Điều này không phải là đánh giá toàn diện về nguy cơ hoặc lời khẳng định rằng bạn đang an toàn.'}
-      </p>
-      <p>
-        MentalBridge không cung cấp ứng cứu khẩn cấp, không giám sát 24/7 và
-        không tự động liên hệ người khác.
-      </p>
     </section>
   )
 }
@@ -322,173 +235,76 @@ function UnifiedResult({
   restarting: boolean
   confirmingRestart: boolean
 }) {
-  const { phq9, gad7, evaluation } = state
+  const result = useRef<HTMLDivElement>(null)
   const restartConfirmation = useRef<HTMLDivElement>(null)
+  const wasConfirming = useRef(false)
 
   useEffect(() => {
     if (confirmingRestart) restartConfirmation.current?.focus()
+    // Keeping the result unmounts the confirmation; hand focus back to the redo button.
+    else if (wasConfirming.current)
+      result.current
+        ?.querySelector<HTMLButtonElement>('button[aria-expanded]')
+        ?.focus()
+    wasConfirming.current = confirmingRestart
   }, [confirmingRestart])
 
+  // The meaning, bands and next step come from Care's saved combined meaning, the same card History opens.
   return (
-    <div className="initial-check-result">
-      <header className="initial-check-result-hero">
-        <div className="initial-check-result-hero-icon">
-          <JourneyIcon name="check" />
-        </div>
-        <div className="initial-check-result-hero-copy">
-          <span className="initial-check-kicker">Đã hoàn thành</span>
-          <h1 tabIndex={-1}>Kết quả kiểm tra ban đầu</h1>
-          <p>
-            Hai bài phản ánh câu trả lời tự khai về 14 ngày gần đây và được
-            trình bày riêng, không cộng thành một điểm chung.
-          </p>
-          <ul aria-label="Phạm vi kết quả">
-            <li>2 bài sàng lọc</li>
-            <li>Khung 14 ngày</li>
-            <li>Không phải chẩn đoán</li>
-          </ul>
-        </div>
-      </header>
-
-      <AssessmentEvidence
-        title="PHQ-9 — triệu chứng trầm cảm"
-        assessment={phq9}
-      />
-      <AssessmentEvidence title="GAD-7 — triệu chứng lo âu" assessment={gad7} />
-      <SafetyBlock evaluation={evaluation} />
-
-      <section
-        className="initial-check-tier"
-        aria-labelledby="support-tier-title"
-      >
-        <span className="initial-check-section-icon">
-          <JourneyIcon name="route" />
-        </span>
-        <div>
-          <span>Hướng hỗ trợ tổng thể</span>
-          <h2 id="support-tier-title">{tierLabels[evaluation.supportTier]}</h2>
-          <p>
-            Được xác định từ hai kết quả đã lưu và thông tin an toàn ở trên.
-          </p>
-        </div>
-      </section>
-
-      <section
-        className="initial-check-meaning"
-        aria-labelledby="meaning-title"
-      >
-        <header className="initial-check-section-title">
-          <span className="initial-check-section-icon">
-            <JourneyIcon name="spark" />
-          </span>
-          <div>
-            <span>Ý nghĩa của từng kết quả</span>
-            <h2 id="meaning-title">Hiểu kết quả trong đúng phạm vi</h2>
-          </div>
-        </header>
-        <div className="initial-check-meaning-grid">
-          {evaluation.evidence.map((evidence) => (
-            <article key={evidence.instrument}>
-              <header>
-                <h3>{evidence.instrument === 'PHQ9' ? 'PHQ-9' : 'GAD-7'}</h3>
-                <span>{screeningLabels[evidence.screeningLevel]}</span>
-              </header>
-              <p>{evidence.meaning.text}</p>
-              <small>{evidence.meaning.limitation}</small>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="initial-check-next" aria-labelledby="next-step-title">
-        <span className="initial-check-section-icon">
-          <JourneyIcon name="arrow" />
-        </span>
-        <div>
-          <span>Bước tiếp theo</span>
-          <h2 id="next-step-title">Một lựa chọn bạn có thể cân nhắc</h2>
-          <p>{evaluation.nextStep.text}</p>
-          <small>{evaluation.nextStep.boundary}</small>
-        </div>
-      </section>
-
-      <aside className="initial-check-disclaimer">
-        <span className="initial-check-section-icon">
-          <JourneyIcon name="info" />
-        </span>
-        <div>
-          <strong>Sàng lọc không phải chẩn đoán</strong>
-          <p>{evaluation.disclaimer}</p>
-        </div>
-      </aside>
-
-      <section
-        className="initial-check-resources"
-        aria-label="Tài nguyên hỗ trợ tùy chọn"
-      >
-        <header className="initial-check-resources-intro">
-          <span>Tùy chọn</span>
-          <h2>Tài nguyên bạn có thể xem tiếp</h2>
-          <p>
-            Bạn chủ động chọn xem; không có hành động nào được thực hiện tự
-            động.
-          </p>
-        </header>
-        <ResourcesList limit={3} />
-      </section>
-
-      <div className="initial-check-result-actions">
-        {confirmingRestart ? (
-          <div
-            ref={restartConfirmation}
-            className="initial-check-restart-confirm"
-            role="group"
-            aria-label="Xác nhận bắt đầu lượt mới"
-            tabIndex={-1}
-          >
-            <div>
-              <strong>Bắt đầu lại từ PHQ-9?</strong>
-              <p>Các kết quả đã lưu vẫn có trong lịch sử sàng lọc của bạn.</p>
+    <div className="initial-check-result" ref={result} data-page-motion="off">
+      <CombinedMeaningCard
+        meaning={state.combinedMeaning}
+        onRestart={onRequestRestart}
+        restarting={restarting}
+        afterActions={
+          confirmingRestart && (
+            <div
+              ref={restartConfirmation}
+              className="initial-check-restart-confirm"
+              role="group"
+              aria-label="Xác nhận bắt đầu lượt mới"
+              aria-describedby="initial-check-restart-question"
+              tabIndex={-1}
+            >
+              <div id="initial-check-restart-question">
+                <strong>Bắt đầu lại từ PHQ-9?</strong>
+                <p>Các kết quả đã lưu vẫn có trong lịch sử sàng lọc của bạn.</p>
+              </div>
+              <div className="initial-check-restart-btns">
+                <button
+                  className="btn btn-ghost"
+                  type="button"
+                  onClick={onCancelRestart}
+                  disabled={restarting}
+                >
+                  Giữ kết quả này
+                </button>
+                <button
+                  className="btn btn-primary"
+                  type="button"
+                  onClick={onRestart}
+                  disabled={restarting}
+                >
+                  {restarting ? 'Đang chuẩn bị…' : 'Xác nhận lượt mới'}
+                </button>
+              </div>
             </div>
-            <button
-              className="btn btn-ghost"
-              type="button"
-              onClick={onCancelRestart}
-              disabled={restarting}
-            >
-              Giữ kết quả này
-            </button>
-            <button
-              className="btn btn-primary"
-              type="button"
-              onClick={onRestart}
-              disabled={restarting}
-            >
-              {restarting ? 'Đang chuẩn bị…' : 'Xác nhận lượt mới'}
-            </button>
-          </div>
-        ) : (
-          <>
-            <button
-              className="btn btn-primary"
-              type="button"
-              onClick={onRequestRestart}
-            >
-              <JourneyIcon name="refresh" />
-              Bắt đầu lượt kiểm tra mới
-            </button>
-            <Link className="btn btn-ghost" href="/assessments">
-              <JourneyIcon name="history" />
-              Xem lịch sử sàng lọc
-            </Link>
-          </>
-        )}
-      </div>
+          )
+        }
+      />
     </div>
   )
 }
 
-export default function GuidedInitialCheck() {
+export default function GuidedInitialCheck({
+  purpose = 'INITIAL_CHECK',
+  planReview = false,
+}: {
+  purpose?: 'INITIAL_CHECK' | 'REASSESSMENT'
+  /** Opened from the SupportPlan review: offer the way back once both checks are saved. */
+  planReview?: boolean
+}) {
+  const { showActionToast } = useFeedback()
   const [state, setState] = useState<InitialCheckState | null>(null)
   const [loading, setLoading] = useState(true)
   const [evaluating, setEvaluating] = useState(false)
@@ -502,7 +318,7 @@ export default function GuidedInitialCheck() {
     setLoading(true)
     setError(null)
     try {
-      let nextState = await getInitialCheckState()
+      let nextState = await getInitialCheckState(purpose)
       if (requestId !== activeRequest.current) return
       setState(nextState)
       setLoading(false)
@@ -510,8 +326,8 @@ export default function GuidedInitialCheck() {
       if (nextState.phase === 'EVALUATION_PENDING') {
         setEvaluating(true)
         try {
-          await createInitialCheckEvaluation()
-          nextState = await getInitialCheckState()
+          await createInitialCheckEvaluation(purpose)
+          nextState = await getInitialCheckState(purpose)
           if (requestId !== activeRequest.current) return
           setState(nextState)
         } finally {
@@ -524,7 +340,7 @@ export default function GuidedInitialCheck() {
       setLoading(false)
       setEvaluating(false)
     }
-  }, [])
+  }, [purpose])
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0)
@@ -538,8 +354,12 @@ export default function GuidedInitialCheck() {
     setRestarting(true)
     setError(null)
     try {
-      setState(await resetInitialCheck())
+      setState(await resetInitialCheck(purpose))
       setConfirmingRestart(false)
+      showActionToast({
+        title: 'Đã bắt đầu lượt kiểm tra mới',
+        tone: 'success',
+      })
     } catch (cause) {
       setError(errorMessage(cause))
     } finally {
@@ -592,13 +412,18 @@ export default function GuidedInitialCheck() {
       <JourneyProgress phase={state.phase} />
       {(state.phase === 'PROFILE_REQUIRED' ||
         state.phase === 'CONSENT_REQUIRED') && (
-        <ReadinessStep phase={state.phase} />
+        <ReadinessStep
+          phase={state.phase}
+          purpose={purpose}
+          planReview={planReview}
+        />
       )}
       {state.phase === 'PHQ9' && (
         <AssessmentFlow
           mode="authenticated"
           instrument="PHQ9"
           workflow="initial-check"
+          screeningPurpose={purpose}
           returnHref="/dashboard"
           completionLabel="Lưu PHQ-9 và bắt đầu GAD-7"
           completionPendingLabel="Đang lưu PHQ-9…"
@@ -615,6 +440,7 @@ export default function GuidedInitialCheck() {
             mode="authenticated"
             instrument="GAD7"
             workflow="initial-check"
+            screeningPurpose={purpose}
             returnHref="/dashboard"
             onCompleted={() => void load()}
           />
@@ -644,6 +470,25 @@ export default function GuidedInitialCheck() {
           confirmingRestart={confirmingRestart}
         />
       )}
+      {state.phase === 'COMPLETED' &&
+        planReview &&
+        purpose === 'REASSESSMENT' && (
+          <section
+            className="initial-check-plan-review"
+            aria-labelledby="initial-check-plan-review-title"
+          >
+            <h2 id="initial-check-plan-review-title">
+              Quay lại xem lại kế hoạch
+            </h2>
+            <p>
+              Bài đánh giá lại đã xong. Kế hoạch chưa thay đổi cho đến khi bạn
+              chọn.
+            </p>
+            <Link className="btn btn-outline" href="/support-plan?review=open">
+              Xem lại kế hoạch
+            </Link>
+          </section>
+        )}
     </div>
   )
 }

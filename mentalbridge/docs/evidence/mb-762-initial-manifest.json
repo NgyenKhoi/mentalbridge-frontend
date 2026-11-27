@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "mode": "NOT_RUN",
+  "checkedAt": "2026-10-28T14:42:43.567Z",
+  "sources": {
+    "frontend": "1f95192521e207e4a40f75685da9c62eb2069917",
+    "backend": "497b4889297ae5bd31b799c15d9005e928d163c6",
+    "agent": "497b4889297ae5bd31b799c15d9005e928d163c6"
+  },
+  "approval": "NOT_APPROVED",
+  "readiness": {
+    "livekitAllowance": false,
+    "bedrockAccessQuota": false,
+    "hostedAgent": false,
+    "recordingEgressExportOff": false,
+    "observabilityContentLoggingOff": false,
+    "speechModelVoiceApproved": false,
+    "consentingScriptedReaders": false,
+    "isolatedDemoEnvironment": false,
+    "ownerProviderApproval": false
+  },
+  "providers": {
+    "stt": null,
+    "tts": null,
+    "voice": null,
+    "bedrock": null
+  },
+  "budget": {
+    "approvedMicroUsd": null,
+    "spentMicroUsd": null,
+    "approvedSttMs": null,
+    "usedSttMs": 0,
+    "approvedTtsCharacters": null,
+    "usedTtsCharacters": 0,
+    "approvedWallSeconds": null,
+    "usedWallSeconds": 0
+  },
+  "observations": {
+    "consentingReaders": 0,
+    "realMicrophoneUsers": 0,
+    "maxConcurrentUsers": 0,
+    "spokenReplies": 0,
+    "devices": [],
+    "dialects": []
+  },
+  "quotaSnapshots": [],
+  "latencySamples": [],
+  "results": [
+    {
+      "scenario": "free_ui_api_text",
+      "status": "NOT_RUN"
+    },
+    {
+      "scenario": "plus_spoken_reply",
+      "status": "NOT_RUN"
+    },
+    {
+      "scenario": "premium_spoken_reply",
+      "status": "NOT_RUN"
+    },
+    {
+      "scenario": "independent_quotas",
+      "status": "NOT_RUN"
+    },
+    {
+      "scenario": "two_users_concurrent",
+      "status": "NOT_RUN"
+    },
+    {
+      "scenario": "third_user_denied",
+      "status": "NOT_RUN"
+    },
+    {
+      "scenario": "same_user_denied",
+      "status": "NOT_RUN"
+    },
+    {
+      "scenario": "expired_entitlement",
+      "status": "NOT_RUN"
+    },
+    {
+      "scenario": "both_consents_revoked",
+      "status": "NOT_RUN"
+    },
+    {
+      "scenario": "end_idle_deadline",
+      "status": "NOT_RUN"
+    },
+    {
+      "scenario": "provider_429_offline",
+      "status": "NOT_RUN"
+    },
+    {
+      "scenario": "crash_reconnect_stale_token",
+      "status": "NOT_RUN"
+    },
+    {
+      "scenario": "foreign_user_role",
+      "status": "NOT_RUN"
+    },
+    {
+      "scenario": "consultation_isolation",
+      "status": "NOT_RUN"
+    },
+    {
+      "scenario": "vietnamese_pause_noise_interrupt",
+      "status": "NOT_RUN"
+    },
+    {
+      "scenario": "text_fallback_no_captions",
+      "status": "NOT_RUN"
+    },
+    {
+      "scenario": "privacy_cleanup",
+      "status": "NOT_RUN"
+    }
+  ],
+  "evidenceKind": "OPERATOR_REPORTED_NOT_INDEPENDENTLY_VERIFIED",
+  "status": "BLOCKED_PROVIDER",
+  "blockers": [
+    "livekitAllowance",
+    "bedrockAccessQuota",
+    "hostedAgent",
+    "recordingEgressExportOff",
+    "observabilityContentLoggingOff",
+    "speechModelVoiceApproved",
+    "consentingScriptedReaders",
+    "isolatedDemoEnvironment",
+    "ownerProviderApproval",
+    "approval",
+    "providerSelection",
+    "approvedMicroUsd",
+    "approvedSttMs",
+    "approvedTtsCharacters",
+    "approvedWallSeconds"
+  ],
+  "providerCallsByTool": 0
+}

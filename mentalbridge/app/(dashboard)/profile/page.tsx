@@ -15,9 +15,14 @@ import {
   recordPrivacyDecision,
   saveCareProfile,
 } from '@/features/assessment/api/browser-care'
+import { useFeedback } from '@/components/ui/FeedbackProvider'
 import PasswordChangeForm from '@/features/auth/components/PasswordChangeForm'
 import { ApiError } from '@/lib/api/api-error'
 import { validateProfileUpdate } from '@/lib/care/care-validation'
+import AccountAvatar from '@/features/community/components/AccountAvatar'
+import AccountAvatarSettings from '@/features/community/components/AccountAvatarSettings'
+import { useOwnCommunityAvatar } from '@/features/community/components/useOwnCommunityAvatar'
+import AccountStatusCard from './AccountStatusCard'
 
 import './profile.css'
 
@@ -46,6 +51,20 @@ function profileForm(profile: CareProfile): FormState {
   }
 }
 
+function disclosureParagraphs(content: string) {
+  const sentences =
+    content
+      .match(/[^.!?]+[.!?]+|[^.!?]+$/g)
+      ?.map((sentence) => sentence.trim())
+      .filter(Boolean) ?? []
+
+  return sentences.reduce<string[]>((paragraphs, sentence, index) => {
+    if (index % 2 === 0) paragraphs.push(sentence)
+    else paragraphs[paragraphs.length - 1] += ` ${sentence}`
+    return paragraphs
+  }, [])
+}
+
 function errorsFromViolations(
   violations: readonly { field: string; code: string }[],
 ): FieldErrors {
@@ -62,6 +81,7 @@ function errorsFromViolations(
 }
 
 export default function ProfilePage() {
+  const { showActionToast } = useFeedback()
   const [profile, setProfile] = useState<CareProfile | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [disclosure, setDisclosure] = useState<PrivacyDisclosure | null>(null)
@@ -71,8 +91,13 @@ export default function ProfilePage() {
   const [privacySaving, setPrivacySaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
-  const [toast, setToast] = useState('')
-  const [returnToInitialCheck, setReturnToInitialCheck] = useState(false)
+  const [initialCheckReturnTo, setInitialCheckReturnTo] = useState<
+    | '/initial-check'
+    | '/initial-check?purpose=reassessment'
+    | '/initial-check?purpose=reassessment&returnTo=plan-review'
+    | null
+  >(null)
+  const ownAvatar = useOwnCommunityAvatar()
   const displayNameRef = useRef<HTMLInputElement>(null)
   const dateOfBirthRef = useRef<HTMLInputElement>(null)
 
@@ -92,14 +117,19 @@ export default function ProfilePage() {
   const hasDraftChanges = JSON.stringify(form) !== JSON.stringify(originalForm)
 
   useEffect(() => {
-    const returnTimer = window.setTimeout(
-      () =>
-        setReturnToInitialCheck(
-          new URLSearchParams(window.location.search).get('returnTo') ===
-            '/initial-check',
-        ),
-      0,
-    )
+    const returnTimer = window.setTimeout(() => {
+      const candidate = new URLSearchParams(window.location.search).get(
+        'returnTo',
+      )
+      setInitialCheckReturnTo(
+        candidate === '/initial-check' ||
+          candidate === '/initial-check?purpose=reassessment' ||
+          candidate ===
+            '/initial-check?purpose=reassessment&returnTo=plan-review'
+          ? candidate
+          : null,
+      )
+    }, 0)
     let active = true
     void (async () => {
       try {
@@ -112,8 +142,10 @@ export default function ProfilePage() {
         if (!active) return
 
         if (profileResult.status === 'fulfilled') {
-          setProfile(profileResult.value)
-          setForm(profileForm(profileResult.value))
+          if (profileResult.value) {
+            setProfile(profileResult.value)
+            setForm(profileForm(profileResult.value))
+          }
         } else if (!(
           profileResult.reason instanceof ApiError &&
           profileResult.reason.code === 'PROFILE_NOT_FOUND'
@@ -156,11 +188,6 @@ export default function ProfilePage() {
     }
   }, [])
 
-  const notify = (message: string) => {
-    setToast(message)
-    window.setTimeout(() => setToast(''), 6000)
-  }
-
   const updateField = (field: keyof FormState, value: string) => {
     setForm((current) => ({ ...current, [field]: value }))
     setFieldErrors((current) => ({ ...current, [field]: undefined }))
@@ -194,11 +221,14 @@ export default function ProfilePage() {
       setProfile(saved)
       setForm(profileForm(saved))
       setFieldErrors({})
-      notify(
-        profile
-          ? 'Care đã lưu hồ sơ của bạn. Đã lưu thay đổi hồ sơ.'
-          : 'Đã tạo hồ sơ của bạn.',
-      )
+      showActionToast({
+        title: profile ? 'Đã lưu thay đổi hồ sơ' : 'Đã tạo hồ sơ của bạn',
+      })
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('mb:profile-updated', { detail: saved }),
+        )
+      }
     } catch (cause) {
       if (cause instanceof ApiError && cause.problem?.violations) {
         const errors = errorsFromViolations(cause.problem.violations)
@@ -230,11 +260,10 @@ export default function ProfilePage() {
     try {
       await recordPrivacyDecision(granted, disclosure.version)
       setPrivacyGranted(granted)
-      notify(
-        granted
-          ? 'Đã ghi nhận xác nhận quyền riêng tư. Đã ghi nhận sự đồng ý xử lý dữ liệu sàng lọc.'
-          : 'Đã ghi nhận thu hồi. Đã ghi nhận việc rút lại sự đồng ý cho các lần xử lý mới.',
-      )
+      showActionToast({
+        title: granted ? 'Đã bật xử lý dữ liệu' : 'Đã dừng xử lý dữ liệu',
+        description: 'Thay đổi áp dụng cho các lần sàng lọc mới.',
+      })
     } catch {
       setError('Không thể ghi nhận lựa chọn về quyền riêng tư lúc này.')
     } finally {
@@ -245,7 +274,13 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="settings-page">
-        <section className="settings-runtime-state" aria-live="polite">
+        <section
+          className="settings-runtime-state"
+          aria-live="polite"
+          data-user-page-header
+          data-user-page-heading
+        >
+          <span data-user-page-kicker>Tài khoản của bạn</span>
           <h1>Đang tải hồ sơ</h1>
           <p>Thông tin đã lưu của bạn đang được tải.</p>
         </section>
@@ -255,8 +290,12 @@ export default function ProfilePage() {
 
   return (
     <div className="settings-page">
-      <header className="settings-hero">
-        <span>Tài khoản của bạn</span>
+      <header
+        className="settings-hero"
+        data-user-page-header
+        data-user-page-heading
+      >
+        <span data-user-page-kicker>Tài khoản của bạn</span>
         <h1>Hồ sơ và quyền riêng tư</h1>
         <p>Quản lý thông tin cá nhân và lựa chọn xử lý dữ liệu của bạn.</p>
       </header>
@@ -267,7 +306,7 @@ export default function ProfilePage() {
         </p>
       )}
 
-      {returnToInitialCheck && profile && privacyGranted && (
+      {initialCheckReturnTo && profile && privacyGranted && (
         <section
           className="settings-onboarding"
           aria-labelledby="initial-check-ready-title"
@@ -275,11 +314,14 @@ export default function ProfilePage() {
           <div>
             <span>Sẵn sàng</span>
             <h2 id="initial-check-ready-title">
-              Bạn có thể tiếp tục kiểm tra ban đầu
+              Bạn có thể tiếp tục{' '}
+              {initialCheckReturnTo.includes('reassessment')
+                ? 'đánh giá lại'
+                : 'bài sàng lọc'}
             </h2>
             <p>Hồ sơ và lựa chọn quyền riêng tư hiện đã đầy đủ.</p>
           </div>
-          <Link className="btn-primary" href="/initial-check">
+          <Link className="btn-primary" href={initialCheckReturnTo}>
             Tiếp tục bước chưa hoàn tất
           </Link>
         </section>
@@ -308,10 +350,9 @@ export default function ProfilePage() {
       <section className="settings-profile-summary">
         <div className="settings-summary-left">
           <div className="settings-avatar-wrap">
-            <svg viewBox="0 0 110 56" aria-hidden="true">
-              <path d="M10 48Q55-4 100 48" />
-            </svg>
-            <div className="settings-avatar">{initials}</div>
+            <div className="settings-avatar">
+              <AccountAvatar avatar={ownAvatar} fallback={initials} />
+            </div>
           </div>
           <div>
             <div className="settings-name-row">
@@ -333,7 +374,25 @@ export default function ProfilePage() {
         </div>
       </section>
 
+      <p className="settings-scope-note">
+        MentalBridge cung cấp công cụ hỗ trợ tự nhìn lại và sàng lọc, không thay
+        thế chẩn đoán y khoa.
+      </p>
+
       <div className="settings-grid">
+        <section className="settings-group">
+          <div className="settings-accordion open">
+            <div className="settings-accordion-body">
+              <div className="settings-avatar-body">
+                <AccountAvatarSettings
+                  displayName={profile?.displayName ?? ''}
+                  initials={initials}
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="settings-group">
           <p className="settings-group-label">Thông tin cá nhân</p>
           <div className="settings-accordion open">
@@ -431,21 +490,10 @@ export default function ProfilePage() {
           </div>
         </section>
 
-        <aside className="settings-activity">
-          <h2>Trạng thái</h2>
-          <div>
-            <article>
-              <span className="teal">N</span>
-              <strong>{profile ? '1' : '0'}</strong>
-              <small>Hồ sơ đã lưu</small>
-            </article>
-            <article>
-              <span className="amber">✓</span>
-              <strong>{privacyGranted ? '1' : '0'}</strong>
-              <small>Sự đồng ý hiện hành</small>
-            </article>
-          </div>
-        </aside>
+        <AccountStatusCard
+          profileSaved={Boolean(profile)}
+          screeningEnabled={privacyGranted}
+        />
       </div>
 
       <section className="settings-privacy-runtime">
@@ -453,20 +501,67 @@ export default function ProfilePage() {
         {disclosure ? (
           <div>
             <h2>{disclosure.title}</h2>
-            <p>{disclosure.content}</p>
-            <div className="settings-form-actions">
+            <div className="settings-consent-summary">
+              <p>
+                MentalBridge dùng câu trả lời PHQ-9 hoặc GAD-7 để tính kết quả
+                sàng lọc và cung cấp thông tin hỗ trợ phù hợp. Khi đăng nhập,
+                kết quả được lưu cùng tài khoản để bạn có thể xem lại.
+              </p>
+              <p>
+                Phiên ẩn danh chỉ xử lý dữ liệu trong phiên hiện tại và không
+                gắn kết quả vào hồ sơ tài khoản. Phiên có tài khoản cho phép lưu
+                lịch sử khi bạn đã đồng ý.
+              </p>
+              <p>
+                Lựa chọn này chỉ áp dụng cho xử lý dữ liệu sàng lọc. Nó không
+                bao gồm sử dụng AI, nghiên cứu hoặc marketing; các mục đích đó
+                cần lựa chọn riêng.
+              </p>
+              <p>
+                Bạn có thể dừng xử lý cho các lần sàng lọc mới bất cứ lúc nào.
+                Việc rút lại đồng ý không tự động xóa kết quả đã lưu.
+              </p>
+            </div>
+            <details className="settings-consent-details">
+              <summary>Xem thêm</summary>
+              <div>
+                {disclosureParagraphs(disclosure.content).map(
+                  (paragraph, index) => (
+                    <p key={index}>{paragraph}</p>
+                  ),
+                )}
+              </div>
+            </details>
+            <div className="settings-consent-control">
+              <div>
+                <strong>Xử lý dữ liệu cho các lần sàng lọc mới</strong>
+                <span>
+                  {privacyGranted
+                    ? 'Đang bật — kết quả mới có thể được lưu vào tài khoản.'
+                    : 'Đang tắt — các lần sàng lọc mới sẽ không được xử lý theo lựa chọn này.'}
+                </span>
+              </div>
               <button
-                className={privacyGranted ? 'btn-ghost' : 'btn-primary'}
+                className="settings-privacy-switch"
+                type="button"
+                role="switch"
+                aria-checked={privacyGranted}
+                aria-label={
+                  privacyGranted
+                    ? 'Dừng xử lý dữ liệu cho các lần sàng lọc mới'
+                    : 'Bật xử lý dữ liệu cho các lần sàng lọc mới'
+                }
                 disabled={privacySaving || !profile}
                 onClick={() => void decidePrivacy(!privacyGranted)}
               >
-                {privacySaving
-                  ? 'Đang ghi nhận…'
-                  : privacyGranted
-                    ? 'Thu hồi cho lần xử lý mới — Rút lại sự đồng ý cho lần xử lý mới'
-                    : 'Tôi đã đọc và xác nhận — Tôi đồng ý'}
+                <span aria-hidden="true" />
               </button>
             </div>
+            <p className="settings-inline-note">
+              {privacySaving
+                ? 'Đang ghi nhận lựa chọn của bạn…'
+                : 'Thay đổi chỉ áp dụng cho các lần sàng lọc mới.'}
+            </p>
             {!profile && (
               <p className="settings-inline-note">
                 Bạn cần tạo hồ sơ trước khi ghi nhận sự đồng ý này.
@@ -475,10 +570,8 @@ export default function ProfilePage() {
           </div>
         ) : (
           <div className="settings-runtime-state">
-            <strong>
-              Disclosure hiện chưa khả dụng (thông báo quyền riêng tư)
-            </strong>
-            <p>Vui lòng thử lại sau.</p>
+            <strong>Thông báo quyền riêng tư tạm thời chưa tải được.</strong>
+            <p>Chưa có lựa chọn nào bị thay đổi. Vui lòng thử lại sau.</p>
           </div>
         )}
       </section>
@@ -508,12 +601,6 @@ export default function ProfilePage() {
           <span className="assessment-unavailable-label">Chưa khả dụng</span>
         </div>
       </section>
-
-      {toast && (
-        <div className="settings-toast" role="status">
-          ✓ {toast}
-        </div>
-      )}
     </div>
   )
 }

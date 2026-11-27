@@ -1,0 +1,258 @@
+import {
+  appointmentListSchema,
+  appointmentSchema,
+  bookableSlotsSchema,
+  creditAccountSchema,
+  requestAppointmentSchema,
+} from './appointment-contract'
+import { appointment, cancelled, credits, slot } from './appointment-fixtures'
+import {
+  appointmentLabel,
+  changeCandidate,
+  matchesFilter,
+  orderAppointmentsForDisplay,
+  sessionLabels,
+} from './appointment-model'
+
+describe('MB-630 public appointment/credit contracts', () => {
+  it('shows the nearest active bookings first and history most recent first', () => {
+    const early = {
+      ...appointment,
+      status: 'CONFIRMED' as const,
+      scheduledStartAt: '2026-10-01T08:00:00Z',
+    }
+    const later = { ...appointment, scheduledStartAt: '2026-10-02T08:00:00Z' }
+    const old = { ...cancelled, scheduledStartAt: '2026-09-01T08:00:00Z' }
+    const recent = { ...cancelled, scheduledStartAt: '2026-09-02T08:00:00Z' }
+    expect(orderAppointmentsForDisplay([old, later, recent, early])).toEqual([
+      early,
+      later,
+      recent,
+      old,
+    ])
+    expect(matchesFilter(early, 'upcoming', early.scheduledStartAt)).toBe(true)
+    expect(matchesFilter(early, 'upcoming', early.scheduledEndAt)).toBe(false)
+    expect(matchesFilter(early, 'history', early.scheduledEndAt)).toBe(true)
+  })
+  it('keeps an actionable request ahead of an older session awaiting settlement', () => {
+    const awaitingSettlement = {
+      ...appointment,
+      status: 'SESSION_ENDED' as const,
+      scheduledStartAt: '2026-09-01T08:00:00Z',
+    }
+    expect(
+      orderAppointmentsForDisplay([awaitingSettlement, appointment]),
+    ).toEqual([appointment, awaitingSettlement])
+  })
+  it('accepts current and historical completed video without substituting pending LiveKit policy', () => {
+    const ended = {
+      ...appointment,
+      status: 'SESSION_ENDED',
+      modality: 'IN_APP_VIDEO',
+      sessionPolicyVersion: 'livekit-video-completion-v1',
+      sessionEndedAt: appointment.scheduledEndAt,
+      history: [],
+    }
+    expect(appointmentSchema.parse(ended).creditState).toBe('HELD')
+    const completed = {
+      ...ended,
+      status: 'COMPLETED',
+      sessionOutcome: 'COMPLETED',
+      sessionSettledAt: appointment.scheduledEndAt,
+      completionFactId: appointment.id,
+      creditState: 'CONSUMED',
+    }
+    expect(appointmentSchema.parse(completed).completionFactId).toBe(
+      appointment.id,
+    )
+    const historicalCompleted = {
+      ...completed,
+      id: '11111111-2222-4333-8444-555555555555',
+      sessionPolicyVersion: 'chat-session-completion-v1',
+      sessionOutcomeReason: 'EVIDENCE_REQUIREMENTS_MET',
+    }
+    expect(appointmentSchema.parse(historicalCompleted)).toEqual(
+      historicalCompleted,
+    )
+    expect(
+      appointmentListSchema.parse({
+        items: [completed, historicalCompleted],
+        count: 2,
+        generatedAt: appointment.scheduledEndAt,
+      }).items,
+    ).toEqual([completed, historicalCompleted])
+    expect(
+      appointmentSchema.safeParse({
+        ...historicalCompleted,
+        creditState: 'AVAILABLE',
+      }).success,
+    ).toBe(true)
+    for (const incomplete of [
+      { completionFactId: null },
+      { sessionSettledAt: null },
+      { sessionEndedAt: null },
+      { creditState: 'HELD' },
+      { sessionOutcomeReason: null },
+    ]) {
+      expect(
+        appointmentSchema.safeParse({ ...historicalCompleted, ...incomplete })
+          .success,
+      ).toBe(false)
+    }
+    expect(
+      appointmentListSchema.safeParse({
+        items: [completed, { ...historicalCompleted, completionFactId: null }],
+        count: 2,
+        generatedAt: appointment.scheduledEndAt,
+      }).success,
+    ).toBe(false)
+    expect(
+      appointmentSchema.safeParse({ ...completed, creditState: 'AVAILABLE' })
+        .success,
+    ).toBe(true)
+    expect(
+      appointmentSchema.safeParse({ ...completed, completionFactId: null })
+        .success,
+    ).toBe(false)
+    expect(
+      appointmentSchema.safeParse({
+        ...ended,
+        sessionPolicyVersion: 'chat-session-completion-v1',
+      }).success,
+    ).toBe(false)
+    expect(
+      appointmentSchema.safeParse({
+        ...ended,
+        sessionOutcome: 'EVIDENCE_REVIEW',
+      }).success,
+    ).toBe(false)
+    expect(
+      appointmentSchema.safeParse({ ...completed, modality: 'IN_APP_CHAT' })
+        .success,
+    ).toBe(false)
+  })
+  it('accepts exact authoritative balance/cap without recalculating package or ledger', () => {
+    const oldPolicy = {
+      ...credits,
+      policyVersion: 'consultation-credit-v1',
+      balance: { ...credits.balance, total: 1, available: 1 },
+      reservationCapacity: { active: 0, maximum: 1, remaining: 1 },
+    }
+    expect(
+      creditAccountSchema.parse(oldPolicy).reservationCapacity.maximum,
+    ).toBe(1)
+    expect(
+      creditAccountSchema.safeParse({ ...credits, actorId: credits.accountId })
+        .success,
+    ).toBe(false)
+  })
+  it('rejects non-60-minute/private/disabled-video and malformed snapshots', () => {
+    expect(appointmentSchema.parse(cancelled).cancellationCreditOutcome).toBe(
+      'RELEASED',
+    )
+    expect(
+      appointmentSchema.safeParse({
+        ...appointment,
+        scheduledEndAt: appointment.scheduledStartAt,
+      }).success,
+    ).toBe(false)
+    expect(
+      appointmentSchema.safeParse({ ...appointment, status: 'RESCHEDULED' })
+        .success,
+    ).toBe(false)
+    expect(
+      appointmentSchema.safeParse({ ...appointment, version: -1 }).success,
+    ).toBe(false)
+    expect(
+      bookableSlotsSchema.safeParse({
+        items: [{ ...slot, modality: 'IN_APP_VIDEO' }],
+        count: 1,
+        generatedAt: credits.generatedAt,
+        videoEnabled: false,
+      }).success,
+    ).toBe(false)
+    expect(
+      appointmentListSchema.safeParse({
+        items: [appointment, appointment],
+        count: 2,
+        generatedAt: credits.generatedAt,
+      }).success,
+    ).toBe(false)
+  })
+  it.each([
+    'actorId',
+    'accountId',
+    'creditId',
+    'status',
+    'score',
+    'packageCode',
+  ])('does not accept %s in submission', (field) => {
+    expect(
+      requestAppointmentSchema.safeParse({
+        slotId: slot.id,
+        modality: slot.modality,
+        [field]: 'forged',
+      }).success,
+    ).toBe(false)
+  })
+  it('accepts only an explicit opaque Care plan-action reference on booking', () => {
+    const originatingPlanActionId = '11111111-1111-4111-8111-111111111111'
+    expect(
+      requestAppointmentSchema.parse({
+        slotId: slot.id,
+        modality: slot.modality,
+        originatingPlanActionId,
+      }).originatingPlanActionId,
+    ).toBe(originatingPlanActionId)
+    expect(
+      requestAppointmentSchema.safeParse({
+        slotId: slot.id,
+        modality: slot.modality,
+        originatingPlanActionId: 'not-a-plan-action-id',
+      }).success,
+    ).toBe(false)
+  })
+  it.each(Object.keys(sessionLabels))(
+    'renders authoritative session outcome %s',
+    (value) => {
+      const result = appointmentSchema.parse({
+        ...appointment,
+        status: 'SESSION_ENDED',
+        sessionOutcome: value,
+      })
+      expect(sessionLabels[result.sessionOutcome!]).toBeTruthy()
+      expect(matchesFilter(result, 'history')).toBe(true)
+    },
+  )
+  it('uses server list time and lifecycle facts, not client time, for change candidates', () => {
+    jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2099-01-01T00:00:00Z'))
+    expect(
+      changeCandidate(appointment, {
+        items: [appointment],
+        count: 1,
+        generatedAt: credits.generatedAt,
+      }),
+    ).toBe(true)
+    expect(
+      changeCandidate(appointment, {
+        items: [appointment],
+        count: 1,
+        generatedAt: '2026-10-16T00:00:00Z',
+      }),
+    ).toBe(false)
+    expect(
+      changeCandidate(cancelled, {
+        items: [cancelled],
+        count: 1,
+        generatedAt: credits.generatedAt,
+      }),
+    ).toBe(false)
+    expect(
+      appointmentLabel({
+        ...cancelled,
+        cancellationReason: 'USER_RESCHEDULED',
+      }),
+    ).toBe('Đã đổi lịch')
+    jest.restoreAllMocks()
+  })
+})

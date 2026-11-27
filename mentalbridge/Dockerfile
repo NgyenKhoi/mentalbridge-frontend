@@ -16,6 +16,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV IDENTITY_API_BASE_URL=http://identity:8080
 ENV CARE_API_BASE_URL=http://care:8081
 ENV CONTENT_SERVICE_URL=http://content-notification:3003
+ENV COMMUNITY_SERVICE_URL=http://community:8084
 
 RUN npm run build
 

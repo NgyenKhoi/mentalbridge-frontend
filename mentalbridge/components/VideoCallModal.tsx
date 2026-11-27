@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import { lockBodyScroll } from '@/lib/dom/body-scroll-lock'
 import type { AppointmentDetail } from './AppointmentDetailModal'
 import './VideoCallModal.css'
 
@@ -41,14 +42,13 @@ export default function VideoCallModal({ appointment, onClose }: Props) {
   const [chatOpen, setChatOpen] = useState(false)
   const [seconds, setSeconds] = useState(0)
   useEffect(() => {
-    const previousOverflow = document.body.style.overflow
+    const releaseScrollLock = lockBodyScroll()
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && stage !== 'call' && stage !== 'connecting') onClose()
     }
-    document.body.style.overflow = 'hidden'
     document.addEventListener('keydown', closeOnEscape)
     return () => {
-      document.body.style.overflow = previousOverflow
+      releaseScrollLock()
       document.removeEventListener('keydown', closeOnEscape)
     }
   }, [onClose, stage])
@@ -66,7 +66,7 @@ export default function VideoCallModal({ appointment, onClose }: Props) {
 
   if (stage === 'call') return <div className="video-room" role="dialog" aria-modal="true" aria-label="Phòng tư vấn video">
     <header className="video-room-header">
-      <div className="video-room-brand"><i>MB</i><div><strong>Phiên tư vấn riêng tư</strong><span>Mã #{appointment.code} · Mã hóa đầu cuối</span></div></div>
+      <div className="video-room-brand"><i>MB</i><div><strong>Phiên tư vấn riêng tư</strong><span>Mã #{appointment.code}</span></div></div>
       <div className="video-room-status"><i/><span>Đã kết nối</span><b>{formatDuration(seconds)}</b></div>
       <button onClick={() => setChatOpen(value => !value)} className={chatOpen ? 'active' : ''}><ChatIcon/><span>Trò chuyện</span></button>
     </header>
@@ -123,13 +123,6 @@ export default function VideoCallModal({ appointment, onClose }: Props) {
             </div>
           </div>
           <button className="video-call-ended-btn" onClick={onClose}>Trở về lịch hẹn <span>→</span></button>
-          <button className="video-call-ended-link">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <path d="M9 3v18"/>
-            </svg>
-            Được mã hoá đầu cuối
-          </button>
         </div> : <>
           <header className="video-call-header"><div><span>Start video call</span><h2 id="video-call-title">Sẵn sàng cho phiên tư vấn?</h2><p>Kiểm tra thiết bị trước khi vào phòng cùng chuyên gia.</p></div><button onClick={onClose} disabled={stage === 'connecting'} aria-label="Đóng">×</button></header>
           <div className="video-call-content">

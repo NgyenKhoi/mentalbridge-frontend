@@ -1,0 +1,93 @@
+{
+  "parent": "MB-624",
+  "snapshotDate": "2026-10-16",
+  "jiraBaseUrl": "https://vunguyenkhoi47.atlassian.net/browse/",
+  "catalogueRevision": "3e88f90877d5453b82bef8cbf3e0dcb314c549c1",
+  "backendDev": "a1ddbfc6c33521a06fb277b0782a8205825752e5",
+  "frontendDev": "c4dfb6f88759576611896865c72b6182020ce5b0",
+  "reconciliations": [
+    {
+      "jiraKey": "MB-673",
+      "status": "To Do",
+      "resolution": "EXISTING_OWNER",
+      "wbs": [14, 24, 116, 161, 162],
+      "summary": "[ADMIN] Govern data retention and deletion execution with audit-safe evidence",
+      "deduplication": "Existing story owns personal/assessment deletion and owner-specific retention execution.",
+      "linkedToParent": true
+    },
+    {
+      "jiraKey": "MB-587",
+      "status": "In Review",
+      "resolution": "EXISTING_OWNER",
+      "wbs": [159, 160],
+      "summary": "Browse, filter, and export bounded administration audit events",
+      "deduplication": "Existing story owns bounded audit browse, filter, and export.",
+      "linkedToParent": true
+    },
+    {
+      "jiraKey": "MB-674",
+      "status": "To Do",
+      "resolution": "EXISTING_OWNER",
+      "wbs": [123, 124, 127, 128],
+      "summary": "[ADMIN] Reconcile commercial transactions and payout exceptions",
+      "deduplication": "Existing story owns bounded administrator commercial list/detail and exception facts.",
+      "linkedToParent": true
+    },
+    {
+      "jiraKey": "MB-694",
+      "status": "To Do",
+      "resolution": "CREATED_GAP_OWNER",
+      "wbs": [80, 82, 145, 146, 147],
+      "summary": "[CONSULTATION][REALTIME] Add appointment message tombstone, reporting, and audited moderation",
+      "deduplication": "MB-623 records the journey gap; MB-693 explicitly excludes appointment chat. No existing story owned these commands.",
+      "linkedToParent": true
+    },
+    {
+      "jiraKey": "MB-695",
+      "status": "To Do",
+      "resolution": "CREATED_GAP_OWNER",
+      "wbs": [49],
+      "summary": "[COMMERCIAL] Implement subscription cancellation lifecycle",
+      "deduplication": "MB-557 owns commercial policy and defers downgrade/refund, but no existing story owned cancellation.",
+      "linkedToParent": true
+    },
+    {
+      "jiraKey": "MB-696",
+      "status": "To Do",
+      "resolution": "CREATED_GAP_OWNER",
+      "wbs": [135, 136, 137, 138, 139],
+      "summary": "[ADMIN] Deliver reviewed safety-directory administration on web",
+      "deduplication": "MB-518 owns the reviewed owner contract and user flow; no existing story owned the administrator web workflow.",
+      "linkedToParent": true
+    },
+    {
+      "jiraKey": "MB-697",
+      "status": "To Do",
+      "resolution": "CREATED_GAP_OWNER",
+      "wbs": [28, 29, 150, 151, 152, 153, 154, 155, 156],
+      "summary": "[ADMIN][AI] Govern evaluation datasets and benchmark reporting",
+      "deduplication": "MB-369, MB-432, and MB-568 cover benchmark/provider behavior, not dataset lifecycle administration.",
+      "linkedToParent": true
+    },
+    {
+      "jiraKey": "MB-698",
+      "status": "To Do",
+      "resolution": "CREATED_GAP_OWNER",
+      "wbs": [
+        42, 43, 44, 45, 46, 47, 48, 50, 51, 83, 86, 98, 102, 108, 109, 110
+      ],
+      "summary": "[MOBILE] Close commercial, rating, dashboard, and specialist financial parity",
+      "deduplication": "MB-605 is the delivery epic and MB-666 is the staging capstone; no child story owned these applicable mobile journeys.",
+      "linkedToParent": true
+    },
+    {
+      "jiraKey": "MB-699",
+      "status": "To Do",
+      "resolution": "CREATED_GAP_OWNER",
+      "wbs": [10, 11, 93, 100],
+      "summary": "[MOBILE] Close consent and reassessment evidence gaps",
+      "deduplication": "The exact-scenario audit rejected neighboring profile, SupportPlan and emotion evidence; no existing mobile story owns all four operations.",
+      "linkedToParent": true
+    }
+  ]
+}

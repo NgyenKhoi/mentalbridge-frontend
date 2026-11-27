@@ -4,7 +4,9 @@ MentalBridge is a Next.js App Router frontend for mental-health support
 experiences. The repository contains implemented UI screens, a same-origin
 Identity BFF, role-based login/workspace access, public registration, email
 verification, verification resend, password recovery/change, and controlled
-Identity delivery evidence through Story 902.
+Identity delivery evidence through Story 902. MB-362 adds a same-origin
+Consultation BFF and accessible specialist UI for publishing, listing, and
+withdrawing exact 60-minute online availability.
 
 ## Review 1 container
 
@@ -16,7 +18,11 @@ docker build --tag mentalbridge/frontend:review1 .
 
 The backend repository owns the Review 1 Compose topology. With both repositories checked out as sibling directories, run `docker compose --profile demo up --build -d` from the backend repository to start Frontend together with Identity, Care, Content/Notification, and explicit migrations against the shared dev/staging cloud databases. The `full-test` profile adds the Realtime foundation, shared cloud MongoDB, and local ephemeral Redis.
 
-Only port `3000` needs to be user-facing. `IDENTITY_API_BASE_URL`, `CARE_API_BASE_URL`, and `CONTENT_SERVICE_URL` are read by the Next.js server at runtime and must point to Compose service names inside the stack; they must never use a `NEXT_PUBLIC_` prefix.
+Only port `3000` needs to be user-facing. `IDENTITY_API_BASE_URL`,
+`CARE_API_BASE_URL`, `CONTENT_SERVICE_URL`, `CONSULTATION_SERVICE_URL`, and
+`COMMUNITY_SERVICE_URL` are read by the Next.js server at runtime and must point
+to Compose service names inside the stack; they must never use a `NEXT_PUBLIC_`
+prefix.
 
 ## Runtime
 
@@ -116,6 +122,8 @@ or production mock content when Content cannot confirm the catalogue.
 
 ## Project guidance
 
+- [`docs/UI_IMPLEMENTATION_PLAYBOOK.md`](docs/UI_IMPLEMENTATION_PLAYBOOK.md):
+  Stitch-first reference workflow and repository-owned UI delivery checks
 - [`docs/README.md`](docs/README.md): engineering documentation index
 - [`docs/frontend-architecture.md`](docs/frontend-architecture.md): server,
   browser, BFF, and Identity ownership
@@ -130,7 +138,15 @@ or production mock content when Content cannot confirm the catalogue.
   MB-139 acceptance and verification evidence
 - [`docs/story-902-credential-lifecycle-evidence.md`](docs/story-902-credential-lifecycle-evidence.md):
   Story 902 acceptance, security, test, and visual evidence
-- [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md): current visual language
+- [`docs/mb-362-specialist-availability-evidence.md`](docs/mb-362-specialist-availability-evidence.md):
+  MB-362 contract, BFF, UI, mobile fixture, and verification evidence
+- [`docs/PRODUCT_EXPERIENCE.md`](docs/PRODUCT_EXPERIENCE.md): route hierarchy,
+  priority journeys, data visualization, and UI/UX Definition of Done
+- [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md): current visual language,
+  tokens, primitives, accessibility, and motion contract
+- [`docs/UI_IMPLEMENTATION_PLAYBOOK.md`](docs/UI_IMPLEMENTATION_PLAYBOOK.md):
+  repeatable page brief, state and responsive matrices, implementation order,
+  and local self-review evidence
 - [`../CONTRIBUTING.md`](../CONTRIBUTING.md): Git, Jira, PR, and review workflow
 
 Read [`../AGENTS.md`](../AGENTS.md) and [`AGENTS.md`](AGENTS.md) before using a
@@ -152,10 +168,3 @@ server-set HttpOnly cookies; tokens must never enter localStorage, sessionStorag
 client state, or browser-readable responses. Public registration must not create
 `ADMIN`. See the architecture guide for the complete boundary and the Sprint 1
 Jira stories for implementation status.
-
-## Additional project artifacts
-
-`BUILD_SUCCESS.md`, `IMPLEMENTATION_SUMMARY.md`, `MIGRATION_NOTES.md`,
-`NEXT_STEPS.md`, `QUICKSTART.md`, and `SUMMARY.md` are historical UI delivery
-notes. When they conflict with this README or `docs/`, the current executable
-configuration and engineering guide take precedence.

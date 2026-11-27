@@ -1,0 +1,305 @@
+{
+  "source": "Artifact-only stateful local prototype inside captured current source shell/editor",
+  "nativeStitchPrototype": "SEPARATE_USER_CREATED_REFERENCE_NOT_VERIFIED_BY_THIS_SCRIPT",
+  "startedAt": "2026-10-14T06:02:57.666Z",
+  "cases": [
+    {
+      "name": "save error/retry, preserved mood/text/date/tags, one new entry, return not completed, check pending/error/retry",
+      "result": "PASS"
+    },
+    {
+      "name": "revision remains same creation fact; source deletion preserves accepted history",
+      "result": "PASS"
+    },
+    {
+      "name": "missing/deleted before acceptance does not complete",
+      "result": "PASS"
+    },
+    {
+      "name": "dirty guard Escape/stay/discard retains fields and focus without creating entry",
+      "result": "PASS"
+    },
+    {
+      "name": "browser Back dirty guard stays with unchanged writing/context",
+      "result": "PASS"
+    },
+    {
+      "name": "four original tabs keyboard navigation; day mismatch has separate private Journal entry, not backdated completion",
+      "result": "PASS"
+    },
+    {
+      "name": "native modal focus containment; reduced motion; no browser text storage",
+      "result": "PASS"
+    }
+  ],
+  "viewports": [
+    {
+      "width": 1440,
+      "height": 900,
+      "tabs": [
+        "Hôm nay",
+        "Kế hoạch",
+        "Tiến triển",
+        "Điều chỉnh"
+      ],
+      "sidebar": true,
+      "topbar": true,
+      "header": true,
+      "fonts": [
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces Fallback",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ],
+      "overflow": false,
+      "primaryAction": {
+        "height": 44,
+        "width": 129.3125,
+        "visible": true,
+        "x": 1051.6875,
+        "right": 1181,
+        "bottom": 795.40625,
+        "within": true
+      },
+      "saveReturnCheck": "PASS",
+      "reducedMotion": "reduce"
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "tabs": [
+        "Hôm nay",
+        "Kế hoạch",
+        "Tiến triển",
+        "Điều chỉnh"
+      ],
+      "sidebar": true,
+      "topbar": true,
+      "header": true,
+      "fonts": [
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces Fallback",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ],
+      "overflow": false,
+      "primaryAction": {
+        "height": 44,
+        "width": 129.3125,
+        "visible": true,
+        "x": 971.6875,
+        "right": 1101,
+        "bottom": 745.40625,
+        "within": true
+      },
+      "saveReturnCheck": "PASS",
+      "reducedMotion": "reduce"
+    },
+    {
+      "width": 375,
+      "height": 812,
+      "tabs": [
+        "Hôm nay",
+        "Kế hoạch",
+        "Tiến triển",
+        "Điều chỉnh"
+      ],
+      "sidebar": true,
+      "topbar": true,
+      "header": true,
+      "fonts": [
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces Fallback",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ],
+      "overflow": false,
+      "primaryAction": {
+        "height": 44,
+        "width": 161.703125,
+        "visible": true,
+        "x": 192.296875,
+        "right": 354,
+        "bottom": 799,
+        "within": true
+      },
+      "saveReturnCheck": "PASS",
+      "reducedMotion": "reduce"
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "tabs": [
+        "Hôm nay",
+        "Kế hoạch",
+        "Tiến triển",
+        "Điều chỉnh"
+      ],
+      "sidebar": true,
+      "topbar": true,
+      "header": true,
+      "fonts": [
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces Fallback",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ],
+      "overflow": false,
+      "primaryAction": {
+        "height": 44,
+        "width": 358.203125,
+        "visible": true,
+        "x": 388.796875,
+        "right": 747,
+        "bottom": 1011,
+        "within": true
+      },
+      "saveReturnCheck": "PASS",
+      "reducedMotion": "reduce"
+    },
+    {
+      "width": 640,
+      "height": 400,
+      "tabs": [
+        "Hôm nay",
+        "Kế hoạch",
+        "Tiến triển",
+        "Điều chỉnh"
+      ],
+      "sidebar": true,
+      "topbar": true,
+      "header": true,
+      "fonts": [
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces",
+        "Fraunces Fallback",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro",
+        "Be Vietnam Pro Fallback"
+      ],
+      "overflow": false,
+      "primaryAction": {
+        "height": 44,
+        "width": 298.203125,
+        "visible": true,
+        "x": 324.796875,
+        "right": 623,
+        "bottom": 391,
+        "within": true
+      },
+      "saveReturnCheck": "PASS",
+      "reducedMotion": "reduce"
+    }
+  ],
+  "errors": [],
+  "blockedRequests": [],
+  "result": "PASS"
+}

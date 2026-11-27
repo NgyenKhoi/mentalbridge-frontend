@@ -1,0 +1,65 @@
+appId: com.mentalbridge.mobile
+name: MB-664 purpose-specific paired screening resumes into self-report
+---
+# AUTHOR_ONLY / NOT_RUN. MB-666 owns protected Android staging execution.
+# Requires a disposable seeded USER with an INCOMPLETE reassessment context and
+# no completed REASSESSMENT episode. Never point this flow at shared dev data.
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: 'sign-in-email-input'
+- inputText: '${MAESTRO_MB664_SCREENING_EMAIL}'
+- tapOn:
+    id: 'sign-in-password-input'
+- inputText: '${MAESTRO_MB664_SCREENING_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- openLink: 'mentalbridge://reassessment'
+- assertVisible: 'Làm bài kiểm tra lại'
+- tapOn: 'Làm bài kiểm tra lại'
+- assertVisible: 'Bài PHQ-9'
+# Interrupt after the first answer; the purpose-specific Care episode owns resume.
+- tapOn: 'Không lần nào'
+- tapOn: 'Câu tiếp theo'
+- stopApp
+- launchApp
+- openLink: 'mentalbridge://assessment?purpose=REASSESSMENT&returnTo=reassessment'
+- assertVisible: 'Bài PHQ-9'
+- repeat:
+    times: 7
+    commands:
+      - tapOn: 'Không lần nào'
+      - tapOn: 'Câu tiếp theo'
+- tapOn: 'Không lần nào'
+- tapOn: 'Đồng ý xử lý dữ liệu sàng lọc'
+- tapOn: 'Hoàn tất bài này'
+- assertVisible: 'Bài GAD-7'
+- repeat:
+    times: 6
+    commands:
+      - tapOn: 'Không lần nào'
+      - tapOn: 'Câu tiếp theo'
+- tapOn: 'Không lần nào'
+- tapOn: 'Đồng ý xử lý dữ liệu sàng lọc'
+- tapOn: 'Hoàn tất bài này'
+# Assessment dismisses to the retained reassessment route; focus refresh must
+# replace INCOMPLETE with the new authoritative READY context.
+- extendedWaitUntil:
+    visible: 'So với giai đoạn trước, bạn cảm thấy:'
+    timeout: 30000
+- tapOn: 'Gần như không thay đổi'
+- tapOn:
+    id: 'reassessment-submit'
+- stopApp
+- launchApp
+- openLink: 'mentalbridge://reassessment'
+- assertVisible: 'Gần như không thay đổi'
+- tapOn:
+    id: 'reassessment-submit'
+- extendedWaitUntil:
+    visible: 'Bốn góc nhìn riêng biệt'
+    timeout: 60000
+- takeScreenshot: 'native-evidence/mb-664-screening-resume-summary'

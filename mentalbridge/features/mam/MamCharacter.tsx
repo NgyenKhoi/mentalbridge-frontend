@@ -1,0 +1,329 @@
+'use client'
+
+import { useCallback, useEffect, useRef, useState } from 'react'
+
+import { useReactiveReducedMotion } from '@/lib/animations/use-reduced-motion'
+
+import styles from './MamCharacter.module.css'
+import {
+  isMamOneShot,
+  MAM_ASSET,
+  type MamLoopingBehavior,
+  type MamOneShot,
+} from './mam-contract'
+import { createMamControls, type MamControls } from './mam-controls'
+
+export type MamRenderStatus = 'loading' | 'ready' | 'fallback'
+
+/**
+ * Why the static pose shows: `unsupported` is a device without canvas or
+ * WebAssembly (not a fault); `error` is a load error, a contract mismatch or
+ * a lost context (Mầm itself is broken).
+ */
+export type MamFallbackReason = 'unsupported' | 'error'
+
+export interface MamOneShotCommand {
+  kind: MamOneShot
+  /**
+   * Give every command its own key and keep it stable across re-renders. Only the
+   * last fired key is remembered: a re-render with it never replays, a different
+   * key fires, so reusing an older key (A, B, A) fires again.
+   */
+  key: string | number
+}
+
+/** Pointer gaze (MB-818): written straight to the asset, so a moving pointer never re-renders React. */
+export interface MamGazeSource {
+  get(): number
+  subscribe(listener: () => void): () => void
+}
+
+export interface MamCharacterProps {
+  size: number
+  behavior?: MamLoopingBehavior
+  /** Gaze at an active anchor; while it is not 0 it wins over `gaze`. */
+  attention?: number
+  gaze?: MamGazeSource
+  visible?: boolean
+  /** The user's Mầm motion preference; the OS setting forces it on. */
+  reducedMotion?: boolean
+  /** Draw into a bigger buffer while the host shows her scaled up (the welcome flight), so she stays sharp. */
+  oversample?: boolean
+  oneShot?: MamOneShotCommand | null
+  className?: string
+  onStatusChange?: (status: MamRenderStatus) => void
+  onFallback?: (reason: MamFallbackReason) => void
+}
+
+type RiveModule = typeof import('@rive-app/canvas-lite')
+type RiveInstance = InstanceType<RiveModule['Rive']>
+
+function runtimeSupported(canvas: HTMLCanvasElement) {
+  return (
+    typeof WebAssembly === 'object' &&
+    typeof canvas.getContext === 'function' &&
+    canvas.getContext('2d') !== null
+  )
+}
+
+async function initRuntime() {
+  const rive = await import('@rive-app/canvas-lite')
+  // Self-hosted WASM only: no CDN fallback, so nothing leaves the app origin.
+  rive.RuntimeLoader.setWasmUrl(MAM_ASSET.wasmUrl)
+  rive.RuntimeLoader.setWasmFallbackUrl(null)
+  await new Promise<void>((resolve, reject) =>
+    rive.RuntimeLoader.getInstance(() => resolve(), reject),
+  )
+  return rive
+}
+
+async function fetchAsset() {
+  const response = await fetch(MAM_ASSET.src)
+  if (!response.ok) throw new Error(`Mầm asset HTTP ${response.status}`)
+  return response.arrayBuffer()
+}
+
+// One runtime and one download per page for every instance; a failure is retried on the next mount.
+let loading: Promise<[RiveModule, ArrayBuffer]> | null = null
+function loadMam() {
+  loading ??= Promise.all([initRuntime(), fetchAsset()])
+  loading.catch(() => {
+    loading = null
+  })
+  return loading
+}
+
+/**
+ * Decorative Mầm renderer. The host supplies every word the user needs, so the
+ * character is hidden from assistive technology. Any load or runtime failure,
+ * including a lost canvas context, keeps the static pose and never blocks the page.
+ */
+export function MamCharacter({
+  size,
+  behavior = 'idle',
+  attention = 0,
+  gaze,
+  visible = true,
+  reducedMotion = false,
+  oversample = false,
+  oneShot = null,
+  className,
+  onStatusChange,
+  onFallback,
+}: MamCharacterProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const controlsRef = useRef<MamControls | null>(null)
+  const instanceRef = useRef<RiveInstance | null>(null)
+  const firedKeyRef = useRef<MamOneShotCommand['key'] | null>(null)
+  const appliedBehaviorRef = useRef<MamLoopingBehavior | null>(null)
+  // A replay waiting for the asset to leave the one-shot it was cut from.
+  const replayRef = useRef<number | null>(null)
+  const cancelReplay = useCallback(() => {
+    if (replayRef.current !== null) cancelAnimationFrame(replayRef.current)
+    replayRef.current = null
+  }, [])
+  const [status, setStatus] = useState<MamRenderStatus>('loading')
+  const osReducedMotion = useReactiveReducedMotion()
+  const reduced = reducedMotion || osReducedMotion
+
+  const statusListener = useRef(onStatusChange)
+  useEffect(() => {
+    statusListener.current = onStatusChange
+  }, [onStatusChange])
+  useEffect(() => {
+    statusListener.current?.(status)
+  }, [status])
+
+  const fallbackListener = useRef(onFallback)
+  useEffect(() => {
+    fallbackListener.current = onFallback
+  }, [onFallback])
+  const reasonRef = useRef<MamFallbackReason | null>(null)
+  useEffect(() => {
+    if (status === 'fallback' && reasonRef.current)
+      fallbackListener.current?.(reasonRef.current)
+  }, [status])
+
+  const desiredBehavior = useRef(behavior)
+  useEffect(() => {
+    desiredBehavior.current = behavior
+  }, [behavior])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas || !runtimeSupported(canvas)) {
+      reasonRef.current = 'unsupported'
+      setStatus('fallback')
+      return
+    }
+    let cancelled = false
+    let failed = false
+    let instance: RiveInstance | null = null
+    let unsubscribe: (() => void) | null = null
+    const release = () => {
+      unsubscribe?.()
+      unsubscribe = null
+      controlsRef.current = null
+      instanceRef.current = null
+      instance?.cleanup()
+      instance = null
+    }
+    // Permanent for this mount: a later load callback can never restore readiness.
+    const fail = () => {
+      failed = true
+      release()
+      if (cancelled) return
+      reasonRef.current = 'error'
+      setStatus('fallback')
+    }
+    canvas.addEventListener('contextlost', fail)
+
+    loadMam()
+      .then(([rive, bytes]) => {
+        if (cancelled || failed) return
+        instance = new rive.Rive({
+          // Each instance gets its own copy; the runtime may take ownership of the buffer.
+          buffer: bytes.slice(0),
+          canvas,
+          artboard: MAM_ASSET.artboard,
+          stateMachines: MAM_ASSET.stateMachine,
+          autoplay: true,
+          autoBind: true,
+          layout: new rive.Layout({
+            fit: rive.Fit.Contain,
+            alignment: rive.Alignment.Center,
+          }),
+          onLoad: () => {
+            if (cancelled || failed || !instance) return
+            const viewModel = instance.viewModelInstance
+            if (!viewModel) return fail()
+            let controls: MamControls
+            try {
+              controls = createMamControls(viewModel)
+            } catch {
+              return fail()
+            }
+            // The asset writes `idle` when a one-shot ends or is interrupted;
+            // put the host's looping state back once no one-shot is running.
+            unsubscribe = controls.onBehaviorChange(() => {
+              const current = controls.read().behavior
+              if (!isMamOneShot(current) && current !== desiredBehavior.current)
+                controls.setBehavior(desiredBehavior.current)
+            })
+            controlsRef.current = controls
+            instanceRef.current = instance
+            setStatus('ready')
+          },
+          onLoadError: fail,
+        })
+      })
+      .catch(fail)
+
+    return () => {
+      cancelled = true
+      canvas.removeEventListener('contextlost', fail)
+      release()
+    }
+  }, [])
+
+  // Keeps the drawing surface sharp when the host changes the size.
+  useEffect(() => {
+    // The welcome flight draws her up to 1.7x larger: size the buffer for that while it lasts, else for the screen.
+    if (status === 'ready')
+      instanceRef.current?.resizeDrawingSurfaceToCanvas(
+        (window.devicePixelRatio || 1) * (oversample ? 1.7 : 1),
+      )
+  }, [status, size, oversample])
+
+  // Gates first: hidden and reduced motion also stop a running one-shot in the asset.
+  useEffect(() => {
+    const controls = controlsRef.current
+    if (status !== 'ready' || !controls) return
+    controls.setVisible(visible)
+    controls.setReducedMotion(reduced)
+    controls.setAttention(attention)
+  }, [status, visible, reduced, attention, gaze])
+
+  // The pointer's gaze, only while no anchor owns it and the host offers one.
+  useEffect(() => {
+    const controls = controlsRef.current
+    if (status !== 'ready' || !controls || !gaze || attention !== 0) return
+    const apply = () => controls.setAttention(gaze.get())
+    apply()
+    return gaze.subscribe(apply)
+  }, [status, gaze, attention])
+
+  // A new looping state outranks a running one-shot (ADR arbitration); an
+  // unchanged one leaves the one-shot alone.
+  useEffect(() => {
+    const controls = controlsRef.current
+    if (status !== 'ready' || !controls) return
+    if (appliedBehaviorRef.current === behavior) return
+    const interrupting =
+      appliedBehaviorRef.current !== null &&
+      isMamOneShot(controls.read().behavior)
+    appliedBehaviorRef.current = behavior
+    if (interrupting) controls.returnToDock()
+    controls.setBehavior(behavior)
+  }, [status, behavior])
+
+  useEffect(() => {
+    const controls = controlsRef.current
+    if (status !== 'ready' || !controls) return
+    // The host withdrew the command (mute, route change): cut a running one-shot short.
+    if (!oneShot) {
+      cancelReplay()
+      if (isMamOneShot(controls.read().behavior)) controls.returnToDock()
+      return
+    }
+    if (firedKeyRef.current === oneShot.key) return
+    firedKeyRef.current = oneShot.key
+    cancelReplay()
+    // A running one-shot has no route to another one: cut it, then start the
+    // new one two frames later, once the asset is back on its dock state.
+    if (!isMamOneShot(controls.read().behavior)) {
+      controls.playOnce(oneShot.kind)
+      return
+    }
+    controls.returnToDock()
+    replayRef.current = requestAnimationFrame(() => {
+      replayRef.current = requestAnimationFrame(() => {
+        replayRef.current = null
+        controls.playOnce(oneShot.kind)
+      })
+    })
+  }, [status, oneShot, cancelReplay])
+  useEffect(() => cancelReplay, [cancelReplay])
+
+  return (
+    <span
+      className={[styles.root, className].filter(Boolean).join(' ')}
+      style={{ width: size, height: size }}
+      data-mam-status={status}
+      data-mam-visible={visible}
+      data-mam-reduced={reduced}
+      aria-hidden="true"
+    >
+      {visible ? (
+        // Stays mounted under the canvas and hides once the fade-in ends, so the pose never blinks.
+        // eslint-disable-next-line @next/next/no-img-element -- static SVG; next/image adds nothing here.
+        <img
+          className={styles.fallback}
+          data-ready={status === 'ready'}
+          src={MAM_ASSET.fallbackSrc}
+          alt=""
+          width={size}
+          height={size}
+          draggable={false}
+        />
+      ) : null}
+      <canvas
+        ref={canvasRef}
+        className={styles.canvas}
+        data-ready={status === 'ready'}
+        width={size}
+        height={size}
+      />
+    </span>
+  )
+}

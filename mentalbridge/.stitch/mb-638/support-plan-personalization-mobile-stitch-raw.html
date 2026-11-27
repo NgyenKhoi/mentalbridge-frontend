@@ -1,0 +1,1892 @@
+<!doctype html>
+<html lang="vi" class="h-full bg-[#f8fbf9] antialiased">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>MentalBridge - Tùy chỉnh nhịp độ đồng hành</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              serif: ['Newsreader', 'Georgia', 'serif'],
+              sans: [
+                '"Be Vietnam Pro"',
+                'system-ui',
+                '-apple-system',
+                'sans-serif',
+              ],
+            },
+            colors: {
+              forest: {
+                50: '#f0f7f4',
+                100: '#ddeee6',
+                200: '#bdddd0',
+                300: '#91c4b3',
+                400: '#64a694',
+                500: '#438977',
+                600: '#326e5f',
+                700: '#28584d',
+                800: '#22463e',
+                900: '#1e3c35',
+                950: '#0e221e',
+              },
+              sage: {
+                50: '#f4f8f5',
+                100: '#e5efe8',
+                200: '#cdded2',
+                300: '#a7c3af',
+                400: '#7ea489',
+                500: '#5f876b',
+              },
+              surface: {
+                DEFAULT: '#f8fbf9',
+                card: '#ffffff',
+                muted: '#f1f6f3',
+                border: '#e2ede6',
+              },
+            },
+            boxShadow: {
+              soft: '0 2px 12px -2px rgba(30, 60, 53, 0.06)',
+              raised: '0 8px 24px -4px rgba(30, 60, 53, 0.08)',
+            },
+          },
+        },
+      }
+    </script>
+    <style>
+      /* Safe area and scrollbar styling */
+      :root {
+        --sat: env(safe-area-inset-top, 0px);
+        --sab: env(safe-area-inset-bottom, 0px);
+      }
+      body {
+        font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -webkit-tap-highlight-color: transparent;
+      }
+      h1,
+      h2,
+      h3,
+      .font-heading {
+        font-family: 'Newsreader', Georgia, serif;
+      }
+
+      /* Motion specifications: 180-240ms opacity + 8px entrance */
+      .step-fade-in {
+        animation: stepFadeIn 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      .step-fade-out {
+        animation: stepFadeOut 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+
+      @keyframes stepFadeIn {
+        0% {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        100% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes stepFadeOut {
+        0% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(-6px);
+        }
+      }
+
+      /* Choice interaction feedback: 120-160ms */
+      .choice-card {
+        transition: all 140ms cubic-bezier(0.2, 0, 0.2, 1);
+      }
+      .choice-card:active {
+        transform: scale(0.985);
+      }
+
+      /* Status Banner / In-flow Panels */
+      .banner-slide-in {
+        animation: bannerSlideIn 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      @keyframes bannerSlideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Reduced Motion Support */
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        ::before,
+        ::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+        .step-fade-in,
+        .step-fade-out,
+        .banner-slide-in {
+          transform: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body class="h-full flex justify-center text-[#21332e] bg-[#eef4f0]">
+    <!-- Mobile Device Simulation Frame (375px ideal, responsive 320px-430px) -->
+    <div
+      id="mobile-shell"
+      class="w-full max-w-[430px] min-h-screen bg-[#f8fbf9] flex flex-col relative shadow-2xl border-x border-sage-200/60 pb-32"
+    >
+      <!-- Top App Header -->
+      <header
+        class="sticky top-0 z-40 bg-[#f8fbf9]/95 backdrop-blur-md border-b border-sage-200/70 pt-[max(12px,var(--sat))] px-4 pb-3 transition-colors"
+      >
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div
+              class="w-8 h-8 rounded-full bg-forest-800 text-white flex items-center justify-center font-serif text-lg font-semibold shadow-sm"
+            >
+              <svg
+                class="w-4 h-4 text-emerald-200"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2.2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 21a9 9 0 100-18 9 9 0 000 18z"
+                />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M3.6 9h16.8M3.6 15h16.8"
+                />
+              </svg>
+            </div>
+            <span
+              class="font-serif text-xl tracking-tight text-forest-900 font-medium"
+              >MentalBridge</span
+            >
+          </div>
+
+          <div class="flex items-center gap-2">
+            <a
+              href="#safe-support"
+              class="text-xs font-medium text-forest-800 bg-forest-100/80 hover:bg-forest-200/60 px-3 py-1.5 rounded-full border border-forest-300/40 transition-colors flex items-center gap-1.5 min-h-[36px]"
+            >
+              <svg
+                class="w-3.5 h-3.5 text-forest-700"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                />
+              </svg>
+              <span>Thư mục an toàn</span>
+            </a>
+            <button
+              type="button"
+              aria-label="Tài khoản cá nhân"
+              class="w-8 h-8 rounded-full bg-sage-200/90 text-forest-900 text-xs font-semibold flex items-center justify-center border border-sage-300/50"
+            >
+              AN
+            </button>
+          </div>
+        </div>
+
+        <!-- Section Context Breadcrumb & Top Tabs -->
+        <div
+          class="mt-3 flex items-center justify-between text-xs text-[#526a62]"
+        >
+          <div class="flex items-center gap-1.5 font-medium">
+            <span
+              class="w-2 h-2 rounded-full bg-emerald-600 inline-block"
+            ></span>
+            <span>KẾ HOẠCH HỖ TRỢ</span>
+            <span class="text-sage-400">/</span>
+            <span class="text-forest-800 font-semibold">ĐIỀU CHỈNH</span>
+          </div>
+          <button
+            id="btn-toggle-conflict"
+            type="button"
+            class="text-[11px] text-forest-700 bg-white/80 border border-sage-300/70 rounded-md px-2 py-0.5 hover:bg-sage-100 transition-colors flex items-center gap-1"
+            title="Chuyển trạng thái để kiểm tra phiên bản dữ liệu mới"
+          >
+            <svg
+              class="w-3 h-3 text-forest-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+            <span>Mô phỏng dữ liệu</span>
+          </button>
+        </div>
+
+        <!-- Navigation Modes Tabs -->
+        <nav
+          class="flex items-center gap-1.5 mt-2.5 overflow-x-auto no-scrollbar py-0.5"
+          aria-label="Chế độ kế hoạch hỗ trợ"
+        >
+          <a
+            href="#hom-nay"
+            class="px-3 py-1.5 rounded-full text-xs font-medium text-sage-600 hover:text-forest-900 bg-transparent transition-colors whitespace-nowrap min-h-[36px] flex items-center"
+            >Hôm nay</a
+          >
+          <a
+            href="#ke-hoach"
+            class="px-3 py-1.5 rounded-full text-xs font-medium text-sage-600 hover:text-forest-900 bg-transparent transition-colors whitespace-nowrap min-h-[36px] flex items-center"
+            >Kế hoạch</a
+          >
+          <a
+            href="#tien-trien"
+            class="px-3 py-1.5 rounded-full text-xs font-medium text-sage-600 hover:text-forest-900 bg-transparent transition-colors whitespace-nowrap min-h-[36px] flex items-center"
+            >Tiến triển</a
+          >
+          <a
+            href="#dieu-chinh"
+            class="px-3.5 py-1.5 rounded-full text-xs font-semibold text-white bg-forest-800 shadow-sm whitespace-nowrap min-h-[36px] flex items-center gap-1.5"
+            aria-current="page"
+          >
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span>Điều chỉnh</span>
+          </a>
+        </nav>
+      </header>
+
+      <!-- Main Content Area -->
+      <main class="flex-1 px-4 pt-4 pb-6" id="main-content" tabIndex="-1">
+        <!-- Stale Data Conflict Alert (Dynamic in-flow state) -->
+        <section
+          id="conflict-panel"
+          class="hidden mb-4 p-3.5 rounded-2xl bg-[#fff8eb] border border-[#f3d79b] text-[#5e4200] banner-slide-in"
+          role="alert"
+          aria-live="polite"
+        >
+          <div class="flex items-start gap-2.5">
+            <div
+              class="w-6 h-6 rounded-full bg-[#fce8ba] flex items-center justify-center shrink-0 mt-0.5 text-[#8f6402]"
+            >
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2.2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+            </div>
+            <div class="flex-1 text-xs">
+              <p class="font-semibold text-[#6a4c03] text-sm leading-tight">
+                Đã có cập nhật từ phiên làm việc khác
+              </p>
+              <p class="mt-1 text-[#785707] leading-relaxed">
+                Các lựa chọn bạn đang thao tác trên thiết bị này vẫn được giữ
+                nguyên. Bạn có thể tiếp tục lưu lựa chọn hiện tại hoặc tải phiên
+                bản mới nhất từ tài khoản.
+              </p>
+              <div class="mt-2.5 flex items-center gap-2">
+                <button
+                  id="btn-load-latest"
+                  type="button"
+                  class="px-3 py-1.5 rounded-lg bg-[#b57a07] text-white text-xs font-medium hover:bg-[#976404] transition-colors focus:ring-2 focus:ring-[#b57a07] focus:outline-none min-h-[36px]"
+                >
+                  Tải lựa chọn mới nhất
+                </button>
+                <button
+                  id="btn-dismiss-conflict"
+                  type="button"
+                  class="px-2.5 py-1.5 rounded-lg text-xs font-medium text-[#785707] hover:bg-[#f6e5bd] transition-colors min-h-[36px]"
+                >
+                  Giữ lựa chọn hiện tại
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- In-flow Saved / Review-Required Confirmation Panel -->
+        <section
+          id="saved-summary-panel"
+          class="hidden mb-5 p-4 rounded-2xl bg-forest-50 border border-forest-300/80 text-forest-900 banner-slide-in shadow-soft"
+          role="status"
+          aria-live="polite"
+        >
+          <div class="flex items-start gap-3">
+            <div
+              class="w-7 h-7 rounded-full bg-forest-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm"
+            >
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </div>
+            <div class="flex-1">
+              <h2
+                class="font-serif text-base font-semibold text-forest-900 leading-snug"
+              >
+                Lựa chọn đã được lưu
+              </h2>
+              <p class="mt-1 text-xs text-forest-800 leading-relaxed">
+                Kế hoạch hiện tại của bạn vẫn giữ nguyên cho đến khi bạn xem lại
+                và chủ động thay đổi.
+              </p>
+
+              <!-- Stored Snapshot Chips -->
+              <div
+                class="mt-3 pt-3 border-t border-forest-200/80 flex flex-wrap gap-1.5 text-[11px]"
+              >
+                <span
+                  class="px-2 py-0.5 rounded-md bg-white/90 text-forest-800 font-medium border border-forest-200"
+                  >Trọng tâm: <strong id="summary-focus">Giấc ngủ</strong></span
+                >
+                <span
+                  class="px-2 py-0.5 rounded-md bg-white/90 text-forest-800 font-medium border border-forest-200"
+                  >Nhịp: <strong id="summary-pace">Nhẹ nhàng</strong></span
+                >
+                <span
+                  class="px-2 py-0.5 rounded-md bg-white/90 text-forest-800 font-medium border border-forest-200"
+                  ><strong id="summary-time">10 phút</strong> ·
+                  <strong id="summary-slot">Buổi tối</strong></span
+                >
+              </div>
+
+              <div class="mt-3.5 flex items-center gap-2">
+                <a
+                  href="#ke-hoach"
+                  class="inline-flex items-center justify-center px-3.5 py-2 rounded-xl bg-forest-800 text-white text-xs font-medium hover:bg-forest-900 transition-colors focus:ring-2 focus:ring-forest-600 focus:outline-none min-h-[40px]"
+                >
+                  Xem kế hoạch hiện tại
+                </a>
+                <button
+                  id="btn-edit-again"
+                  type="button"
+                  class="inline-flex items-center justify-center px-3 py-2 rounded-xl text-xs font-medium text-forest-800 bg-white border border-forest-300/60 hover:bg-forest-100 transition-colors min-h-[40px]"
+                >
+                  Chỉnh sửa lại lựa chọn
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Main Step Heading and Rationale -->
+        <div class="mb-4">
+          <h1
+            class="font-serif text-2xl text-forest-950 font-normal tracking-tight leading-snug"
+          >
+            Điều gì phù hợp với bạn lúc này?
+          </h1>
+          <p class="mt-1.5 text-xs text-[#4f675f] leading-relaxed">
+            Bạn có thể chia sẻ những mong muốn thực tế hoặc bỏ qua bất kỳ bước
+            nào. Các lựa chọn này chỉ giúp sắp xếp những hoạt động tự chăm sóc
+            nhẹ nhàng và khung giờ mặc định đã được thống nhất.
+          </p>
+          <div
+            class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sage-100/90 text-[#3d5950] text-[11px] font-medium border border-sage-200"
+          >
+            <svg
+              class="w-3.5 h-3.5 text-forest-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span>Mọi câu trả lời đều là tùy chọn</span>
+          </div>
+        </div>
+
+        <!-- Compact 3-Step Progress Indicator -->
+        <nav
+          aria-label="Tiến trình tùy chỉnh"
+          class="mb-5 bg-white p-2.5 rounded-2xl border border-sage-200/80 shadow-soft"
+        >
+          <ol class="grid grid-cols-3 gap-1.5 text-center text-xs">
+            <!-- Step 1 Indicator -->
+            <li id="indicator-step-1" class="flex flex-col items-center">
+              <div
+                class="step-indicator-bar w-full h-1.5 rounded-full bg-forest-800 transition-colors duration-200"
+              ></div>
+              <button
+                type="button"
+                onclick="goToStep(1)"
+                class="w-full pt-1.5 text-[11px] font-semibold text-forest-900 transition-colors flex items-center justify-center gap-1 focus:outline-none"
+              >
+                <span
+                  class="w-4 h-4 rounded-full bg-forest-800 text-white text-[10px] flex items-center justify-center font-bold"
+                  >1</span
+                >
+                <span class="truncate">Trọng tâm</span>
+              </button>
+            </li>
+            <!-- Step 2 Indicator -->
+            <li id="indicator-step-2" class="flex flex-col items-center">
+              <div
+                class="step-indicator-bar w-full h-1.5 rounded-full bg-sage-200 transition-colors duration-200"
+              ></div>
+              <button
+                type="button"
+                onclick="goToStep(2)"
+                class="w-full pt-1.5 text-[11px] font-medium text-sage-500 transition-colors flex items-center justify-center gap-1 focus:outline-none"
+              >
+                <span
+                  class="w-4 h-4 rounded-full bg-sage-200 text-sage-600 text-[10px] flex items-center justify-center font-bold"
+                  >2</span
+                >
+                <span class="truncate">Nhịp độ</span>
+              </button>
+            </li>
+            <!-- Step 3 Indicator -->
+            <li id="indicator-step-3" class="flex flex-col items-center">
+              <div
+                class="step-indicator-bar w-full h-1.5 rounded-full bg-sage-200 transition-colors duration-200"
+              ></div>
+              <button
+                type="button"
+                onclick="goToStep(3)"
+                class="w-full pt-1.5 text-[11px] font-medium text-sage-500 transition-colors flex items-center justify-center gap-1 focus:outline-none"
+              >
+                <span
+                  class="w-4 h-4 rounded-full bg-sage-200 text-sage-600 text-[10px] flex items-center justify-center font-bold"
+                  >3</span
+                >
+                <span class="truncate">Cách bắt đầu</span>
+              </button>
+            </li>
+          </ol>
+        </nav>
+
+        <!-- Dynamic Form Container -->
+        <form id="preferences-form" onsubmit="event.preventDefault()">
+          <!-- ============================================== -->
+          <!-- STEP 1: TRỌNG TÂM (Single choice) -->
+          <!-- ============================================== -->
+          <section
+            id="step-panel-1"
+            class="step-fade-in"
+            aria-labelledby="step1-heading"
+          >
+            <div class="flex items-baseline justify-between mb-2">
+              <span
+                class="text-[11px] font-bold tracking-wider uppercase text-forest-700"
+                >BƯỚC 1 TRÊN 3</span
+              >
+              <span class="text-[11px] text-sage-500">Chọn 1 chủ đề</span>
+            </div>
+            <h2
+              id="step1-heading"
+              class="font-serif text-lg font-medium text-forest-950"
+            >
+              Chủ đề bạn muốn ưu tiên chăm sóc
+            </h2>
+            <p class="mt-0.5 text-xs text-[#526a62] leading-relaxed">
+              Chọn một chủ đề để bạn thấy cần sự chú ý nhất. Bạn có thể thay đổi
+              bất cứ khi nào.
+            </p>
+
+            <fieldset
+              class="mt-3.5 space-y-2.5"
+              role="radiogroup"
+              aria-label="Chủ đề ưu tiên"
+            >
+              <legend class="sr-only">Lựa chọn chủ đề ưu tiên</legend>
+
+              <!-- Option 1: Lo âu -->
+              <label
+                class="choice-card flex items-start p-3.5 rounded-2xl bg-white border border-sage-200 hover:border-forest-300 cursor-pointer shadow-soft relative select-none"
+              >
+                <input
+                  type="radio"
+                  name="focus_choice"
+                  value="Lo âu"
+                  class="sr-only peer"
+                />
+                <div
+                  class="w-5 h-5 rounded-full border-2 border-sage-300 peer-checked:border-forest-800 peer-checked:bg-forest-800 flex items-center justify-center mt-0.5 shrink-0 transition-colors"
+                >
+                  <div
+                    class="w-2 h-2 rounded-full bg-white opacity-0 peer-checked:opacity-100 transition-opacity"
+                  ></div>
+                </div>
+                <div class="ml-3 flex-1">
+                  <span
+                    class="text-sm font-semibold text-forest-900 block peer-checked:text-forest-950"
+                    >Lo âu</span
+                  >
+                  <span
+                    class="text-xs text-[#5b736b] block mt-0.5 leading-normal"
+                    >Thả lỏng cơ thể, điều hòa nhịp thở khi suy nghĩ dồn
+                    dập</span
+                  >
+                </div>
+              </label>
+
+              <!-- Option 2: Tâm trạng -->
+              <label
+                class="choice-card flex items-start p-3.5 rounded-2xl bg-white border border-sage-200 hover:border-forest-300 cursor-pointer shadow-soft relative select-none"
+              >
+                <input
+                  type="radio"
+                  name="focus_choice"
+                  value="Tâm trạng"
+                  class="sr-only peer"
+                />
+                <div
+                  class="w-5 h-5 rounded-full border-2 border-sage-300 peer-checked:border-forest-800 peer-checked:bg-forest-800 flex items-center justify-center mt-0.5 shrink-0 transition-colors"
+                >
+                  <div
+                    class="w-2 h-2 rounded-full bg-white opacity-0 peer-checked:opacity-100 transition-opacity"
+                  ></div>
+                </div>
+                <div class="ml-3 flex-1">
+                  <span
+                    class="text-sm font-semibold text-forest-900 block peer-checked:text-forest-950"
+                    >Tâm trạng</span
+                  >
+                  <span
+                    class="text-xs text-[#5b736b] block mt-0.5 leading-normal"
+                    >Nhận diện các khoảng lặng và nâng niu cảm xúc tự
+                    nhiên</span
+                  >
+                </div>
+              </label>
+
+              <!-- Option 3: Giấc ngủ (Realistic selected value) -->
+              <label
+                class="choice-card flex items-start p-3.5 rounded-2xl bg-white border-2 border-forest-800 bg-forest-50/50 cursor-pointer shadow-soft relative select-none"
+                id="card-focus-sleep"
+              >
+                <input
+                  type="radio"
+                  name="focus_choice"
+                  value="Giấc ngủ"
+                  checked
+                  class="sr-only peer"
+                />
+                <div
+                  class="w-5 h-5 rounded-full border-2 border-forest-800 bg-forest-800 flex items-center justify-center mt-0.5 shrink-0 transition-colors"
+                >
+                  <div
+                    class="w-2 h-2 rounded-full bg-white opacity-100 transition-opacity"
+                  ></div>
+                </div>
+                <div class="ml-3 flex-1">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-bold text-forest-950 block"
+                      >Giấc ngủ</span
+                    >
+                    <span
+                      class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-forest-100 text-forest-800 border border-forest-300/70"
+                      >Đang chọn</span
+                    >
+                  </div>
+                  <span
+                    class="text-xs text-forest-800 block mt-0.5 leading-normal"
+                    >Xây dựng nhịp nghỉ ngơi êm dịu trước khi vào giấc ban
+                    đêm</span
+                  >
+                </div>
+              </label>
+
+              <!-- Option 4: Động lực -->
+              <label
+                class="choice-card flex items-start p-3.5 rounded-2xl bg-white border border-sage-200 hover:border-forest-300 cursor-pointer shadow-soft relative select-none"
+              >
+                <input
+                  type="radio"
+                  name="focus_choice"
+                  value="Động lực"
+                  class="sr-only peer"
+                />
+                <div
+                  class="w-5 h-5 rounded-full border-2 border-sage-300 peer-checked:border-forest-800 peer-checked:bg-forest-800 flex items-center justify-center mt-0.5 shrink-0 transition-colors"
+                >
+                  <div
+                    class="w-2 h-2 rounded-full bg-white opacity-0 peer-checked:opacity-100 transition-opacity"
+                  ></div>
+                </div>
+                <div class="ml-3 flex-1">
+                  <span
+                    class="text-sm font-semibold text-forest-900 block peer-checked:text-forest-950"
+                    >Động lực</span
+                  >
+                  <span
+                    class="text-xs text-[#5b736b] block mt-0.5 leading-normal"
+                    >Chia nhỏ việc cần làm thành những bước rất nhẹ nhàng</span
+                  >
+                </div>
+              </label>
+
+              <!-- Option 5: Hiểu cảm xúc -->
+              <label
+                class="choice-card flex items-start p-3.5 rounded-2xl bg-white border border-sage-200 hover:border-forest-300 cursor-pointer shadow-soft relative select-none"
+              >
+                <input
+                  type="radio"
+                  name="focus_choice"
+                  value="Hiểu cảm xúc"
+                  class="sr-only peer"
+                />
+                <div
+                  class="w-5 h-5 rounded-full border-2 border-sage-300 peer-checked:border-forest-800 peer-checked:bg-forest-800 flex items-center justify-center mt-0.5 shrink-0 transition-colors"
+                >
+                  <div
+                    class="w-2 h-2 rounded-full bg-white opacity-0 peer-checked:opacity-100 transition-opacity"
+                  ></div>
+                </div>
+                <div class="ml-3 flex-1">
+                  <span
+                    class="text-sm font-semibold text-forest-900 block peer-checked:text-forest-950"
+                    >Hiểu cảm xúc</span
+                  >
+                  <span
+                    class="text-xs text-[#5b736b] block mt-0.5 leading-normal"
+                    >Gọi tên điều đang diễn ra bên trong mà không phán xét</span
+                  >
+                </div>
+              </label>
+            </fieldset>
+          </section>
+
+          <!-- ============================================== -->
+          <!-- STEP 2: NHỊP ĐỘ PHÙ HỢP (Nhịp + Thời gian + Khung giờ) -->
+          <!-- ============================================== -->
+          <section
+            id="step-panel-2"
+            class="hidden"
+            aria-labelledby="step2-heading"
+          >
+            <div class="flex items-baseline justify-between mb-2">
+              <span
+                class="text-[11px] font-bold tracking-wider uppercase text-forest-700"
+                >BƯỚC 2 TRÊN 3</span
+              >
+              <span class="text-[11px] text-sage-500"
+                >Tùy biến nhịp sinh hoạt</span
+              >
+            </div>
+            <h2
+              id="step2-heading"
+              class="font-serif text-lg font-medium text-forest-950"
+            >
+              Nhịp đồng hành bạn cảm thấy thoải mái
+            </h2>
+            <p class="mt-0.5 text-xs text-[#526a62] leading-relaxed">
+              Chọn mức độ tương tác và khoảng thời gian phù hợp với năng lượng
+              hiện tại của bạn.
+            </p>
+
+            <!-- 2A: Nhịp đồng hành (Single choice) -->
+            <div class="mt-4">
+              <h3
+                class="text-xs font-semibold text-forest-900 uppercase tracking-wide"
+              >
+                Mức độ đồng hành mỗi ngày
+              </h3>
+              <div
+                class="mt-2 space-y-2"
+                role="radiogroup"
+                aria-label="Mức độ đồng hành"
+              >
+                <!-- Nhẹ nhàng (Selected) -->
+                <label
+                  class="choice-card flex items-center justify-between p-3 rounded-2xl bg-forest-50/70 border-2 border-forest-800 cursor-pointer shadow-soft"
+                >
+                  <div class="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="pace_choice"
+                      value="Nhẹ nhàng"
+                      checked
+                      class="sr-only peer"
+                    />
+                    <div
+                      class="w-4 h-4 rounded-full border-2 border-forest-800 bg-forest-800 flex items-center justify-center"
+                    >
+                      <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+                    </div>
+                    <div>
+                      <span class="text-sm font-bold text-forest-950 block"
+                        >Nhẹ nhàng</span
+                      >
+                      <span class="text-[11px] text-forest-800 block"
+                        >1 hoạt động nhỏ mỗi ngày, không áp lực</span
+                      >
+                    </div>
+                  </div>
+                  <span
+                    class="text-[11px] font-semibold text-forest-800 bg-forest-100 px-2 py-0.5 rounded-md"
+                    >1 gợi ý/ngày</span
+                  >
+                </label>
+
+                <!-- Cân bằng -->
+                <label
+                  class="choice-card flex items-center justify-between p-3 rounded-2xl bg-white border border-sage-200 hover:border-forest-300 cursor-pointer shadow-soft"
+                >
+                  <div class="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="pace_choice"
+                      value="Cân bằng"
+                      class="sr-only peer"
+                    />
+                    <div
+                      class="w-4 h-4 rounded-full border-2 border-sage-300 peer-checked:border-forest-800 peer-checked:bg-forest-800 flex items-center justify-center"
+                    >
+                      <div
+                        class="w-1.5 h-1.5 rounded-full bg-white opacity-0 peer-checked:opacity-100"
+                      ></div>
+                    </div>
+                    <div>
+                      <span class="text-sm font-semibold text-forest-900 block"
+                        >Cân bằng</span
+                      >
+                      <span class="text-[11px] text-[#5b736b] block"
+                        >2 điểm chạm sáng và tối</span
+                      >
+                    </div>
+                  </div>
+                  <span
+                    class="text-[11px] text-sage-600 bg-sage-50 px-2 py-0.5 rounded-md"
+                    >2 gợi ý/ngày</span
+                  >
+                </label>
+
+                <!-- Chủ động -->
+                <label
+                  class="choice-card flex items-center justify-between p-3 rounded-2xl bg-white border border-sage-200 hover:border-forest-300 cursor-pointer shadow-soft"
+                >
+                  <div class="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="pace_choice"
+                      value="Chủ động"
+                      class="sr-only peer"
+                    />
+                    <div
+                      class="w-4 h-4 rounded-full border-2 border-sage-300 peer-checked:border-forest-800 peer-checked:bg-forest-800 flex items-center justify-center"
+                    >
+                      <div
+                        class="w-1.5 h-1.5 rounded-full bg-white opacity-0 peer-checked:opacity-100"
+                      ></div>
+                    </div>
+                    <div>
+                      <span class="text-sm font-semibold text-forest-900 block"
+                        >Chủ động</span
+                      >
+                      <span class="text-[11px] text-[#5b736b] block"
+                        >Nhiều lựa chọn để bạn chủ động vào nhịp</span
+                      >
+                    </div>
+                  </div>
+                  <span
+                    class="text-[11px] text-sage-600 bg-sage-50 px-2 py-0.5 rounded-md"
+                    >3 gợi ý/ngày</span
+                  >
+                </label>
+              </div>
+            </div>
+
+            <!-- 2B: Thời gian mỗi ngày (Single choice: 5, 10, 15, 20, 30 phút) -->
+            <div class="mt-4 pt-3.5 border-t border-sage-200/80">
+              <div class="flex items-center justify-between">
+                <h3
+                  class="text-xs font-semibold text-forest-900 uppercase tracking-wide"
+                >
+                  Thời gian mỗi ngày
+                </h3>
+                <span
+                  class="text-[11px] text-forest-700 font-medium"
+                  id="selected-time-label"
+                  >10 phút</span
+                >
+              </div>
+              <div
+                class="grid grid-cols-5 gap-1.5 mt-2.5"
+                role="radiogroup"
+                aria-label="Thời gian dành cho hoạt động"
+              >
+                <!-- 5 phút -->
+                <label
+                  class="choice-card flex flex-col items-center justify-center py-2.5 px-1 rounded-xl bg-white border border-sage-200 text-center cursor-pointer min-h-[46px]"
+                >
+                  <input
+                    type="radio"
+                    name="time_choice"
+                    value="5 phút"
+                    class="sr-only peer"
+                  />
+                  <span
+                    class="text-xs font-semibold text-forest-900 peer-checked:text-white"
+                    >5p</span
+                  >
+                  <span
+                    class="text-[10px] text-sage-500 peer-checked:text-emerald-100"
+                    >nhanh</span
+                  >
+                </label>
+                <!-- 10 phút (Selected) -->
+                <label
+                  class="choice-card flex flex-col items-center justify-center py-2.5 px-1 rounded-xl bg-forest-800 border-2 border-forest-800 text-center cursor-pointer min-h-[46px] text-white shadow-sm"
+                >
+                  <input
+                    type="radio"
+                    name="time_choice"
+                    value="10 phút"
+                    checked
+                    class="sr-only peer"
+                  />
+                  <span class="text-xs font-bold text-white">10p</span>
+                  <span class="text-[10px] text-emerald-200">vừa vặn</span>
+                </label>
+                <!-- 15 phút -->
+                <label
+                  class="choice-card flex flex-col items-center justify-center py-2.5 px-1 rounded-xl bg-white border border-sage-200 text-center cursor-pointer min-h-[46px]"
+                >
+                  <input
+                    type="radio"
+                    name="time_choice"
+                    value="15 phút"
+                    class="sr-only peer"
+                  />
+                  <span class="text-xs font-semibold text-forest-900">15p</span>
+                  <span class="text-[10px] text-sage-500">sâu</span>
+                </label>
+                <!-- 20 phút -->
+                <label
+                  class="choice-card flex flex-col items-center justify-center py-2.5 px-1 rounded-xl bg-white border border-sage-200 text-center cursor-pointer min-h-[46px]"
+                >
+                  <input
+                    type="radio"
+                    name="time_choice"
+                    value="20 phút"
+                    class="sr-only peer"
+                  />
+                  <span class="text-xs font-semibold text-forest-900">20p</span>
+                  <span class="text-[10px] text-sage-500">đầy đủ</span>
+                </label>
+                <!-- 30 phút -->
+                <label
+                  class="choice-card flex flex-col items-center justify-center py-2.5 px-1 rounded-xl bg-white border border-sage-200 text-center cursor-pointer min-h-[46px]"
+                >
+                  <input
+                    type="radio"
+                    name="time_choice"
+                    value="30 phút"
+                    class="sr-only peer"
+                  />
+                  <span class="text-xs font-semibold text-forest-900">30p</span>
+                  <span class="text-[10px] text-sage-500">kỹ</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 2C: Thời điểm (Single choice: Buổi sáng, Buổi chiều, Buổi tối, Linh hoạt) -->
+            <div class="mt-4 pt-3.5 border-t border-sage-200/80">
+              <h3
+                class="text-xs font-semibold text-forest-900 uppercase tracking-wide"
+              >
+                Thời điểm thuận tiện nhất
+              </h3>
+              <div
+                class="grid grid-cols-2 gap-2 mt-2"
+                role="radiogroup"
+                aria-label="Khung giờ thuận tiện"
+              >
+                <!-- Sáng -->
+                <label
+                  class="choice-card flex items-center gap-2 p-2.5 rounded-xl bg-white border border-sage-200 cursor-pointer min-h-[44px]"
+                >
+                  <input
+                    type="radio"
+                    name="timeslot_choice"
+                    value="Buổi sáng"
+                    class="sr-only peer"
+                  />
+                  <div
+                    class="w-4 h-4 rounded-full border border-sage-300 peer-checked:border-forest-800 peer-checked:bg-forest-800 flex items-center justify-center"
+                  >
+                    <div
+                      class="w-1.5 h-1.5 rounded-full bg-white opacity-0 peer-checked:opacity-100"
+                    ></div>
+                  </div>
+                  <span class="text-xs font-medium text-forest-900"
+                    >Buổi sáng (07-09h)</span
+                  >
+                </label>
+                <!-- Chiều -->
+                <label
+                  class="choice-card flex items-center gap-2 p-2.5 rounded-xl bg-white border border-sage-200 cursor-pointer min-h-[44px]"
+                >
+                  <input
+                    type="radio"
+                    name="timeslot_choice"
+                    value="Buổi chiều"
+                    class="sr-only peer"
+                  />
+                  <div
+                    class="w-4 h-4 rounded-full border border-sage-300 peer-checked:border-forest-800 peer-checked:bg-forest-800 flex items-center justify-center"
+                  >
+                    <div
+                      class="w-1.5 h-1.5 rounded-full bg-white opacity-0 peer-checked:opacity-100"
+                    ></div>
+                  </div>
+                  <span class="text-xs font-medium text-forest-900"
+                    >Buổi chiều (13-15h)</span
+                  >
+                </label>
+                <!-- Tối (Selected) -->
+                <label
+                  class="choice-card flex items-center gap-2 p-2.5 rounded-xl bg-forest-50/70 border-2 border-forest-800 cursor-pointer min-h-[44px]"
+                >
+                  <input
+                    type="radio"
+                    name="timeslot_choice"
+                    value="Buổi tối"
+                    checked
+                    class="sr-only peer"
+                  />
+                  <div
+                    class="w-4 h-4 rounded-full border-2 border-forest-800 bg-forest-800 flex items-center justify-center"
+                  >
+                    <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+                  </div>
+                  <span class="text-xs font-bold text-forest-950"
+                    >Buổi tối (20-22h)</span
+                  >
+                </label>
+                <!-- Linh hoạt -->
+                <label
+                  class="choice-card flex items-center gap-2 p-2.5 rounded-xl bg-white border border-sage-200 cursor-pointer min-h-[44px]"
+                >
+                  <input
+                    type="radio"
+                    name="timeslot_choice"
+                    value="Linh hoạt"
+                    class="sr-only peer"
+                  />
+                  <div
+                    class="w-4 h-4 rounded-full border border-sage-300 peer-checked:border-forest-800 peer-checked:bg-forest-800 flex items-center justify-center"
+                  >
+                    <div
+                      class="w-1.5 h-1.5 rounded-full bg-white opacity-0 peer-checked:opacity-100"
+                    ></div>
+                  </div>
+                  <span class="text-xs font-medium text-forest-900"
+                    >Linh hoạt tự chọn</span
+                  >
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <!-- ============================================== -->
+          <!-- STEP 3: CÁCH BẮT ĐẦU (Hoạt động + Điều cản trở) -->
+          <!-- ============================================== -->
+          <section
+            id="step-panel-3"
+            class="hidden"
+            aria-labelledby="step3-heading"
+          >
+            <div class="flex items-baseline justify-between mb-2">
+              <span
+                class="text-[11px] font-bold tracking-wider uppercase text-forest-700"
+                >BƯỚC 3 TRÊN 3</span
+              >
+              <span class="text-[11px] text-sage-500">Nhiều lựa chọn</span>
+            </div>
+            <h2
+              id="step3-heading"
+              class="font-serif text-lg font-medium text-forest-950"
+            >
+              Cách bắt đầu và điều bạn đang gặp phải
+            </h2>
+            <p class="mt-0.5 text-xs text-[#526a62] leading-relaxed">
+              Chọn các hoạt động bạn cảm thấy dễ tiếp cận và những rào cản
+              thường khiến bạn khó duy trì.
+            </p>
+
+            <!-- 3A: Hoạt động ưu tiên (Multiple choice) -->
+            <div class="mt-4">
+              <div class="flex items-center justify-between">
+                <h3
+                  class="text-xs font-semibold text-forest-900 uppercase tracking-wide"
+                >
+                  Hoạt động bạn dễ tiếp nhận
+                </h3>
+                <span class="text-[11px] text-sage-500">Có thể chọn nhiều</span>
+              </div>
+
+              <div
+                class="mt-2.5 space-y-2"
+                role="group"
+                aria-label="Hoạt động yêu thích"
+              >
+                <!-- Đọc -->
+                <label
+                  class="choice-card flex items-center p-3 rounded-2xl bg-white border border-sage-200 cursor-pointer shadow-soft"
+                >
+                  <input
+                    type="checkbox"
+                    name="activity_choices"
+                    value="Đọc"
+                    class="sr-only peer"
+                  />
+                  <div
+                    class="w-5 h-5 rounded-md border-2 border-sage-300 peer-checked:border-forest-800 peer-checked:bg-forest-800 flex items-center justify-center shrink-0"
+                  >
+                    <svg
+                      class="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      stroke-width="3"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                  <div class="ml-3">
+                    <span class="text-sm font-medium text-forest-900 block"
+                      >Đọc tài liệu ngắn</span
+                    >
+                    <span class="text-[11px] text-[#5b736b] block"
+                      >Gợi ý góc nhìn, kiến thức nhẹ nhàng dễ đọc</span
+                    >
+                  </div>
+                </label>
+
+                <!-- Thực hành có hướng dẫn (Selected) -->
+                <label
+                  class="choice-card flex items-center p-3 rounded-2xl bg-forest-50/70 border-2 border-forest-800 cursor-pointer shadow-soft"
+                >
+                  <input
+                    type="checkbox"
+                    name="activity_choices"
+                    value="Thực hành có hướng dẫn"
+                    checked
+                    class="sr-only peer"
+                  />
+                  <div
+                    class="w-5 h-5 rounded-md border-2 border-forest-800 bg-forest-800 flex items-center justify-center shrink-0"
+                  >
+                    <svg
+                      class="w-3.5 h-3.5 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      stroke-width="3"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                  <div class="ml-3">
+                    <span class="text-sm font-bold text-forest-950 block"
+                      >Thực hành có hướng dẫn</span
+                    >
+                    <span class="text-[11px] text-forest-800 block"
+                      >Bài tập thở 4-6, thả lỏng từng phần cơ thể</span
+                    >
+                  </div>
+                </label>
+
+                <!-- Viết nhật ký (Selected) -->
+                <label
+                  class="choice-card flex items-center p-3 rounded-2xl bg-forest-50/70 border-2 border-forest-800 cursor-pointer shadow-soft"
+                >
+                  <input
+                    type="checkbox"
+                    name="activity_choices"
+                    value="Viết nhật ký"
+                    checked
+                    class="sr-only peer"
+                  />
+                  <div
+                    class="w-5 h-5 rounded-md border-2 border-forest-800 bg-forest-800 flex items-center justify-center shrink-0"
+                  >
+                    <svg
+                      class="w-3.5 h-3.5 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      stroke-width="3"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                  <div class="ml-3">
+                    <span class="text-sm font-bold text-forest-950 block"
+                      >Viết vài dòng giải tỏa</span
+                    >
+                    <span class="text-[11px] text-forest-800 block"
+                      >Ghi chú riêng tư, trút bớt những suy nghĩ dồn ứ</span
+                    >
+                  </div>
+                </label>
+
+                <!-- Ghi nhận cảm xúc -->
+                <label
+                  class="choice-card flex items-center p-3 rounded-2xl bg-white border border-sage-200 cursor-pointer shadow-soft"
+                >
+                  <input
+                    type="checkbox"
+                    name="activity_choices"
+                    value="Ghi nhận cảm xúc"
+                    class="sr-only peer"
+                  />
+                  <div
+                    class="w-5 h-5 rounded-md border-2 border-sage-300 peer-checked:border-forest-800 peer-checked:bg-forest-800 flex items-center justify-center shrink-0"
+                  >
+                    <svg
+                      class="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      stroke-width="3"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                  <div class="ml-3">
+                    <span class="text-sm font-medium text-forest-900 block"
+                      >Ghi nhận cảm xúc nhanh</span
+                    >
+                    <span class="text-[11px] text-[#5b736b] block"
+                      >Chọn 3 từ mô tả trạng thái hiện tại (khoảng 2 phút)</span
+                    >
+                  </div>
+                </label>
+
+                <!-- Xây dựng thói quen -->
+                <label
+                  class="choice-card flex items-center p-3 rounded-2xl bg-white border border-sage-200 cursor-pointer shadow-soft"
+                >
+                  <input
+                    type="checkbox"
+                    name="activity_choices"
+                    value="Xây dựng thói quen"
+                    class="sr-only peer"
+                  />
+                  <div
+                    class="w-5 h-5 rounded-md border-2 border-sage-300 peer-checked:border-forest-800 peer-checked:bg-forest-800 flex items-center justify-center shrink-0"
+                  >
+                    <svg
+                      class="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      stroke-width="3"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                  <div class="ml-3">
+                    <span class="text-sm font-medium text-forest-900 block"
+                      >Xây dựng nếp sinh hoạt nhỏ</span
+                    >
+                    <span class="text-[11px] text-[#5b736b] block"
+                      >Gắn hành động với thời điểm cố định trong ngày</span
+                    >
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- 3B: Điều thường cản trở (Multiple choice: Ít năng lượng, Không đủ thời gian, Khó bắt đầu) -->
+            <div class="mt-4 pt-3.5 border-t border-sage-200/80">
+              <div class="flex items-center justify-between">
+                <h3
+                  class="text-xs font-semibold text-forest-900 uppercase tracking-wide"
+                >
+                  Điều thường cản trở bạn nhất
+                </h3>
+                <span class="text-[11px] text-sage-500">Tùy chọn</span>
+              </div>
+              <p class="text-[11px] text-sage-600 mt-0.5">
+                Giúp hệ thống không gửi lời nhắc dồn dập khi bạn thấy mệt mỏi
+              </p>
+
+              <div
+                class="mt-2.5 space-y-2"
+                role="group"
+                aria-label="Những điều cản trở"
+              >
+                <!-- Ít năng lượng (Selected) -->
+                <label
+                  class="choice-card flex items-center p-3 rounded-2xl bg-forest-50/70 border-2 border-forest-800 cursor-pointer shadow-soft"
+                >
+                  <input
+                    type="checkbox"
+                    name="barrier_choices"
+                    value="Ít năng lượng"
+                    checked
+                    class="sr-only peer"
+                  />
+                  <div
+                    class="w-5 h-5 rounded-md border-2 border-forest-800 bg-forest-800 flex items-center justify-center shrink-0"
+                  >
+                    <svg
+                      class="w-3.5 h-3.5 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      stroke-width="3"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                  <div class="ml-3">
+                    <span class="text-sm font-bold text-forest-950 block"
+                      >Ít năng lượng hoặc cảm thấy kiệt sức</span
+                    >
+                    <span class="text-[11px] text-forest-800 block"
+                      >Ưu tiên những bước cực ngắn không đòi hỏi nỗ lực</span
+                    >
+                  </div>
+                </label>
+
+                <!-- Không đủ thời gian -->
+                <label
+                  class="choice-card flex items-center p-3 rounded-2xl bg-white border border-sage-200 cursor-pointer shadow-soft"
+                >
+                  <input
+                    type="checkbox"
+                    name="barrier_choices"
+                    value="Không đủ thời gian"
+                    class="sr-only peer"
+                  />
+                  <div
+                    class="w-5 h-5 rounded-md border-2 border-sage-300 peer-checked:border-forest-800 peer-checked:bg-forest-800 flex items-center justify-center shrink-0"
+                  >
+                    <svg
+                      class="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      stroke-width="3"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                  <div class="ml-3">
+                    <span class="text-sm font-medium text-forest-900 block"
+                      >Không đủ thời gian trong ngày</span
+                    >
+                    <span class="text-[11px] text-[#5b736b] block"
+                      >Gợi ý hoạt động có thể lồng ghép vào lúc nghỉ giữa
+                      giờ</span
+                    >
+                  </div>
+                </label>
+
+                <!-- Khó bắt đầu (Selected) -->
+                <label
+                  class="choice-card flex items-center p-3 rounded-2xl bg-forest-50/70 border-2 border-forest-800 cursor-pointer shadow-soft"
+                >
+                  <input
+                    type="checkbox"
+                    name="barrier_choices"
+                    value="Khó bắt đầu"
+                    checked
+                    class="sr-only peer"
+                  />
+                  <div
+                    class="w-5 h-5 rounded-md border-2 border-forest-800 bg-forest-800 flex items-center justify-center shrink-0"
+                  >
+                    <svg
+                      class="w-3.5 h-3.5 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      stroke-width="3"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                  <div class="ml-3">
+                    <span class="text-sm font-bold text-forest-950 block"
+                      >Khó bắt đầu một việc mới</span
+                    >
+                    <span class="text-[11px] text-forest-800 block"
+                      >Cung cấp hướng dẫn từng bước rất cụ thể</span
+                    >
+                  </div>
+                </label>
+              </div>
+            </div>
+          </section>
+        </form>
+
+        <!-- Reassurance Card (Safe supportive non-clinical notice) -->
+        <aside
+          class="mt-6 p-3.5 rounded-2xl bg-sage-100/60 border border-sage-200 text-xs text-[#48635a]"
+        >
+          <div class="flex items-start gap-2.5">
+            <svg
+              class="w-4 h-4 text-forest-700 shrink-0 mt-0.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
+            </svg>
+            <div class="leading-relaxed">
+              <strong class="font-semibold text-forest-900"
+                >Không gian an tâm:</strong
+              >
+              Kế hoạch hỗ trợ chỉ áp dụng các hoạt động tự chăm sóc nhẹ nhàng đã
+              được thống nhất. Mọi cài đặt nhịp sống này hoàn toàn không phải
+              chẩn đoán hay điều trị y tế.
+            </div>
+          </div>
+        </aside>
+
+        <!-- Professional Support Navigation Target -->
+        <section
+          id="safe-support"
+          class="mt-5 p-3.5 rounded-2xl bg-white border border-sage-200/90 shadow-soft"
+        >
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div
+                class="w-7 h-7 rounded-full bg-forest-100 text-forest-800 flex items-center justify-center"
+              >
+                <svg
+                  class="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h3 class="text-xs font-semibold text-forest-900">
+                  Khi cần thêm hỗ trợ
+                </h3>
+                <p class="text-[11px] text-[#59756c]">
+                  Tham khảo thư mục hoặc kết nối chuyên viên tâm lý
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="text-xs font-medium text-forest-800 bg-forest-50 px-2.5 py-1.5 rounded-lg border border-forest-200 hover:bg-forest-100 transition-colors"
+            >
+              Tìm chuyên gia
+            </button>
+          </div>
+        </section>
+      </main>
+
+      <!-- Safe-Area-Aware Sticky Bottom Action Region -->
+      <div
+        class="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none"
+      >
+        <div
+          class="w-full max-w-[430px] bg-white/95 backdrop-blur-md border-t border-sage-200/90 px-4 pt-3 pb-[max(12px,var(--sab))] pointer-events-auto shadow-raised"
+        >
+          <div class="flex items-center gap-2.5">
+            <!-- Back button (hidden on step 1) -->
+            <button
+              id="btn-prev-step"
+              type="button"
+              onclick="prevStep()"
+              class="hidden items-center justify-center w-11 h-11 rounded-xl border border-sage-300 text-forest-900 hover:bg-sage-100 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-forest-700 shrink-0"
+              aria-label="Quay lại bước trước"
+            >
+              <svg
+                class="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2.2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+
+            <!-- Primary Action Button ("Tiếp tục" / "Lưu lựa chọn") -->
+            <button
+              id="btn-next-step"
+              type="button"
+              onclick="nextStep()"
+              class="flex-1 h-11 px-4 rounded-xl bg-forest-800 hover:bg-forest-900 text-white font-medium text-sm shadow-md active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-forest-600 focus:ring-offset-2"
+            >
+              <span id="next-button-label">Tiếp tục bước 2</span>
+              <svg
+                id="next-button-icon"
+                class="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2.2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+              <!-- Loading Spinner (Shown during save) -->
+              <svg
+                id="btn-save-spinner"
+                class="hidden animate-spin w-4 h-4 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                ></path>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Visible but Non-Competing Skip Action -->
+          <div class="mt-2 text-center">
+            <button
+              id="btn-skip-flow"
+              type="button"
+              onclick="skipCurrentFlow()"
+              class="text-xs font-medium text-sage-600 hover:text-forest-900 transition-colors py-1 px-3 focus:outline-none focus:underline min-h-[32px] inline-flex items-center"
+            >
+              Bỏ qua lúc này & quay lại kế hoạch
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Announcement for Screen Readers -->
+      <div
+        id="sr-announcements"
+        class="sr-only"
+        role="status"
+        aria-live="polite"
+      ></div>
+    </div>
+
+    <!-- Client-side Interactive Logic & Motion Handling -->
+    <script>
+      let currentStep = 1
+      const totalSteps = 3
+      let isSaving = false
+
+      // Elements
+      const stepPanels = [
+        document.getElementById('step-panel-1'),
+        document.getElementById('step-panel-2'),
+        document.getElementById('step-panel-3'),
+      ]
+      const prevBtn = document.getElementById('btn-prev-step')
+      const nextBtn = document.getElementById('btn-next-step')
+      const nextBtnLabel = document.getElementById('next-button-label')
+      const nextBtnIcon = document.getElementById('next-button-icon')
+      const saveSpinner = document.getElementById('btn-save-spinner')
+      const srAnnouncements = document.getElementById('sr-announcements')
+
+      const conflictPanel = document.getElementById('conflict-panel')
+      const savedSummaryPanel = document.getElementById('saved-summary-panel')
+
+      function announce(text) {
+        if (srAnnouncements) {
+          srAnnouncements.textContent = text
+        }
+      }
+
+      function updateStepUI() {
+        // Manage step panels with fade classes
+        stepPanels.forEach((panel, idx) => {
+          const stepNum = idx + 1
+          if (stepNum === currentStep) {
+            panel.classList.remove('hidden')
+            panel.classList.add('step-fade-in')
+          } else {
+            panel.classList.add('hidden')
+            panel.classList.remove('step-fade-in')
+          }
+        })
+
+        // Update indicator bars
+        for (let i = 1; i <= totalSteps; i++) {
+          const bar = document.querySelector(
+            `#indicator-step-${i} .step-indicator-bar`,
+          )
+          const btn = document.querySelector(`#indicator-step-${i} button`)
+          const numBadge = btn ? btn.querySelector('span:first-child') : null
+
+          if (i < currentStep) {
+            // Completed step
+            if (bar)
+              bar.className =
+                'step-indicator-bar w-full h-1.5 rounded-full bg-forest-600'
+            if (btn)
+              btn.className =
+                'w-full pt-1.5 text-[11px] font-semibold text-forest-800 flex items-center justify-center gap-1 focus:outline-none'
+            if (numBadge)
+              numBadge.className =
+                'w-4 h-4 rounded-full bg-forest-600 text-white text-[10px] flex items-center justify-center font-bold'
+          } else if (i === currentStep) {
+            // Active step
+            if (bar)
+              bar.className =
+                'step-indicator-bar w-full h-1.5 rounded-full bg-forest-800'
+            if (btn)
+              btn.className =
+                'w-full pt-1.5 text-[11px] font-bold text-forest-950 flex items-center justify-center gap-1 focus:outline-none'
+            if (numBadge)
+              numBadge.className =
+                'w-4 h-4 rounded-full bg-forest-800 text-white text-[10px] flex items-center justify-center font-bold'
+          } else {
+            // Future step
+            if (bar)
+              bar.className =
+                'step-indicator-bar w-full h-1.5 rounded-full bg-sage-200'
+            if (btn)
+              btn.className =
+                'w-full pt-1.5 text-[11px] font-medium text-sage-500 flex items-center justify-center gap-1 focus:outline-none'
+            if (numBadge)
+              numBadge.className =
+                'w-4 h-4 rounded-full bg-sage-200 text-sage-600 text-[10px] flex items-center justify-center font-bold'
+          }
+        }
+
+        // Back button visibility
+        if (currentStep > 1) {
+          prevBtn.classList.remove('hidden')
+          prevBtn.classList.add('flex')
+        } else {
+          prevBtn.classList.add('hidden')
+          prevBtn.classList.remove('flex')
+        }
+
+        // Next button text
+        if (currentStep < totalSteps) {
+          nextBtnLabel.textContent = `Tiếp tục bước ${currentStep + 1}`
+          nextBtnIcon.classList.remove('hidden')
+        } else {
+          nextBtnLabel.textContent = 'Lưu lựa chọn'
+          nextBtnIcon.classList.add('hidden')
+        }
+
+        // Announce step change
+        const stepTitles = ['Trọng tâm', 'Nhịp độ phù hợp', 'Cách bắt đầu']
+        announce(
+          `Đang ở bước ${currentStep} trên 3: ${stepTitles[currentStep - 1]}`,
+        )
+
+        // Smooth scroll to top of content
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+
+      function goToStep(step) {
+        if (step < 1 || step > totalSteps || isSaving) return
+        currentStep = step
+        updateStepUI()
+      }
+
+      function prevStep() {
+        if (currentStep > 1 && !isSaving) {
+          goToStep(currentStep - 1)
+        }
+      }
+
+      function nextStep() {
+        if (isSaving) return
+
+        if (currentStep < totalSteps) {
+          goToStep(currentStep + 1)
+        } else {
+          // Final Save Action
+          handleSavePreferences()
+        }
+      }
+
+      function handleSavePreferences() {
+        isSaving = true
+        nextBtn.disabled = true
+        nextBtn.classList.add('opacity-90')
+        nextBtnLabel.textContent = 'Đang lưu lựa chọn...'
+        saveSpinner.classList.remove('hidden')
+
+        // 180-240ms realistic response latency
+        setTimeout(() => {
+          isSaving = false
+          nextBtn.disabled = false
+          nextBtn.classList.remove('opacity-90')
+          saveSpinner.classList.add('hidden')
+          nextBtnLabel.textContent = 'Đã lưu lựa chọn'
+
+          // Read selected values for snapshot display
+          const selectedFocus =
+            document.querySelector('input[name="focus_choice"]:checked')
+              ?.value || 'Giấc ngủ'
+          const selectedPace =
+            document.querySelector('input[name="pace_choice"]:checked')
+              ?.value || 'Nhẹ nhàng'
+          const selectedTime =
+            document.querySelector('input[name="time_choice"]:checked')
+              ?.value || '10 phút'
+          const selectedTimeslot =
+            document.querySelector('input[name="timeslot_choice"]:checked')
+              ?.value || 'Buổi tối'
+
+          document.getElementById('summary-focus').textContent = selectedFocus
+          document.getElementById('summary-pace').textContent = selectedPace
+          document.getElementById('summary-time').textContent = selectedTime
+          document.getElementById('summary-slot').textContent = selectedTimeslot
+
+          // Show in-flow saved panel
+          savedSummaryPanel.classList.remove('hidden')
+          savedSummaryPanel.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+          })
+          announce(
+            'Lựa chọn đã được lưu thành công. Kế hoạch hiện tại của bạn vẫn giữ nguyên cho đến khi bạn xem lại và chủ động thay đổi.',
+          )
+
+          // Reset button label after delay
+          setTimeout(() => {
+            nextBtnLabel.textContent = 'Lưu lựa chọn'
+          }, 1600)
+        }, 350)
+      }
+
+      function skipCurrentFlow() {
+        announce('Đã bỏ qua tùy chỉnh. Bạn có thể quay lại bất cứ lúc nào.')
+        const confirmSkip = confirm(
+          'Bạn có thể quay lại điều chỉnh bất cứ lúc nào mà không ảnh hưởng tới tiến trình kế hoạch.',
+        )
+        if (confirmSkip) {
+          window.location.hash = '#ke-hoach'
+        }
+      }
+
+      // Interactive card visual updates for radio & checkbox
+      function setupCardSelectionStyles() {
+        // Radio inputs
+        const radios = document.querySelectorAll('input[type="radio"]')
+        radios.forEach((radio) => {
+          radio.addEventListener('change', () => {
+            const groupName = radio.getAttribute('name')
+            const groupRadios = document.querySelectorAll(
+              `input[name="${groupName}"]`,
+            )
+
+            groupRadios.forEach((r) => {
+              const card = r.closest('label')
+              if (card) {
+                if (r.checked) {
+                  card.classList.add(
+                    'border-2',
+                    'border-forest-800',
+                    'bg-forest-50/70',
+                  )
+                  card.classList.remove('border-sage-200', 'bg-white')
+                } else {
+                  card.classList.remove(
+                    'border-2',
+                    'border-forest-800',
+                    'bg-forest-50/70',
+                  )
+                  card.classList.add('border-sage-200', 'bg-white')
+                }
+              }
+            })
+
+            // Special label update for time
+            if (groupName === 'time_choice' && radio.checked) {
+              const timeLabel = document.getElementById('selected-time-label')
+              if (timeLabel) timeLabel.textContent = radio.value
+            }
+          })
+        })
+
+        // Checkbox inputs
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]')
+        checkboxes.forEach((cb) => {
+          cb.addEventListener('change', () => {
+            const card = cb.closest('label')
+            if (card) {
+              if (cb.checked) {
+                card.classList.add(
+                  'border-2',
+                  'border-forest-800',
+                  'bg-forest-50/70',
+                )
+                card.classList.remove('border-sage-200', 'bg-white')
+              } else {
+                card.classList.remove(
+                  'border-2',
+                  'border-forest-800',
+                  'bg-forest-50/70',
+                )
+                card.classList.add('border-sage-200', 'bg-white')
+              }
+            }
+          })
+        })
+      }
+
+      // Toggle Conflict State for testing
+      document
+        .getElementById('btn-toggle-conflict')
+        ?.addEventListener('click', () => {
+          conflictPanel.classList.toggle('hidden')
+          if (!conflictPanel.classList.contains('hidden')) {
+            announce('Cảnh báo: Đã có cập nhật từ phiên làm việc khác.')
+            conflictPanel.scrollIntoView({
+              behavior: 'smooth',
+              block: 'nearest',
+            })
+          }
+        })
+
+      document
+        .getElementById('btn-dismiss-conflict')
+        ?.addEventListener('click', () => {
+          conflictPanel.classList.add('hidden')
+          announce('Đã giữ lại các lựa chọn đang chỉnh sửa tại máy này.')
+        })
+
+      document
+        .getElementById('btn-load-latest')
+        ?.addEventListener('click', () => {
+          conflictPanel.classList.add('hidden')
+          announce('Đã tải phiên bản mới nhất từ tài khoản.')
+          alert('Đã cập nhật dữ liệu mới nhất từ máy chủ.')
+        })
+
+      document
+        .getElementById('btn-edit-again')
+        ?.addEventListener('click', () => {
+          savedSummaryPanel.classList.add('hidden')
+          goToStep(1)
+        })
+
+      // Keyboard navigation (Arrow keys for radio groups)
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' && e.altKey) {
+          nextStep()
+        } else if (e.key === 'ArrowLeft' && e.altKey) {
+          prevStep()
+        }
+      })
+
+      // Initialize
+      setupCardSelectionStyles()
+      updateStepUI()
+    </script>
+  </body>
+</html>

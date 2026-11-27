@@ -1,0 +1,510 @@
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { http, HttpResponse } from 'msw'
+import { localToday, shiftLocalDate } from '@/features/mam/companion-copy'
+import { MamDockSlot } from '@/features/mam/MamDockSlot'
+import { mockServer } from '@/tests/mocks/server'
+import { SessionSummaryPanel } from './SessionSummaryPanel'
+
+const api = vi.hoisted(() => ({
+  list: vi.fn(),
+  publish: vi.fn(),
+  updateConsent: vi.fn(),
+  updateStep: vi.fn(),
+}))
+const feedback = vi.hoisted(() => ({ confirm: vi.fn() }))
+vi.mock('@/components/ui/FeedbackProvider', () => ({
+  useFeedback: () => feedback,
+}))
+const resources = vi.hoisted(() => ({
+  catalogue: vi.fn(),
+  detail: vi.fn(),
+}))
+
+vi.mock('../api/session-summary-browser-client', () => ({
+  sessionSummaryBrowserClient: api,
+}))
+vi.mock('@/features/resources/api/browser-resources', () => ({
+  getResourceCatalogue: resources.catalogue,
+  getResourceDetail: resources.detail,
+}))
+
+const appointmentId = '10000000-0000-4000-8000-000000000002'
+const summary = {
+  id: '10000000-0000-4000-8000-000000000001',
+  appointmentId,
+  userAccountId: '10000000-0000-4000-8000-000000000003',
+  specialistAccountId: '10000000-0000-4000-8000-000000000004',
+  version: 1,
+  schemaVersion: 'session-summary-v1' as const,
+  topicsDiscussed: ['Giấc ngủ'],
+  progressSummary: 'Đã cùng nhìn lại thói quen gần đây.',
+  specialistNoteForUser: null,
+  followUpSuggested: false,
+  amendsSummaryId: null,
+  publishedAt: '2026-10-02T02:00:00Z',
+  reuseConsent: {
+    approved: false,
+    version: 0,
+    updatedAt: '2026-10-02T02:00:00Z',
+  },
+  agreedNextSteps: [
+    {
+      id: '10000000-0000-4000-8000-000000000005',
+      type: 'JOURNAL' as const,
+      title: 'Viết nhật ký 3 ngày',
+      details: 'Ghi lại giờ ngủ.',
+      resourceId: null,
+      resourceVersion: null,
+      resourceProposalReasonCode: null,
+      state: 'PENDING' as const,
+      hidden: false,
+      stateVersion: 0,
+      stateUpdatedAt: '2026-10-02T02:00:00Z',
+    },
+  ],
+}
+
+describe('SessionSummaryPanel', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resources.catalogue.mockResolvedValue({ items: [], hasMore: false })
+  })
+
+  it('lets the assigned specialist publish a bounded first summary', async () => {
+    api.list.mockResolvedValue({
+      items: [],
+      count: 0,
+      generatedAt: '2026-10-02T02:00:00Z',
+    })
+    api.publish.mockResolvedValue(summary)
+    const user = userEvent.setup()
+    render(
+      <SessionSummaryPanel appointmentId={appointmentId} viewer="SPECIALIST" />,
+    )
+
+    await user.click(screen.getByText('Tóm tắt sau phiên'))
+    await user.click(
+      await screen.findByRole('button', { name: 'Tạo bản tóm tắt' }),
+    )
+    await user.type(screen.getByLabelText(/Nội dung đã trao đổi/), 'Giấc ngủ')
+    await user.click(
+      screen.getByRole('button', { name: 'Xuất bản cho người dùng' }),
+    )
+
+    await waitFor(() => expect(api.publish).toHaveBeenCalled())
+    expect(api.publish.mock.calls[0][0]).toBe(appointmentId)
+    expect(api.publish.mock.calls[0][1]).toMatchObject({
+      topicsDiscussed: ['Giấc ngủ'],
+      agreedNextSteps: [],
+    })
+    expect(await screen.findByText('Phiên bản 1')).toBeInTheDocument()
+  })
+
+  it('keeps next-step state and future reuse under user control', async () => {
+    api.list.mockResolvedValue({
+      items: [summary],
+      count: 1,
+      generatedAt: '2026-10-02T02:00:00Z',
+    })
+    api.updateConsent.mockResolvedValue({
+      ...summary,
+      reuseConsent: { ...summary.reuseConsent, approved: true, version: 1 },
+    })
+    api.updateStep.mockResolvedValue({
+      ...summary,
+      agreedNextSteps: [
+        { ...summary.agreedNextSteps[0], state: 'COMPLETED', stateVersion: 1 },
+      ],
+    })
+    const user = userEvent.setup()
+    render(<SessionSummaryPanel appointmentId={appointmentId} viewer="USER" />)
+
+    await user.click(screen.getByText('Tóm tắt sau phiên'))
+    const state = await screen.findByLabelText('Trạng thái Viết nhật ký 3 ngày')
+    await user.selectOptions(state, 'COMPLETED')
+    await waitFor(() =>
+      expect(api.updateStep).toHaveBeenCalledWith(
+        summary.agreedNextSteps[0].id,
+        { state: 'COMPLETED', hidden: false },
+        0,
+      ),
+    )
+    await user.click(screen.getByRole('checkbox'))
+    await waitFor(() =>
+      expect(api.updateConsent).toHaveBeenCalledWith(summary.id, true, 0),
+    )
+    expect(
+      screen.getByText(/chuyên gia của lịch hẹn sau đã được xác nhận đọc được/),
+    ).toBeInTheDocument()
+  })
+
+  it('lets the user ask Mầm to remind them of one agreed step tomorrow (lời hẹn, source SESSION)', async () => {
+    api.list.mockResolvedValue({
+      items: [summary],
+      count: 1,
+      generatedAt: '2026-10-02T02:00:00Z',
+    })
+    let body: unknown = null
+    mockServer.use(
+      http.post('/api/companion-state/commitments', async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json(
+          {
+            id: '30000000-0000-4000-8000-000000000009',
+            kind: 'SPECIALIST_STEP',
+            minutes: null,
+            dueOn: shiftLocalDate(localToday(), 1),
+            source: 'SESSION',
+            status: 'OPEN',
+            createdAt: '2026-11-27T08:00:00.000Z',
+            resolvedAt: null,
+          },
+          { status: 201 },
+        )
+      }),
+    )
+    const user = userEvent.setup()
+    render(
+      <>
+        <MamDockSlot accountId="10000000-0000-4000-8000-0000000000aa" />
+        <SessionSummaryPanel appointmentId={appointmentId} viewer="USER" />
+      </>,
+    )
+
+    await user.click(screen.getByText('Tóm tắt sau phiên'))
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Hẹn Mầm nhắc mình làm 1 bước',
+      }),
+    )
+
+    const line = await screen.findByText('Mai Mầm hỏi lại nhé.')
+    expect(line).toHaveFocus()
+    expect(body).toEqual({
+      kind: 'SPECIALIST_STEP',
+      minutes: null,
+      dueOn: shiftLocalDate(localToday(), 1),
+      source: 'SESSION',
+    })
+  })
+
+  it('does not offer the Mầm reminder to the specialist or without steps', async () => {
+    api.list.mockResolvedValue({
+      items: [summary],
+      count: 1,
+      generatedAt: '2026-10-02T02:00:00Z',
+    })
+    const user = userEvent.setup()
+    const { unmount } = render(
+      <>
+        <MamDockSlot accountId="10000000-0000-4000-8000-0000000000aa" />
+        <SessionSummaryPanel
+          appointmentId={appointmentId}
+          viewer="SPECIALIST"
+        />
+      </>,
+    )
+    await user.click(screen.getByText('Tóm tắt sau phiên'))
+    await screen.findByText('Viết nhật ký 3 ngày')
+    expect(
+      screen.queryByRole('button', { name: 'Hẹn Mầm nhắc mình làm 1 bước' }),
+    ).toBeNull()
+    unmount()
+
+    api.list.mockResolvedValue({
+      items: [{ ...summary, agreedNextSteps: [] }],
+      count: 1,
+      generatedAt: '2026-10-02T02:00:00Z',
+    })
+    render(
+      <>
+        <MamDockSlot accountId="10000000-0000-4000-8000-0000000000aa" />
+        <SessionSummaryPanel appointmentId={appointmentId} viewer="USER" />
+      </>,
+    )
+    await user.click(screen.getByText('Tóm tắt sau phiên'))
+    await screen.findByText('Giấc ngủ')
+    expect(
+      screen.queryByRole('button', { name: 'Hẹn Mầm nhắc mình làm 1 bước' }),
+    ).toBeNull()
+  })
+
+  it('cancels a new draft without publishing and restores focus', async () => {
+    api.list.mockResolvedValue({
+      items: [],
+      count: 0,
+      generatedAt: '2026-10-02T02:00:00Z',
+    })
+    const user = userEvent.setup()
+    render(
+      <SessionSummaryPanel appointmentId={appointmentId} viewer="SPECIALIST" />,
+    )
+    await user.click(screen.getByText('Tóm tắt sau phiên'))
+    const create = await screen.findByRole('button', {
+      name: 'Tạo bản tóm tắt',
+    })
+    await user.click(create)
+    const input = screen.getByLabelText(/Nội dung đã trao đổi/)
+    expect(input).toHaveFocus()
+    await user.type(input, 'Bản nháp chưa xuất bản')
+    await user.click(screen.getByRole('button', { name: 'Hủy bỏ' }))
+    expect(api.publish).not.toHaveBeenCalled()
+    expect(screen.queryByRole('form')).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Tạo bản tóm tắt' }),
+      ).toHaveFocus(),
+    )
+    await user.click(screen.getByRole('button', { name: 'Tạo bản tóm tắt' }))
+    expect(screen.getByLabelText(/Nội dung đã trao đổi/)).toHaveValue('')
+  })
+
+  it('returns to the immutable published version when cancelling an amendment', async () => {
+    api.list.mockResolvedValue({
+      items: [summary],
+      count: 1,
+      generatedAt: '2026-10-02T02:00:00Z',
+    })
+    const user = userEvent.setup()
+    render(
+      <SessionSummaryPanel appointmentId={appointmentId} viewer="SPECIALIST" />,
+    )
+    await user.click(screen.getByText('Tóm tắt sau phiên'))
+    await user.click(
+      await screen.findByRole('button', { name: 'Đính chính bản tóm tắt' }),
+    )
+    await user.clear(screen.getByLabelText(/Nội dung đã trao đổi/))
+    await user.type(
+      screen.getByLabelText(/Nội dung đã trao đổi/),
+      'Nội dung chưa xuất bản',
+    )
+    await user.click(screen.getByRole('button', { name: 'Hủy bỏ' }))
+    expect(api.publish).not.toHaveBeenCalled()
+    expect(screen.getByText('Giấc ngủ')).toBeInTheDocument()
+    expect(screen.queryByText('Nội dung chưa xuất bản')).not.toBeInTheDocument()
+    expect(screen.getByText('Phiên bản 1')).toBeInTheDocument()
+    await user.click(
+      screen.getByRole('button', { name: 'Đính chính bản tóm tắt' }),
+    )
+    expect(screen.getByLabelText(/Nội dung đã trao đổi/)).toHaveValue(
+      'Giấc ngủ',
+    )
+  })
+
+  it('bounds the step builder and topic list before sending a mutation', async () => {
+    api.list.mockResolvedValue({
+      items: [],
+      count: 0,
+      generatedAt: '2026-10-02T02:00:00Z',
+    })
+    const user = userEvent.setup()
+    render(
+      <SessionSummaryPanel appointmentId={appointmentId} viewer="SPECIALIST" />,
+    )
+    await user.click(screen.getByText('Tóm tắt sau phiên'))
+    await user.click(
+      await screen.findByRole('button', { name: 'Tạo bản tóm tắt' }),
+    )
+    for (let index = 0; index < 7; index++)
+      await user.click(screen.getByRole('button', { name: 'Thêm bước' }))
+    expect(screen.getByRole('button', { name: 'Thêm bước' })).toBeDisabled()
+    expect(screen.getByText('8 / 8')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Xóa bước 2' }))
+    expect(screen.getByText('7 / 8')).toBeInTheDocument()
+    await user.type(
+      screen.getByLabelText(/Nội dung đã trao đổi/),
+      Array.from({ length: 9 }, (_, i) => `Mục ${i}`).join('\n'),
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Xuất bản cho người dùng' }),
+    )
+    expect(api.publish).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('từ 1 đến 8')
+  })
+
+  it('prefills an amendment with the current agreed next steps', async () => {
+    api.list.mockResolvedValue({
+      items: [summary],
+      count: 1,
+      generatedAt: '2026-10-02T02:00:00Z',
+    })
+    api.publish.mockResolvedValue({ ...summary, version: 2 })
+    const user = userEvent.setup()
+    render(
+      <SessionSummaryPanel appointmentId={appointmentId} viewer="SPECIALIST" />,
+    )
+
+    await user.click(screen.getByText('Tóm tắt sau phiên'))
+    await user.click(
+      await screen.findByRole('button', { name: 'Đính chính bản tóm tắt' }),
+    )
+    expect(screen.getByLabelText('Tên bước 1')).toHaveValue(
+      'Viết nhật ký 3 ngày',
+    )
+    expect(screen.getByLabelText('Chi tiết bước 1')).toHaveValue(
+      'Ghi lại giờ ngủ.',
+    )
+
+    await user.click(
+      screen.getByRole('button', { name: 'Xuất bản bản đính chính' }),
+    )
+    await waitFor(() => expect(api.publish).toHaveBeenCalled())
+    expect(api.publish.mock.calls[0][1].agreedNextSteps).toEqual([
+      {
+        type: 'JOURNAL',
+        title: 'Viết nhật ký 3 ngày',
+        details: 'Ghi lại giờ ngủ.',
+        resourceId: null,
+        resourceVersion: null,
+        resourceProposalReasonCode: null,
+      },
+    ])
+  })
+
+  it('lets the user revoke reuse for an older immutable version', async () => {
+    const latest = {
+      ...summary,
+      id: '10000000-0000-4000-8000-000000000006',
+      version: 2,
+      amendsSummaryId: summary.id,
+      agreedNextSteps: [],
+    }
+    const previous = {
+      ...summary,
+      reuseConsent: { ...summary.reuseConsent, approved: true, version: 1 },
+    }
+    api.list.mockResolvedValue({
+      items: [latest, previous],
+      count: 2,
+      generatedAt: '2026-10-02T02:00:00Z',
+    })
+    api.updateConsent.mockResolvedValue({
+      ...previous,
+      reuseConsent: { ...previous.reuseConsent, approved: false, version: 2 },
+    })
+    const user = userEvent.setup()
+    render(<SessionSummaryPanel appointmentId={appointmentId} viewer="USER" />)
+
+    await user.click(screen.getByText('Tóm tắt sau phiên'))
+    await user.click(await screen.findByText('Xem 1 phiên bản trước'))
+    const approvals = screen.getAllByRole('checkbox')
+    const previousApproval = approvals.find(
+      (input) => (input as HTMLInputElement).checked,
+    )
+    expect(previousApproval).toBeDefined()
+    await user.click(previousApproval as HTMLInputElement)
+
+    await waitFor(() =>
+      expect(api.updateConsent).toHaveBeenCalledWith(previous.id, false, 1),
+    )
+  })
+})
+
+describe('SessionSummaryPanel in-call notes draft', () => {
+  const key = `mb.summaryDraft.${appointmentId}`
+  const draft = {
+    topics: 'Giấc ngủ\nCông việc',
+    progress: 'Ngủ muộn do áp lực.',
+    note: 'Bạn đã làm rất tốt.',
+    steps: 'Đi ngủ trước 23h\nGhi nhật ký',
+    savedAt: Date.now() - 60_000,
+  }
+  beforeEach(() => {
+    vi.clearAllMocks()
+    window.localStorage.clear()
+    feedback.confirm.mockReset()
+    feedback.confirm.mockResolvedValue(true)
+    resources.catalogue.mockResolvedValue({ items: [], hasMore: false })
+  })
+  async function openForm(items: unknown[], button: string) {
+    api.list.mockResolvedValue({
+      items,
+      count: items.length,
+      generatedAt: '2026-10-02T02:00:00Z',
+    })
+    const user = userEvent.setup()
+    render(
+      <SessionSummaryPanel appointmentId={appointmentId} viewer="SPECIALIST" />,
+    )
+    await user.click(screen.getByText('Tóm tắt sau phiên'))
+    await user.click(await screen.findByRole('button', { name: button }))
+    return user
+  }
+
+  it('prefills a first summary from the draft and deletes it after publishing', async () => {
+    window.localStorage.setItem(key, JSON.stringify(draft))
+    api.publish.mockResolvedValue(summary)
+    const user = await openForm([], 'Tạo bản tóm tắt')
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Đã điền từ ghi chú trong phiên',
+    )
+    expect(screen.getByLabelText(/Nội dung đã trao đổi/)).toHaveValue(
+      'Giấc ngủ\nCông việc',
+    )
+    expect(screen.getByLabelText('Tên bước 2')).toHaveValue('Ghi nhật ký')
+    await user.click(
+      screen.getByRole('button', { name: 'Xuất bản cho người dùng' }),
+    )
+    await waitFor(() => expect(api.publish).toHaveBeenCalled())
+    expect(api.publish.mock.calls[0][1]).toMatchObject({
+      topicsDiscussed: ['Giấc ngủ', 'Công việc'],
+      progressSummary: 'Ngủ muộn do áp lực.',
+      specialistNoteForUser: 'Bạn đã làm rất tốt.',
+      agreedNextSteps: [
+        { type: 'CHECKLIST', title: 'Đi ngủ trước 23h' },
+        { type: 'CHECKLIST', title: 'Ghi nhật ký' },
+      ],
+    })
+    await waitFor(() => expect(window.localStorage.getItem(key)).toBeNull())
+  })
+
+  it('keeps the draft when the form is cancelled or publishing fails', async () => {
+    window.localStorage.setItem(key, JSON.stringify(draft))
+    api.publish.mockRejectedValue(new Error('network'))
+    const user = await openForm([], 'Tạo bản tóm tắt')
+    await user.click(
+      screen.getByRole('button', { name: 'Xuất bản cho người dùng' }),
+    )
+    await screen.findByRole('alert')
+    expect(window.localStorage.getItem(key)).not.toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Hủy bỏ' }))
+    expect(window.localStorage.getItem(key)).not.toBeNull()
+    expect(
+      screen.getByText(/Ghi chú trong phiên sẽ được điền sẵn/),
+    ).toBeInTheDocument()
+  })
+
+  it('lets the specialist discard the draft and falls back to the published version', async () => {
+    window.localStorage.setItem(key, JSON.stringify(draft))
+    const user = await openForm([summary], 'Đính chính bản tóm tắt')
+    expect(screen.getByLabelText(/Nội dung đã trao đổi/)).toHaveValue(
+      'Giấc ngủ\nCông việc',
+    )
+    feedback.confirm.mockResolvedValueOnce(false)
+    await user.click(screen.getByRole('button', { name: 'Bỏ nháp' }))
+    expect(window.localStorage.getItem(key)).not.toBeNull()
+    expect(screen.getByLabelText(/Nội dung đã trao đổi/)).toHaveValue(
+      'Giấc ngủ\nCông việc',
+    )
+    await user.click(screen.getByRole('button', { name: 'Bỏ nháp' }))
+    await waitFor(() => expect(window.localStorage.getItem(key)).toBeNull())
+    expect(screen.getByLabelText(/Nội dung đã trao đổi/)).toHaveValue(
+      'Giấc ngủ',
+    )
+    expect(screen.queryByRole('button', { name: 'Bỏ nháp' })).toBeNull()
+  })
+
+  it('ignores a draft older than 48 hours and counts characters', async () => {
+    window.localStorage.setItem(
+      key,
+      JSON.stringify({ ...draft, savedAt: Date.now() - 49 * 3_600_000 }),
+    )
+    const user = await openForm([], 'Tạo bản tóm tắt')
+    expect(screen.queryByText('Đã điền từ ghi chú trong phiên')).toBeNull()
+    expect(screen.getByLabelText(/Nội dung đã trao đổi/)).toHaveValue('')
+    await user.type(screen.getByLabelText(/Điều đã ghi nhận/), 'abc')
+    expect(screen.getByText('3/1000')).toBeInTheDocument()
+  })
+})

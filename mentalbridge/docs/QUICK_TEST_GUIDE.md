@@ -98,7 +98,7 @@ npm run dev
 ### Test 1: Hero Orbit Topics
 ```
 1. Mở http://localhost:3000
-2. Click vào "Lo âu" 
+2. Click vào "Lo âu"
 3. Quan sát animation sequence (~ 1 giây)
 4. Click các topics khác
 5. Hover qua từng topic
@@ -257,7 +257,7 @@ npm install lenis@^1.3.26
 
 ### After:
 - Smooth transitions
-- Beautiful hover effects  
+- Beautiful hover effects
 - Elegant reveals
 
 ---
@@ -316,6 +316,6 @@ console.log(ScrollTrigger.getAll().length) // Should be > 0
 
 ---
 
-**Status:** ✅ Ready to Test  
-**Server:** http://localhost:3000  
+**Status:** ✅ Ready to Test
+**Server:** http://localhost:3000
 **Next Step:** Hard refresh và test!

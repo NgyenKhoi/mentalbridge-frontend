@@ -1,0 +1,18 @@
+appId: com.mentalbridge.mobile
+name: MB-641 Emotion missing/deleted/unavailable recovery
+---
+# NOT_RUN — MB-666. Fixture state must be controlled outside the app using the
+# approved disposable native harness. This source must never mutate shared dev.
+# Run separately with MAESTRO_MB641_EXPECTED_STATE copy matching the owner state:
+# MISSING: Chưa có ghi nhận cảm xúc cho ngày này. Hoạt động vẫn chưa hoàn thành.
+# DELETED_OPEN: Ghi nhận của ngày này đã được xóa. Chưa ghi nhận hoàn thành hoạt động.
+# DELETED_ACCEPTED: Ghi nhận cảm xúc đã được xóa. Hoạt động đã được ghi nhận trước khi xóa vẫn giữ nguyên.
+# UNAVAILABLE: Chưa thể kiểm tra ghi nhận. Trạng thái trước đó vẫn được giữ. Bạn có thể thử lại.
+- launchApp
+- tapOn: 'Mở kế hoạch hỗ trợ'
+- scrollUntilVisible:
+    element:
+      text: 'Kiểm tra ghi nhận'
+    direction: DOWN
+- tapOn: 'Kiểm tra ghi nhận'
+- assertVisible: '${MAESTRO_MB641_EXPECTED_STATE}'

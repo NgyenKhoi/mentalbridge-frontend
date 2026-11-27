@@ -3,10 +3,42 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import MagneticButton from '@/components/motion/MagneticButton'
+import { resolveCurrentWorkspace } from '@/features/auth/api/browser-auth'
+import type { Workspace } from '@/features/auth/model/workspace'
 
-export default function Header() {
+function workspaceActionLabel(workspace: Workspace) {
+  if (workspace.role === 'ADMIN') return 'Vào trang quản trị'
+  if (workspace.role === 'SPECIALIST') return 'Vào trang chuyên gia'
+  return 'Vào không gian của bạn'
+}
+
+export default function Header({
+  hasSessionHint = false,
+}: Readonly<{ hasSessionHint?: boolean }>) {
   const headerRef = useRef<HTMLElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [workspace, setWorkspace] = useState<Workspace | null>(null)
+  const [sessionChecked, setSessionChecked] = useState(!hasSessionHint)
+
+  useEffect(() => {
+    if (!hasSessionHint) return
+    let active = true
+
+    resolveCurrentWorkspace()
+      .then((session) => {
+        if (active) setWorkspace(session.workspace)
+      })
+      .catch(() => {
+        if (active) setWorkspace(null)
+      })
+      .finally(() => {
+        if (active) setSessionChecked(true)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [hasSessionHint])
 
   useEffect(() => {
     const header = headerRef.current
@@ -52,6 +84,9 @@ export default function Header() {
           </a>
           <ul className="nav-links">
             <li>
+              <Link href="/community">Cộng đồng</Link>
+            </li>
+            <li>
               <a href="#journey">Hành trình</a>
             </li>
             <li>
@@ -62,18 +97,39 @@ export default function Header() {
             </li>
           </ul>
           <div className="nav-cta">
-            <Link href="/login" className="btn-ghost">
-              Đăng nhập
+            <Link href="/safety-directory" className="btn-ghost">
+              Tôi cần hỗ trợ ngay
             </Link>
-            <MagneticButton>
-              <Link
-                href="/register"
-                className="btn btn-primary"
-                data-cursor="action"
-              >
-                Bắt đầu miễn phí
-              </Link>
-            </MagneticButton>
+            {workspace ? (
+              <MagneticButton>
+                <Link
+                  href={workspace.path}
+                  className="btn btn-primary"
+                  data-cursor="action"
+                >
+                  {workspaceActionLabel(workspace)}
+                </Link>
+              </MagneticButton>
+            ) : sessionChecked ? (
+              <>
+                <Link href="/login" className="btn-ghost">
+                  Đăng nhập
+                </Link>
+                <MagneticButton>
+                  <Link
+                    href="/register"
+                    className="btn btn-primary"
+                    data-cursor="action"
+                  >
+                    Bắt đầu miễn phí
+                  </Link>
+                </MagneticButton>
+              </>
+            ) : (
+              <span className="btn btn-primary" aria-live="polite">
+                Đang mở không gian…
+              </span>
+            )}
           </div>
           <button
             className="nav-menu-btn"
@@ -92,6 +148,9 @@ export default function Header() {
           id="mobile-navigation"
           className={`mobile-navigation ${menuOpen ? 'open' : ''}`}
         >
+          <Link href="/community" onClick={() => setMenuOpen(false)}>
+            Cộng đồng
+          </Link>
           <a href="#journey" onClick={() => setMenuOpen(false)}>
             Hành trình
           </a>
@@ -103,19 +162,42 @@ export default function Header() {
           </a>
           <div className="mobile-nav-actions">
             <Link
-              href="/login"
+              href="/safety-directory"
               className="btn btn-outline"
               onClick={() => setMenuOpen(false)}
             >
-              Đăng nhập
+              Tôi cần hỗ trợ ngay
             </Link>
-            <Link
-              href="/register"
-              className="btn btn-primary"
-              onClick={() => setMenuOpen(false)}
-            >
-              Bắt đầu miễn phí
-            </Link>
+            {workspace ? (
+              <Link
+                href={workspace.path}
+                className="btn btn-primary"
+                onClick={() => setMenuOpen(false)}
+              >
+                {workspaceActionLabel(workspace)}
+              </Link>
+            ) : sessionChecked ? (
+              <>
+                <Link
+                  href="/login"
+                  className="btn btn-outline"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Đăng nhập
+                </Link>
+                <Link
+                  href="/register"
+                  className="btn btn-primary"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Bắt đầu miễn phí
+                </Link>
+              </>
+            ) : (
+              <span className="btn btn-primary" aria-live="polite">
+                Đang mở không gian…
+              </span>
+            )}
           </div>
         </div>
       </div>

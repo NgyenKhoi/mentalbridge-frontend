@@ -1,0 +1,451 @@
+name: Frontend staging release gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      approved_frontend_sha:
+        description: Exact dev or staging commit approved for this milestone
+        required: true
+        type: string
+      backend_commit_sha:
+        description: Exact mentalbridge-backend commit deployed to staging
+        required: true
+        type: string
+      staging_deployment_id:
+        description: Non-sensitive immutable staging deployment identifier
+        required: true
+        type: string
+      fixture_dataset_version:
+        description: Non-sensitive immutable staging fixture dataset version
+        required: true
+        type: string
+  pull_request:
+    branches: [staging]
+  push:
+    branches: [staging]
+
+concurrency:
+  group: frontend-staging-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  promotion-policy:
+    name: Promotion policy
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact frontend revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Authorize the staging milestone source
+        env:
+          APPROVED_FRONTEND_SHA: ${{ inputs.approved_frontend_sha }}
+        run: node mobile/scripts/validate-staging-milestone.mjs
+
+  milestone-provenance:
+    name: Resolve immutable milestone provenance
+    needs: [promotion-policy]
+    runs-on: ubuntu-24.04
+    outputs:
+      backend_sha: ${{ steps.pin.outputs.backend_sha }}
+      backend_contract_tree: ${{ steps.pin.outputs.backend_contract_tree }}
+      staging_deployment_id: ${{ steps.pin.outputs.staging_deployment_id }}
+      fixture_dataset_version: ${{ steps.pin.outputs.fixture_dataset_version }}
+    env:
+      REQUESTED_BACKEND_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.backend_commit_sha || vars.MOBILE_STAGING_BACKEND_SHA }}
+      REQUESTED_DEPLOYMENT_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.staging_deployment_id || vars.MOBILE_STAGING_DEPLOYMENT_ID }}
+      REQUESTED_FIXTURE_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.fixture_dataset_version || vars.MOBILE_STAGING_FIXTURE_DATASET_VERSION }}
+    steps:
+      - name: Require immutable non-sensitive provenance inputs
+        shell: bash
+        run: |
+          if [[ ! "$REQUESTED_BACKEND_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "MOBILE_STAGING_BACKEND_SHA must be an exact backend commit SHA." >&2
+            exit 1
+          fi
+          identifier_pattern='^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,127}$'
+          if [[ ! "$REQUESTED_DEPLOYMENT_ID" =~ $identifier_pattern ]]; then
+            echo "A safe immutable staging deployment identifier is required." >&2
+            exit 1
+          fi
+          if [[ ! "$REQUESTED_FIXTURE_VERSION" =~ $identifier_pattern ]]; then
+            echo "A safe immutable fixture dataset version is required." >&2
+            exit 1
+          fi
+
+      - name: Check out pinned backend contracts
+        uses: actions/checkout@v4
+        with:
+          repository: NgyenKhoi/mentalbridge-backend
+          ref: ${{ env.REQUESTED_BACKEND_SHA }}
+          path: staging-backend
+          sparse-checkout: contracts
+
+      - name: Verify and publish immutable provenance
+        id: pin
+        shell: bash
+        run: |
+          actual_backend_sha="$(git -C staging-backend rev-parse HEAD)"
+          if [[ "$actual_backend_sha" != "$REQUESTED_BACKEND_SHA" ]]; then
+            echo "Resolved backend SHA does not match the approved commit." >&2
+            exit 1
+          fi
+          contract_tree="$(git -C staging-backend rev-parse HEAD:contracts)"
+          echo "backend_sha=$actual_backend_sha" >> "$GITHUB_OUTPUT"
+          echo "backend_contract_tree=$contract_tree" >> "$GITHUB_OUTPUT"
+          echo "staging_deployment_id=$REQUESTED_DEPLOYMENT_ID" >> "$GITHUB_OUTPUT"
+          echo "fixture_dataset_version=$REQUESTED_FIXTURE_VERSION" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Staging milestone provenance"
+            echo "- Frontend: $GITHUB_SHA"
+            echo "- Backend: $actual_backend_sha"
+            echo "- Backend contract tree: $contract_tree"
+            echo "- Deployment: $REQUESTED_DEPLOYMENT_ID"
+            echo "- Fixture dataset: $REQUESTED_FIXTURE_VERSION"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  release-quality:
+    name: Staging frontend and fixture browser checks
+    # Web must not wait on mobile provenance; staging-quality-gate still requires both.
+    needs: [promotion-policy]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: mentalbridge
+    env:
+      CI: 'true'
+      E2E_RUNTIME: fixture
+      IDENTITY_API_BASE_URL: http://127.0.0.1:9
+      CONTENT_SERVICE_URL: http://127.0.0.1:3003
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check out promotion Realtime provider contracts
+        uses: actions/checkout@v4
+        with:
+          repository: NgyenKhoi/mentalbridge-backend
+          ref: ${{ inputs.backend_commit_sha || 'staging' }}
+          path: realtime-provider
+          sparse-checkout: contracts/websocket/realtime
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: mentalbridge/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compare Realtime provider schemas
+        run: npm run contract:provider-check
+        env:
+          REALTIME_CONTRACT_SOURCE: ${{ github.workspace }}/realtime-provider/contracts/websocket/realtime
+
+      - name: Install Chromium
+        run: npm run test:e2e:install
+
+      - name: Run full staging release suite
+        run: npm run ci:staging
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-playwright-report
+          path: |
+            mentalbridge/playwright-report
+            mentalbridge/test-results
+          if-no-files-found: warn
+
+  mobile-release-quality:
+    name: Staging mobile checks
+    needs: [promotion-policy, milestone-provenance]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      CI: 'true'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_API_BASE_URL: https://api.test.mentalbridge
+      EXPO_PUBLIC_API_TIMEOUT_MS: '5000'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run mobile quality gate
+        run: npm run quality
+
+  mobile-android-smoke:
+    name: Staging Android native boot and real-contract journeys
+    needs: [promotion-policy, milestone-provenance]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    environment: staging-mobile-e2e
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      ANDROID_DEVICE: emulator-5554
+      CI: 'true'
+      EVIDENCE_COMMIT_SHA: ${{ github.sha }}
+      BACKEND_COMMIT_SHA: ${{ needs.milestone-provenance.outputs.backend_sha }}
+      BACKEND_CONTRACT_TREE: ${{ needs.milestone-provenance.outputs.backend_contract_tree }}
+      STAGING_DEPLOYMENT_ID: ${{ needs.milestone-provenance.outputs.staging_deployment_id }}
+      FIXTURE_DATASET_VERSION: ${{ needs.milestone-provenance.outputs.fixture_dataset_version }}
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_API_BASE_URL: ${{ secrets.MOBILE_STAGING_API_BASE_URL }}
+      EXPO_PUBLIC_API_TIMEOUT_MS: '5000'
+      MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true'
+      MAESTRO_CLI_NO_ANALYTICS: 'true'
+      MAESTRO_MB_USER_EMAIL: ${{ secrets.MB_USER_EMAIL }}
+      MAESTRO_MB_USER_PASSWORD: ${{ secrets.MB_USER_PASSWORD }}
+      MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL: ${{ secrets.MB_SUPPORT_PLAN_USER_EMAIL }}
+      MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD: ${{ secrets.MB_SUPPORT_PLAN_USER_PASSWORD }}
+      MAESTRO_MB_SPECIALIST_EMAIL: ${{ secrets.MB_SPECIALIST_EMAIL }}
+      MAESTRO_MB_SPECIALIST_PASSWORD: ${{ secrets.MB_SPECIALIST_PASSWORD }}
+      MB666_FIXTURE_CONTROL_URL: ${{ secrets.MB666_FIXTURE_CONTROL_URL }}
+      MB666_FIXTURE_CONTROL_TOKEN: ${{ secrets.MB666_FIXTURE_CONTROL_TOKEN }}
+      MB666_EVIDENCE_MODE: automated-emulator
+      MAESTRO_MB666_PERSONA_A_EMAIL: ${{ secrets.MB666_PERSONA_A_EMAIL }}
+      MAESTRO_MB666_PERSONA_A_PASSWORD: ${{ secrets.MB666_PERSONA_A_PASSWORD }}
+      MAESTRO_MB666_PERSONA_B_EMAIL: ${{ secrets.MB666_PERSONA_B_EMAIL }}
+      MAESTRO_MB666_PERSONA_B_PASSWORD: ${{ secrets.MB666_PERSONA_B_PASSWORD }}
+      MAESTRO_MB_HOME_NEXT_STEP_TITLE: ${{ vars.MB666_HOME_NEXT_STEP_TITLE }}
+      MAESTRO_MB_HOME_AFTER_TITLE: ${{ vars.MB666_HOME_AFTER_TITLE }}
+      MAESTRO_MB664_CHANGE_OPTION: ${{ vars.MB666_CHANGE_OPTION }}
+      MAESTRO_MB664_CHANGE_RESULT: ${{ vars.MB666_CHANGE_RESULT }}
+      MAESTRO_MB_ACHIEVEMENT_TITLE: ${{ vars.MB666_ACHIEVEMENT_TITLE }}
+      MAESTRO_MB_REWARD_POLICY_VERSION: ${{ vars.MB666_REWARD_POLICY_VERSION }}
+      MAESTRO_MB_BINGO_VERIFIED_LABEL: ${{ vars.MB666_BINGO_VERIFIED_LABEL }}
+      MAESTRO_MB_BINGO_SELF_POSITION: ${{ vars.MB666_BINGO_SELF_POSITION }}
+      MAESTRO_MB_DISCOVERY_SPECIALIST_ID: ${{ vars.MB666_DISCOVERY_SPECIALIST_ID }}
+      MAESTRO_MB_DISCOVERY_SLOT_ID: ${{ vars.MB666_DISCOVERY_SLOT_ID }}
+      MB666_ENABLE_OPTIONAL_CHAT: ${{ vars.MB666_ENABLE_OPTIONAL_CHAT }}
+      MAESTRO_VERSION: '2.11.0'
+      ORG_GRADLE_PROJECT_reactNativeArchitectures: x86_64
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify exact milestone revision
+        run: test "$(git rev-parse HEAD)" = "$EVIDENCE_COMMIT_SHA"
+
+      - name: Record sanitized milestone provenance
+        run: node scripts/write-staging-provenance.mjs
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17.0.20+8'
+          cache: gradle
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Require protected staging inputs
+        run: |
+          if [[ -z "$EXPO_PUBLIC_API_BASE_URL" || -z "$MAESTRO_MB_USER_EMAIL" || -z "$MAESTRO_MB_USER_PASSWORD" || -z "$MAESTRO_MB_SUPPORT_PLAN_USER_EMAIL" || -z "$MAESTRO_MB_SUPPORT_PLAN_USER_PASSWORD" || -z "$MAESTRO_MB_SPECIALIST_EMAIL" || -z "$MAESTRO_MB_SPECIALIST_PASSWORD" || -z "$MB666_FIXTURE_CONTROL_URL" || -z "$MB666_FIXTURE_CONTROL_TOKEN" || -z "$MAESTRO_MB666_PERSONA_A_EMAIL" || -z "$MAESTRO_MB666_PERSONA_A_PASSWORD" || -z "$MAESTRO_MB666_PERSONA_B_EMAIL" || -z "$MAESTRO_MB666_PERSONA_B_PASSWORD" ]]; then
+            echo "Protected staging edge, base fixtures, MB-666 fixture control and Persona A/B credentials are required." >&2
+            exit 1
+          fi
+
+      - name: Verify protected staging fixture sign-in
+        run: |
+          node --input-type=module <<'NODE'
+          const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL.replace(/\/+$/, '')
+          for (const [label, prefix] of [
+            ['USER', 'MAESTRO_MB_USER'],
+            ['SupportPlan USER', 'MAESTRO_MB_SUPPORT_PLAN_USER'],
+            ['SPECIALIST', 'MAESTRO_MB_SPECIALIST'],
+            ['MB-666 Persona A', 'MAESTRO_MB666_PERSONA_A'],
+            ['MB-666 Persona B', 'MAESTRO_MB666_PERSONA_B'],
+          ]) {
+            try {
+              const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
+                method: 'POST',
+                redirect: 'error',
+                signal: AbortSignal.timeout(15000),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  email: process.env[`${prefix}_EMAIL`],
+                  password: process.env[`${prefix}_PASSWORD`],
+                }),
+              })
+              if (!response.ok) {
+                console.error(`${label} fixture sign-in failed: HTTP ${response.status}.`)
+                process.exitCode = 1
+                continue
+              }
+              const session = await response.json()
+              if (typeof session.accessToken !== 'string' || !session.accessToken) {
+                console.error(`${label} fixture sign-in returned no access token.`)
+                process.exitCode = 1
+                continue
+              }
+              console.log(`${label} fixture sign-in passed.`)
+            } catch {
+              console.error(`${label} fixture sign-in failed: network, redirect or response format.`)
+              process.exitCode = 1
+            }
+          }
+          NODE
+
+      - name: Install pinned Maestro CLI
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+          "$HOME/.maestro/bin/maestro" --version
+
+      - name: Enable KVM permissions
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Compile once, install, boot, and run Android real-contract journeys
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          working-directory: mobile
+          script: npm run milestone:android
+
+      - name: Upload Android native evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-native-and-real-contract-${{ github.sha }}
+          path: mobile/native-evidence
+          if-no-files-found: warn
+
+  mobile-ios-smoke:
+    name: Staging iOS native boot
+    needs: [promotion-policy, milestone-provenance]
+    runs-on: macos-26
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      CI: 'true'
+      EVIDENCE_COMMIT_SHA: ${{ github.sha }}
+      BACKEND_COMMIT_SHA: ${{ needs.milestone-provenance.outputs.backend_sha }}
+      BACKEND_CONTRACT_TREE: ${{ needs.milestone-provenance.outputs.backend_contract_tree }}
+      STAGING_DEPLOYMENT_ID: ${{ needs.milestone-provenance.outputs.staging_deployment_id }}
+      FIXTURE_DATASET_VERSION: ${{ needs.milestone-provenance.outputs.fixture_dataset_version }}
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_API_BASE_URL: https://api.test.mentalbridge
+      EXPO_PUBLIC_API_TIMEOUT_MS: '5000'
+      IOS_DEVICE_NAME: iPhone 17
+      IOS_RUNTIME_ID: com.apple.CoreSimulator.SimRuntime.iOS-26-4
+      IOS_RUNTIME_VERSION: '26.4.1'
+      XCODE_BUILD: '17E202'
+      XCODE_DEVELOPER_DIR: /Applications/Xcode_26.4.1.app/Contents/Developer
+      XCODE_VERSION: '26.4.1'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify exact milestone revision and record provenance
+        run: |
+          test "$(git rev-parse HEAD)" = "$EVIDENCE_COMMIT_SHA"
+          node scripts/write-staging-provenance.mjs
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Select and verify Xcode
+        run: |
+          sudo xcode-select --switch "$XCODE_DEVELOPER_DIR"
+          xcode_version="$(xcodebuild -version | awk 'NR == 1 { print $2 }')"
+          xcode_build="$(xcodebuild -version | awk 'NR == 2 { print $3 }')"
+          if [[ "$xcode_version" != "$XCODE_VERSION" || "$xcode_build" != "$XCODE_BUILD" ]]; then
+            echo "Expected Xcode $XCODE_VERSION ($XCODE_BUILD); found $xcode_version ($xcode_build)." >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Select and boot an iPhone Simulator
+        run: |
+          runtime_version="$(xcrun simctl list runtimes --json | jq -r --arg runtime "$IOS_RUNTIME_ID" '.runtimes[] | select(.identifier == $runtime and .isAvailable == true) | .version')"
+          if [[ "$runtime_version" != "$IOS_RUNTIME_VERSION" ]]; then
+            echo "Expected available iOS runtime $IOS_RUNTIME_ID version $IOS_RUNTIME_VERSION; found ${runtime_version:-none}." >&2
+            exit 1
+          fi
+          device_id="$(xcrun simctl list devices available --json | jq -r --arg runtime "$IOS_RUNTIME_ID" --arg name "$IOS_DEVICE_NAME" '(.devices[$runtime] // []) | map(select(.name == $name))[0].udid // empty')"
+          if [[ -z "$device_id" ]]; then
+            echo "No available $IOS_DEVICE_NAME simulator exists for $IOS_RUNTIME_ID." >&2
+            exit 1
+          fi
+          echo "IOS_DEVICE=$device_id" >> "$GITHUB_ENV"
+          xcrun simctl boot "$device_id" 2>/dev/null || true
+          xcrun simctl bootstatus "$device_id" -b
+
+      - name: Compile, install, and boot iOS app
+        run: npm run native:ios:smoke
+
+      - name: Upload iOS native evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-native-boot-${{ github.sha }}
+          path: mobile/native-evidence
+          if-no-files-found: warn
+
+  staging-quality-gate:
+    name: staging-quality-gate
+    if: always()
+    needs:
+      [
+        promotion-policy,
+        milestone-provenance,
+        release-quality,
+        mobile-release-quality,
+        mobile-android-smoke,
+        mobile-ios-smoke,
+      ]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require staging release checks
+        if: needs.promotion-policy.result != 'success' || needs.milestone-provenance.result != 'success' || needs.release-quality.result != 'success' || needs.mobile-release-quality.result != 'success' || needs.mobile-android-smoke.result != 'success' || needs.mobile-ios-smoke.result != 'success'
+        run: exit 1
+      - name: Confirm staging quality gate
+        run: echo "All required staging release checks passed."

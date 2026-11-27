@@ -1,0 +1,548 @@
+.root {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding-bottom: 2px;
+}
+
+.reactions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.main,
+.bookmark {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--ink-soft);
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard),
+    transform var(--motion-instant) var(--ease-standard);
+}
+
+.main {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  /* Fits the longest label ("Đang lớn lên") so the count and bookmark do not shift. */
+  min-width: 8.5rem;
+  justify-content: center;
+  white-space: nowrap;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+.icon,
+.bookmark svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.celebrating {
+  animation: reaction-pop var(--motion-medium) var(--ease-standard);
+}
+
+.celebrating::after {
+  position: absolute;
+  inset: -6px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  opacity: 0;
+  pointer-events: none;
+  content: '';
+  animation: reaction-halo var(--motion-medium) var(--ease-standard);
+}
+
+.sparkles {
+  position: absolute;
+  inset: -6px;
+  width: 32px;
+  height: 32px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  pointer-events: none;
+  opacity: 0;
+  animation: reaction-seeds var(--motion-medium) var(--ease-standard);
+}
+
+.emoji {
+  font-size: 1.0625rem;
+  line-height: 1;
+}
+
+.empty {
+  /* The idle white heart is near-invisible on white: grey it instead of fading it. */
+  filter: grayscale(1) brightness(0.62);
+}
+
+.main.selected,
+.bookmark.selected {
+  color: var(--teal-deep);
+  border-color: var(--teal);
+  background: var(--teal-pale);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .main:not(.selected):hover:not(:disabled),
+  .bookmark:not(.selected):hover:not(:disabled) {
+    color: var(--teal-deep);
+    background: var(--bg);
+  }
+}
+
+.main:active:not(:disabled),
+.bookmark:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.main:focus-visible,
+.bookmark:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus-ring);
+}
+
+.main:disabled,
+.bookmark:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.count {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.who {
+  display: contents;
+}
+
+.countButton {
+  min-height: 44px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--ink-soft);
+  background: transparent;
+  font: inherit;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard),
+    transform var(--motion-instant) var(--ease-standard);
+}
+
+.countButton[aria-expanded='true'] {
+  color: var(--teal-deep);
+  background: var(--teal-pale);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .countButton:hover {
+    color: var(--teal-deep);
+    background: var(--bg);
+  }
+}
+
+.countButton:active {
+  transform: translateY(1px);
+}
+
+.countButton:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus-ring);
+}
+
+.bookmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* Seven-emoji tray: floats above the reaction button, or below it near the top. */
+.tray {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  transform-origin: 24px 100%;
+}
+
+.tray.below {
+  top: calc(100% + 6px);
+  bottom: auto;
+  transform-origin: 24px 0;
+}
+
+.item {
+  position: relative;
+}
+
+.item button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.item button.current {
+  background: var(--teal-pale);
+}
+
+.item button:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus-ring);
+}
+
+.trayEmoji {
+  display: inline-block;
+  font-size: 1.75rem;
+  line-height: 1;
+  transition: transform var(--motion-fast) var(--ease-emphasis);
+}
+
+.item button:hover .trayEmoji,
+.item button:focus-visible .trayEmoji {
+  transform: translateY(-6px) scale(1.3);
+}
+
+.tip {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  color: var(--surface);
+  background: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.below .tip {
+  top: calc(100% + 4px);
+  bottom: auto;
+}
+
+.item:hover .tip,
+.item:focus-within .tip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+@media (forced-colors: active) {
+  .main:focus-visible,
+  .bookmark:focus-visible,
+  .countButton:focus-visible,
+  .item button:focus-visible {
+    outline-color: Highlight;
+  }
+
+  .tray {
+    border: 1px solid CanvasText;
+  }
+}
+
+.error,
+.status {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.error {
+  padding-inline-start: var(--space-3);
+  border-inline-start: 2px solid var(--terracotta);
+  color: var(--ink);
+}
+
+.status {
+  color: var(--ink-soft);
+}
+
+@keyframes reaction-pop {
+  0% {
+    transform: scale(0.8);
+  }
+  45% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes reaction-halo {
+  0% {
+    opacity: 0.65;
+    transform: scale(0.65);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+@keyframes reaction-seeds {
+  0% {
+    opacity: 0;
+    transform: translateY(3px) scale(0.7);
+  }
+  35% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-3px) scale(1.1);
+  }
+}
+
+/* 7 x 40 + gaps + padding = 300px inside a 375px card; 7 x 34 = 258px for a 320px screen. */
+@media (max-width: 400px) {
+  .tray {
+    padding-inline: 4px;
+  }
+
+  .item button {
+    width: 40px;
+  }
+}
+
+@media (max-width: 360px) {
+  .tray {
+    gap: 0;
+    padding-inline: 2px;
+  }
+
+  .item button {
+    width: 34px;
+  }
+
+  .trayEmoji {
+    font-size: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main,
+  .bookmark,
+  .countButton,
+  .trayEmoji,
+  .tip {
+    transition: none;
+  }
+
+  .main:active:not(:disabled),
+  .bookmark:active:not(:disabled),
+  .countButton:active,
+  .item button:hover .trayEmoji,
+  .item button:focus-visible .trayEmoji {
+    transform: none;
+  }
+
+  .celebrating,
+  .celebrating::after,
+  .sparkles {
+    animation: none;
+  }
+
+  .celebrating::after,
+  .sparkles {
+    display: none;
+  }
+}
+
+/* Feed card bar: counts row, then three equal actions between two hairlines. */
+.bar {
+  display: grid;
+  gap: 0;
+  padding-bottom: 0;
+}
+
+.stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 40px;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}
+
+.statsReactions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.statsMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--teal-pale);
+  font-size: 0.6875rem;
+  line-height: 1;
+}
+
+.bar .countButton,
+.bar .count {
+  min-height: 40px;
+  padding: 0 6px;
+  font-size: 0.8125rem;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px 0;
+  border-block: 1px solid var(--line); /* taste-skill-ignore: owner mock frames the action bar */
+}
+
+.bar .reactions {
+  min-width: 0;
+}
+
+.bar .main,
+.bar .bookmark,
+.commentAction {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  justify-content: center;
+  margin-left: 0;
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.bar .main.selected,
+.bar .bookmark.selected {
+  border-color: transparent;
+}
+
+.commentAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--ink-soft);
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard),
+    transform var(--motion-instant) var(--ease-standard);
+}
+
+.commentAction svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .commentAction:hover {
+    color: var(--teal-deep);
+    background: var(--bg);
+  }
+}
+
+.commentAction:active {
+  transform: translateY(1px);
+}
+
+.commentAction:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus-ring); /* taste-skill-ignore: focus ring */
+}
+
+/* The bar does not grow while a reaction is sent: the busy line is for screen readers only. */
+.bar .status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.bar .error {
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 400px) {
+  .bar .main,
+  .bar .bookmark,
+  .commentAction {
+    padding-inline: 4px;
+    font-size: 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .commentAction {
+    transition: none;
+  }
+
+  .commentAction:active {
+    transform: none;
+  }
+}

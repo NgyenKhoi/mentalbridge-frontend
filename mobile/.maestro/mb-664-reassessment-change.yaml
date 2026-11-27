@@ -1,0 +1,49 @@
+appId: com.mentalbridge.mobile
+name: MB-664 compares a prepared DRAFT before changing the Care plan
+---
+# AUTHOR_ONLY / NOT_RUN. MB-666 owns protected Android staging execution.
+# Requires a disposable seeded USER with READY reassessment context and one
+# PREPARE_REPLACEMENT option whose Care response returns a distinct DRAFT.
+- launchApp:
+    clearState: true
+- tapOn: 'Tiếp tục'
+- tapOn:
+    id: 'sign-in-email-input'
+- inputText: '${MAESTRO_MB664_CHANGE_EMAIL}'
+- tapOn:
+    id: 'sign-in-password-input'
+- inputText: '${MAESTRO_MB664_CHANGE_PASSWORD}'
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+    retryTapIfNoChange: true
+- openLink: 'mentalbridge://reassessment'
+- tapOn: 'Khó khăn hơn trước'
+- tapOn:
+    id: 'reassessment-submit'
+- extendedWaitUntil:
+    visible: 'Bốn góc nhìn riêng biệt'
+    timeout: 60000
+- tapOn: 'Xem lựa chọn giữ hoặc đổi kế hoạch'
+- scrollUntilVisible:
+    element:
+      id: 'adaptive-review-open'
+    direction: DOWN
+- tapOn:
+    id: 'adaptive-review-open'
+- tapOn: '${MAESTRO_MB664_CHANGE_OPTION}'
+- tapOn:
+    id: 'adaptive-review-confirm'
+- extendedWaitUntil:
+    visible: 'So sánh trước khi thay thế'
+    timeout: 30000
+- assertVisible: 'Hiện tại'
+- assertVisible: 'Phương án mới'
+- assertVisible: 'Thay đổi vật chất do Care nêu'
+- takeScreenshot: 'native-evidence/mb-664-draft-comparison'
+- tapOn:
+    id: 'adaptive-review-acknowledge'
+- tapOn:
+    id: 'adaptive-review-replace-confirm'
+- assertVisible: '${MAESTRO_MB664_CHANGE_RESULT}'
+- takeScreenshot: 'native-evidence/mb-664-change-confirmed'

@@ -1,85 +1,661 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
+import {
+  ChevronDown,
+  Clock,
+  FileDown,
+  Filter,
+  RefreshCw,
+  Sparkles,
+  Wallet,
+  Zap,
+} from 'lucide-react'
+import { useSubscriptionBuyerLabels } from '@/features/auth/api/use-account-labels'
+import { browserSubscription } from '@/features/subscription/api/browser-client'
+import type { AdminPaymentList } from '@/lib/consultation/billing-validation'
+import { Disclosure } from './ui/Disclosure'
 import './admin-payments-manager.css'
 
-type PaymentTab = 'overview' | 'subscriptions' | 'transactions'
+type Payment = AdminPaymentList['items'][number]
+type Provider = Payment['provider']
+type PaymentStatus = Payment['status']
 
-const PLANS = [
-  { name: 'MentalBridge Free', users: '9.168', share: 73, price: '0đ', status: 'Đang cung cấp', tone: 'free', features: 'Nhật ký, đánh giá cơ bản, tài nguyên giới hạn' },
-  { name: 'MentalBridge Plus', users: '2.842', share: 23, price: '199.000đ / tháng', status: 'Đang cung cấp', tone: 'plus', features: 'Phân tích nâng cao, tài nguyên đầy đủ, AI hỗ trợ' },
-  { name: 'Gói 3 tháng', users: '470', share: 4, price: '749.000đ / kỳ', status: 'Đang cung cấp', tone: 'quarter', features: 'Toàn bộ quyền lợi Plus trong 3 tháng' },
+const labels = {
+  PENDING: 'Chờ xác nhận',
+  SUCCEEDED: 'Đã xác nhận thành công',
+  FAILED: 'Chưa hoàn tất',
+  CHARGEBACK: 'Cần đối soát lại',
+} satisfies Record<PaymentStatus, string>
+
+const providers = {
+  PAYOS: 'PayOS',
+  MOMO: 'MoMo',
+  FAKE: 'Cổng mô phỏng',
+} satisfies Record<Provider, string>
+
+const providerCodes: Provider[] = ['PAYOS', 'MOMO', 'FAKE']
+const statusCodes: PaymentStatus[] = [
+  'SUCCEEDED',
+  'PENDING',
+  'FAILED',
+  'CHARGEBACK',
 ]
+const pageSize = 6
 
-const TRANSACTIONS = [
-  { id: 'PAY-260827-1284', user: 'Nguyễn Minh Anh', plan: 'MentalBridge Plus', amount: '199.000đ', method: 'MoMo', time: '27/08/2026 · 09:12', status: 'Thành công' },
-  { id: 'PAY-260827-1279', user: 'Phạm Thảo Vy', plan: 'Gói 3 tháng', amount: '749.000đ', method: 'PayOS', time: '27/08/2026 · 08:46', status: 'Thành công' },
-  { id: 'PAY-260827-1261', user: 'Trần Gia Hân', plan: 'MentalBridge Plus', amount: '199.000đ', method: 'VNPay', time: '27/08/2026 · 07:58', status: 'Thất bại' },
-  { id: 'PAY-260826-1248', user: 'Lê Hoàng Nam', plan: 'MentalBridge Plus', amount: '199.000đ', method: 'MoMo', time: '26/08/2026 · 21:35', status: 'Đang xử lý' },
-  { id: 'PAY-260826-1234', user: 'Nguyễn Thu Hương', plan: 'MentalBridge Plus', amount: '199.000đ', method: 'PayOS', time: '26/08/2026 · 18:20', status: 'Hoàn tiền' },
-]
+const money = new Intl.NumberFormat('vi-VN', {
+  style: 'currency',
+  currency: 'VND',
+  maximumFractionDigits: 0,
+})
+const percent = new Intl.NumberFormat('vi-VN', {
+  style: 'percent',
+  maximumFractionDigits: 1,
+})
+const dateTime = new Intl.DateTimeFormat('vi-VN', {
+  dateStyle: 'short',
+  timeStyle: 'medium',
+  timeZone: 'Asia/Ho_Chi_Minh',
+})
 
-export default function AdminPaymentsManager({ onNotice }: { onNotice: (message: string) => void }) {
-  const [tab, setTab] = useState<PaymentTab>('overview')
-  const [query, setQuery] = useState('')
-  const [status, setStatus] = useState('Tất cả')
-  const filteredTransactions = useMemo(() => {
-    const keyword = query.trim().toLocaleLowerCase('vi')
-    return TRANSACTIONS.filter(item => (status === 'Tất cả' || item.status === status) && (!keyword || `${item.id} ${item.user} ${item.plan} ${item.method}`.toLocaleLowerCase('vi').includes(keyword)))
-  }, [query, status])
+function isSandbox(payment: Payment) {
+  return (
+    payment.provider === 'FAKE' ||
+    payment.pricingPolicyVersion === 'sandbox-full-price-v1'
+  )
+}
 
-  return <div className="admin-payments-manager">
-    <div className="role-heading apm-heading">
-      <div><span className="eyebrow">Quản trị nền tảng</span><h1>Subscriptions &amp; Payments</h1><p>Giám sát gói dịch vụ và giao dịch, không chỉnh sửa payment.</p></div>
-      <div className="apm-heading-actions"><span><i />Đối soát gần nhất 09:10 hôm nay</span><button className="btn-primary" onClick={() => onNotice('Đã bắt đầu xuất báo cáo giao dịch.')}>↓ Xuất báo cáo</button></div>
-    </div>
+function exportPayments(payments: Payment[]) {
+  const rows = [
+    [
+      'Gói',
+      'Thao tác',
+      'Số tiền (VND)',
+      'Trạng thái',
+      'Cổng',
+      'Loại giao dịch',
+      'Thời gian (GMT+7)',
+    ],
+    ...payments.map((payment) => [
+      payment.planCode === 'PLUS' ? 'Plus' : 'Premium',
+      payment.purpose === 'UPGRADE' ? 'Nâng cấp' : 'Mua gói',
+      String(payment.amountVnd),
+      labels[payment.status],
+      providers[payment.provider],
+      isSandbox(payment) ? 'Thử nghiệm' : 'Thương mại',
+      dateTime.format(new Date(payment.createdAt)),
+    ]),
+  ]
+  const csv = rows
+    .map((row) =>
+      row.map((value) => `"${value.replaceAll('"', '""')}"`).join(','),
+    )
+    .join('\r\n')
+  const url = URL.createObjectURL(
+    new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' }),
+  )
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'giao-dich-goi-dich-vu.csv'
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
 
-    <section className="apm-metrics" aria-label="Tổng quan thanh toán">
-      <article className="primary"><span>Doanh thu tháng 8</span><strong>486,2 triệu</strong><p><b>↑ 12,1%</b> so với tháng trước</p></article>
-      <article><span>Thuê bao đang hoạt động</span><strong>3.312</strong><p>26,5% tổng tài khoản</p></article>
-      <article><span>Giá trị trung bình</span><strong>213.600đ</strong><p>Trên mỗi giao dịch thành công</p></article>
-      <article className="attention"><span>Giao dịch cần xử lý</span><strong>8</strong><p>3 thất bại · 5 đang chờ</p></article>
-    </section>
+function PaymentMetrics({
+  items,
+  providerCounts,
+}: {
+  items: Payment[]
+  providerCounts: Record<Provider, number>
+}) {
+  const succeeded = items.filter((item) => item.status === 'SUCCEEDED')
+  const totalPaid = succeeded.reduce((sum, item) => sum + item.amountVnd, 0)
+  const totalVolume = items.reduce((sum, item) => sum + item.amountVnd, 0)
+  const successRate = items.length ? succeeded.length / items.length : 0
+  const plus = items.filter((item) => item.planCode === 'PLUS').length
+  const premium = items.length - plus
+  const plusShare = items.length ? plus / items.length : 0
+  const usedProviders = providerCodes.filter((code) => providerCounts[code] > 0)
+  const recent = items.slice(0, 6).reverse()
+  const largest = Math.max(1, ...recent.map((item) => item.amountVnd))
 
-    <nav className="apm-tabs" aria-label="Quản lý subscription và thanh toán">
-      <button className={tab === 'overview' ? 'active' : ''} onClick={() => setTab('overview')}><span>⌁</span><div><strong>Tổng quan</strong><small>Doanh thu và tín hiệu</small></div></button>
-      <button className={tab === 'subscriptions' ? 'active' : ''} onClick={() => setTab('subscriptions')}><span>▤</span><div><strong>Subscriptions</strong><small>Gói dịch vụ và thuê bao</small></div><b>3</b></button>
-      <button className={tab === 'transactions' ? 'active' : ''} onClick={() => setTab('transactions')}><span>↔</span><div><strong>Payments</strong><small>Giao dịch và trạng thái</small></div><b>{TRANSACTIONS.length}</b></button>
-    </nav>
-
-    {tab === 'overview' && <section className="apm-overview">
-      <article className="apm-revenue">
-        <header><div><span>XU HƯỚNG DOANH THU</span><h2>Doanh thu được ghi nhận</h2><p>Chỉ bao gồm giao dịch đã được cổng thanh toán xác nhận.</p></div><select aria-label="Khoảng thời gian" defaultValue="30 ngày"><option>7 ngày</option><option>30 ngày</option><option>Quý III</option></select></header>
-        <div className="apm-chart"><div className="apm-axis"><span>80 tr</span><span>60 tr</span><span>40 tr</span><span>20 tr</span><span>0</span></div><div className="apm-bars">{[48,63,55,72,61,78,86].map((value,index) => <div key={index}><span style={{'--bar':`${value}%`} as React.CSSProperties}><i>{value - 18} tr</i></span><small>{['21/08','22/08','23/08','24/08','25/08','26/08','27/08'][index]}</small></div>)}</div></div>
-        <footer><span><i />Doanh thu ghi nhận</span><strong>Tổng 486.200.000đ</strong></footer>
+  return (
+    <section className="apm-metrics" aria-label="Tổng quan giao dịch">
+      <article className="apm-metric apm-metric-revenue">
+        <header>
+          <h2>Tổng số tiền đã giao dịch</h2>
+          <span className="apm-badge apm-badge-good">
+            {succeeded.length > 0 ? 'Đã xác nhận' : 'Giao dịch'}
+          </span>
+        </header>
+        <div className="apm-metric-main">
+          <strong className="apm-value">
+            {items.length ? money.format(totalPaid) : '—'}
+          </strong>
+          <p>
+            Tổng số tiền từ các giao dịch gói dịch vụ đã hoàn tất thành công.
+          </p>
+        </div>
+        <footer>
+          {recent.length > 0 ? (
+            <svg
+              className="apm-recent-bars"
+              viewBox="0 0 212 34"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              {recent.map((item, index) => {
+                const height = 6 + Math.round((item.amountVnd / largest) * 28)
+                return (
+                  <rect
+                    key={item.paymentId}
+                    className={
+                      item.status === 'SUCCEEDED' ? 'is-confirmed' : undefined
+                    }
+                    x={index * 36}
+                    y={34 - height}
+                    width="31"
+                    height={height}
+                    rx="3"
+                  />
+                )
+              })}
+            </svg>
+          ) : (
+            <span>Chưa có giao dịch</span>
+          )}
+          {items.length > 0 && (
+            <span>Tổng giá trị phát sinh: {money.format(totalVolume)}</span>
+          )}
+        </footer>
       </article>
 
-      <aside className="apm-reconcile">
-        <header><span>ĐỐI SOÁT HÔM NAY</span><h2>Dòng tiền hệ thống</h2></header>
-        <div><p><span>Đã ghi nhận</span><strong>18.420.000đ</strong></p><p><span>Đang chờ xác nhận</span><strong>2.140.000đ</strong></p><p><span>Hoàn tiền</span><strong className="negative">− 398.000đ</strong></p></div>
-        <section><i>✓</i><p><strong>Chênh lệch bằng 0đ</strong><small>Số liệu MentalBridge khớp với cổng thanh toán lúc 09:10.</small></p></section>
-        <button onClick={() => setTab('transactions')}>Xem giao dịch hôm nay <span>→</span></button>
-      </aside>
+      <article className="apm-metric">
+        <header>
+          <h2>Tỷ lệ thành công</h2>
+          <span>
+            {succeeded.length} / {items.length} giao dịch
+          </span>
+        </header>
+        <div className="apm-metric-main apm-success">
+          <div>
+            <strong className="apm-value">
+              {items.length ? percent.format(successRate) : '—'}
+            </strong>
+            <ul className="apm-legend">
+              <li>
+                <i className="apm-dot is-green" />
+                {succeeded.length} Thành công
+              </li>
+              <li>
+                <i className="apm-dot is-amber" />
+                {items.length - succeeded.length} Chưa thành công
+              </li>
+            </ul>
+          </div>
+          <svg className="apm-ring" viewBox="0 0 64 64" aria-hidden="true">
+            <circle cx="32" cy="32" r="27" />
+            {successRate > 0 && (
+              <circle
+                className="apm-ring-progress"
+                cx="32"
+                cy="32"
+                r="27"
+                pathLength="100"
+                strokeDasharray={`${successRate * 100} 100`}
+                transform="rotate(-90 32 32)"
+              />
+            )}
+            <text x="32" y="32" textAnchor="middle" dominantBaseline="central">
+              {succeeded.length}/{items.length}
+            </text>
+          </svg>
+        </div>
+        <footer>Trên các giao dịch gần nhất</footer>
+      </article>
 
-      <section className="apm-plan-distribution">
-        <header><div><span>PHÂN BỔ GÓI DỊCH VỤ</span><h2>12.480 tài khoản</h2></div><small>Cập nhật theo thời gian thực</small></header>
-        <div className="apm-plan-bar"><i className="free" /><i className="plus" /><i className="quarter" /></div>
-        <div className="apm-plan-legend">{PLANS.map(plan => <p key={plan.name}><i className={plan.tone} /><span><strong>{plan.name}</strong><small>{plan.users} người dùng</small></span><b>{plan.share}%</b></p>)}</div>
-      </section>
-    </section>}
+      <article className="apm-metric">
+        <header>
+          <h2>Phân bổ gói dịch vụ</h2>
+          <span>{Number(plus > 0) + Number(premium > 0)} gói có giao dịch</span>
+        </header>
+        <div className="apm-metric-main apm-distribution">
+          <ul className="apm-legend">
+            <li>
+              <i className="apm-dot is-blue" />
+              <span>Plus ({plus})</span>
+              <strong>{items.length ? percent.format(plusShare) : '—'}</strong>
+            </li>
+            <li>
+              <i className="apm-dot is-amber" />
+              <span>Premium ({premium})</span>
+              <strong>
+                {items.length ? percent.format(1 - plusShare) : '—'}
+              </strong>
+            </li>
+          </ul>
+          <svg
+            viewBox="0 0 100 8"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <rect
+              width="100"
+              height="8"
+              className={items.length ? 'apm-premium-bar' : 'apm-empty-bar'}
+            />
+            <rect width={plusShare * 100} height="8" className="apm-plus-bar" />
+          </svg>
+        </div>
+        <footer>Phân bổ theo số lượng giao dịch</footer>
+      </article>
 
-    {tab === 'subscriptions' && <section className="apm-subscriptions">
-      <header><div><span>GÓI DỊCH VỤ</span><h2>Cấu hình subscription</h2><p>Theo dõi gói đang cung cấp; thay đổi giá cần quy trình phê duyệt riêng.</p></div><button onClick={() => onNotice('Đã mở lịch sử thay đổi gói dịch vụ.')}>Xem lịch sử thay đổi</button></header>
-      <div className="apm-plan-list">{PLANS.map((plan,index) => <article key={plan.name} className={index === 1 ? 'featured' : ''}><header><span className={`apm-plan-symbol ${plan.tone}`}>{index === 0 ? '○' : index === 1 ? '✦' : '◇'}</span><b><i />{plan.status}</b></header><h3>{plan.name}</h3><strong>{plan.price}</strong><p>{plan.features}</p><div><span><small>Đang sử dụng</small><b>{plan.users}</b></span><span><small>Tỷ trọng</small><b>{plan.share}%</b></span></div><footer><button onClick={() => onNotice(`Đã mở chi tiết ${plan.name}.`)}>Xem cấu hình <span>→</span></button></footer></article>)}</div>
-      <aside><i>i</i><p><strong>Không chỉnh sửa trực tiếp thuê bao hoặc giao dịch đã ghi nhận.</strong><span>Mọi thay đổi gói chỉ áp dụng cho kỳ thanh toán tiếp theo và phải lưu lịch sử kiểm toán.</span></p></aside>
-    </section>}
+      <article className="apm-metric">
+        <header>
+          <h2>Cổng thanh toán</h2>
+          <Wallet size={17} className="apm-metric-icon" aria-hidden="true" />
+        </header>
+        <div className="apm-metric-main">
+          <strong className="apm-value">{usedProviders.length} cổng</strong>
+          <p>Có giao dịch trong danh sách gần nhất.</p>
+        </div>
+        <footer className="apm-provider-overview">
+          {usedProviders.length ? (
+            usedProviders.map((code) => (
+              <span key={code}>
+                <i className="apm-dot" data-provider={code} />
+                {providers[code]} <b>{providerCounts[code]}</b>
+              </span>
+            ))
+          ) : (
+            <span>Chưa ghi nhận cổng thanh toán</span>
+          )}
+        </footer>
+      </article>
+    </section>
+  )
+}
 
-    {tab === 'transactions' && <section className="apm-transactions">
-      <header><div><span>PAYMENTS</span><h2>Giao dịch gần đây</h2><p>Tra cứu trạng thái được đồng bộ từ cổng thanh toán.</p></div><div className="apm-filters"><label><span>⌕</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Mã giao dịch hoặc người dùng..." /></label><select value={status} onChange={event => setStatus(event.target.value)}><option>Tất cả</option><option>Thành công</option><option>Đang xử lý</option><option>Thất bại</option><option>Hoàn tiền</option></select></div></header>
-      <div className="apm-table-head"><span>Giao dịch</span><span>Gói dịch vụ</span><span>Phương thức</span><span>Trạng thái</span><span>Số tiền</span><span /></div>
-      <div className="apm-transaction-list">{filteredTransactions.map((item,index) => <article key={item.id}><span className={`apm-user-mark tone-${index}`}>{item.user.split(' ').slice(-2).map(word => word[0]).join('')}</span><div><strong>{item.user}</strong><small>{item.id}</small><em>{item.time}</em></div><span>{item.plan}</span><span>{item.method}</span><b className={item.status.toLocaleLowerCase('vi').replaceAll(' ','-')}><i />{item.status}</b><strong>{item.amount}</strong><button onClick={() => onNotice(`Đã mở chi tiết ${item.id}.`)} aria-label={`Xem ${item.id}`}>→</button></article>)}</div>
-      {!filteredTransactions.length && <div className="apm-empty"><span>⌕</span><strong>Không tìm thấy giao dịch</strong><small>Thử thay đổi từ khóa hoặc bộ lọc trạng thái.</small></div>}
-      <footer><p><i>i</i><span><strong>Dữ liệu thanh toán chỉ dùng cho vận hành và đối soát.</strong><small>Không hiển thị đầy đủ thông tin thẻ hoặc tài khoản thanh toán.</small></span></p><button onClick={() => onNotice('Đã tải thêm giao dịch.')}>Tải thêm giao dịch</button></footer>
-    </section>}
-  </div>
+function PaymentRow({ item, buyer }: { item: Payment; buyer?: string }) {
+  const plus = item.planCode === 'PLUS'
+  const isFakeProvider = item.provider === 'FAKE'
+
+  return (
+    <article className="apm-transaction" data-status={item.status}>
+      <div className="apm-transaction-main">
+        <span
+          className="apm-plan-icon"
+          data-plan={item.planCode}
+          aria-hidden="true"
+        >
+          {plus ? <Zap size={22} /> : <Sparkles size={22} />}
+        </span>
+        <div className="apm-entry">
+          <div className="apm-entry-heading">
+            <h3>
+              {plus ? 'Plus' : 'Premium'} ·{' '}
+              {item.purpose === 'UPGRADE' ? 'Nâng cấp' : 'Mua gói'}
+            </h3>
+            <span className="apm-status-badge" data-status={item.status}>
+              <i className="apm-dot" />
+              {labels[item.status]}
+            </span>
+            <span className="apm-badge">{providers[item.provider]}</span>
+          </div>
+          <p className="apm-entry-meta">
+            <strong>{money.format(item.amountVnd)}</strong>
+            <time dateTime={item.createdAt}>
+              <Clock size={13} aria-hidden="true" />
+              {dateTime.format(new Date(item.createdAt))}
+            </time>
+          </p>
+          {buyer && (
+            <p className="apm-entry-note">
+              Người mua: <strong>{buyer}</strong>
+            </p>
+          )}
+          {isFakeProvider ? (
+            <p className="apm-entry-note">
+              Giao dịch qua cổng thử nghiệm, không phải doanh thu thương mại.
+            </p>
+          ) : (
+            <p className="apm-entry-note">
+              Giao dịch thanh toán gói{' '}
+              {plus ? 'MentalBridge Plus' : 'MentalBridge Premium'} qua cổng{' '}
+              {providers[item.provider]}.
+            </p>
+          )}
+        </div>
+      </div>
+      <Disclosure
+        className="apm-transaction-details"
+        contentClassName="apm-detail-content"
+        summary="Chi tiết kỹ thuật"
+        summaryLabel={`Thông tin kỹ thuật giao dịch ${item.paymentId}`}
+      >
+        <dl className="apm-detail-grid">
+          {buyer && (
+            <div>
+              <dt>Người mua</dt>
+              <dd>{buyer}</dd>
+            </div>
+          )}
+          <div>
+            <dt>Giao dịch</dt>
+            <dd>{item.paymentId}</dd>
+          </div>
+          <div>
+            <dt>Thuê bao</dt>
+            <dd>{item.subscriptionId}</dd>
+          </div>
+          <div>
+            <dt>Phiên bản gói</dt>
+            <dd>{item.planVersionId}</dd>
+          </div>
+          <div>
+            <dt>Đơn vị xử lý</dt>
+            <dd>{providers[item.provider]}</dd>
+          </div>
+          <div>
+            <dt>Quy tắc giá</dt>
+            <dd>{item.pricingPolicyVersion}</dd>
+          </div>
+        </dl>
+      </Disclosure>
+    </article>
+  )
+}
+
+export default function AdminPaymentsManager({
+  onNotice,
+}: {
+  onNotice?: (message: string) => void
+}) {
+  const [data, setData] = useState<AdminPaymentList | null>(null)
+  const [failed, setFailed] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [status, setStatus] = useState<PaymentStatus | 'ALL'>('ALL')
+  const [provider, setProvider] = useState<Provider | 'ALL'>('ALL')
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [page, setPage] = useState(1)
+
+  async function load() {
+    setLoading(true)
+    setFailed(false)
+    try {
+      setData(await browserSubscription.adminPayments())
+      setPage(1)
+    } catch {
+      setFailed(true)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    let active = true
+    browserSubscription.adminPayments().then(
+      (response) => {
+        if (active) {
+          setData(response)
+          setLoading(false)
+        }
+      },
+      () => {
+        if (active) {
+          setFailed(true)
+          setLoading(false)
+        }
+      },
+    )
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const items = data?.items ?? []
+  const providerCounts = { FAKE: 0, MOMO: 0, PAYOS: 0 }
+  for (const item of items) providerCounts[item.provider] += 1
+  const availableProviders = providerCodes.filter(
+    (code) => providerCounts[code] > 0 || provider === code,
+  )
+
+  const gatewayItems = items.filter(
+    (item) => provider === 'ALL' || item.provider === provider,
+  )
+  const statusCounts = { SUCCEEDED: 0, PENDING: 0, FAILED: 0, CHARGEBACK: 0 }
+  for (const item of gatewayItems) statusCounts[item.status] += 1
+  const filtered = gatewayItems.filter(
+    (item) => status === 'ALL' || item.status === status,
+  )
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const start = (page - 1) * pageSize
+  const displayed = filtered.slice(start, start + pageSize)
+  const buyers = useSubscriptionBuyerLabels(
+    displayed.map((item) => item.subscriptionId),
+  )
+
+  function filterProvider(value: Provider | 'ALL') {
+    setProvider(value)
+    setPage(1)
+  }
+
+  function filterStatus(value: PaymentStatus | 'ALL') {
+    setStatus(value)
+    setPage(1)
+  }
+
+  return (
+    <div className="admin-payments-manager" aria-busy={loading}>
+      <header className="apm-heading">
+        <div>
+          <span className="apm-eyebrow">Quản trị nền tảng</span>
+          <h1>Giao dịch gói dịch vụ</h1>
+          <p>
+            Tra cứu tối đa 200 giao dịch gần nhất. Trang chỉ dùng để xem và đối
+            chiếu các giao dịch thanh toán.
+          </p>
+        </div>
+        <div className="apm-actions">
+          <button
+            type="button"
+            className="apm-button"
+            disabled={loading}
+            onClick={() => {
+              void load()
+              onNotice?.('Đang làm mới giao dịch.')
+            }}
+          >
+            <RefreshCw size={16} aria-hidden="true" />
+            Làm mới
+          </button>
+          <button
+            type="button"
+            className="apm-button"
+            disabled={!data}
+            aria-expanded={advancedOpen}
+            aria-controls="apm-advanced-filters"
+            onClick={() => setAdvancedOpen((open) => !open)}
+          >
+            <Filter size={16} aria-hidden="true" />
+            {status === 'ALL' ? 'Lọc nâng cao' : 'Lọc nâng cao (1)'}
+          </button>
+          <button
+            type="button"
+            className="apm-button apm-button-primary"
+            disabled={loading || failed || !filtered.length}
+            onClick={() => exportPayments(filtered)}
+          >
+            <FileDown size={16} aria-hidden="true" />
+            Xuất báo cáo
+          </button>
+        </div>
+      </header>
+
+      {loading && !data && (
+        <p className="apm-notice" role="status">
+          Đang tải giao dịch…
+        </p>
+      )}
+      {failed && (
+        <div className="apm-notice" role="alert">
+          <p>
+            Chưa thể tải giao dịch. Thông tin đã tải trước đó, nếu có, chưa được
+            cập nhật.
+          </p>
+          <button
+            type="button"
+            className="apm-button"
+            onClick={() => void load()}
+          >
+            Thử lại
+          </button>
+        </div>
+      )}
+      {data && (
+        <>
+          <PaymentMetrics items={items} providerCounts={providerCounts} />
+
+          <div className="apm-filters">
+            <div
+              className="apm-status-tabs"
+              role="group"
+              aria-label="Trạng thái giao dịch"
+            >
+              <button
+                type="button"
+                aria-pressed={status === 'ALL'}
+                onClick={() => filterStatus('ALL')}
+              >
+                Tất cả trạng thái <b>({gatewayItems.length})</b>
+              </button>
+              {statusCodes.map((code) => (
+                <button
+                  type="button"
+                  key={code}
+                  aria-pressed={status === code}
+                  onClick={() => filterStatus(code)}
+                >
+                  <i className="apm-dot" data-status={code} />
+                  {code === 'SUCCEEDED' ? 'Thành công' : labels[code]}{' '}
+                  <b>({statusCounts[code]})</b>
+                </button>
+              ))}
+            </div>
+            <label className="apm-select">
+              <span>Lọc cổng thanh toán</span>
+              <span className="apm-select-control">
+                <select
+                  value={provider}
+                  onChange={(event) =>
+                    filterProvider(event.target.value as Provider | 'ALL')
+                  }
+                >
+                  <option value="ALL">Tất cả cổng thanh toán</option>
+                  {availableProviders.map((code) => (
+                    <option key={code} value={code}>
+                      {providers[code]}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={15} aria-hidden="true" />
+              </span>
+            </label>
+            <div
+              className="apm-advanced"
+              id="apm-advanced-filters"
+              hidden={!advancedOpen}
+            >
+              <label className="apm-select">
+                <span>Lọc trạng thái</span>
+                <span className="apm-select-control">
+                  <select
+                    value={status}
+                    onChange={(event) =>
+                      filterStatus(event.target.value as PaymentStatus | 'ALL')
+                    }
+                  >
+                    <option value="ALL">Tất cả trạng thái</option>
+                    {statusCodes.map((code) => (
+                      <option key={code} value={code}>
+                        {labels[code]}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={15} aria-hidden="true" />
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <section
+            className="apm-timeline"
+            aria-labelledby="apm-timeline-title"
+          >
+            <header>
+              <div>
+                <h2 id="apm-timeline-title">
+                  <i className="apm-dot is-green" />
+                  Dòng thời gian giao dịch gói
+                </h2>
+                <span className="apm-badge" role="status">
+                  {filtered.length} giao dịch
+                </span>
+              </div>
+              <p>
+                Đồng bộ máy chủ
+                <time dateTime={data.generatedAt}>
+                  {dateTime.format(new Date(data.generatedAt))} GMT+7
+                </time>
+              </p>
+            </header>
+            {displayed.length ? (
+              <div className="apm-transaction-list">
+                {displayed.map((item) => (
+                  <PaymentRow
+                    key={item.paymentId}
+                    item={item}
+                    buyer={buyers[item.subscriptionId]}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="apm-notice">Chưa có giao dịch phù hợp.</p>
+            )}
+            <footer className="apm-pagination">
+              <p>
+                {filtered.length
+                  ? `Hiển thị ${start + 1} đến ${start + displayed.length} trong tổng số ${filtered.length} bản ghi`
+                  : 'Hiển thị 0 bản ghi'}
+              </p>
+              <nav aria-label="Phân trang giao dịch">
+                <button
+                  type="button"
+                  className="apm-button"
+                  disabled={page === 1}
+                  onClick={() => setPage((current) => current - 1)}
+                >
+                  Trang trước
+                </button>
+                <span
+                  aria-current="page"
+                  aria-label={`Trang ${page} trên ${pageCount}`}
+                >
+                  {page}
+                </span>
+                <button
+                  type="button"
+                  className="apm-button"
+                  disabled={page === pageCount}
+                  onClick={() => setPage((current) => current + 1)}
+                >
+                  Trang sau
+                </button>
+              </nav>
+            </footer>
+          </section>
+        </>
+      )}
+    </div>
+  )
 }

@@ -1,0 +1,37 @@
+services:
+  journal-migrate:
+    image: mentalbridge-mobile-journal-e2e
+    build: ./journal-ai-service
+    command: npm run migrate:up
+    environment: &journal-environment
+      NODE_ENV: production
+      CI: 'true'
+      JOURNAL_AI_MONGODB_URI: mongodb://mongodb:27017
+      JOURNAL_AI_MONGODB_DATABASE: mentalbridge_mobile_journal_e2e
+      JOURNAL_AI_ENCRYPTION_KEY: ${E2E_JOURNAL_ENCRYPTION_KEY}
+      JOURNAL_AI_IDEMPOTENCY_HMAC_KEY: ${E2E_JOURNAL_HMAC_KEY}
+      IDENTITY_JWT_ISSUER: https://identity.e2e.mentalbridge
+      IDENTITY_JWT_AUDIENCE: mentalbridge-e2e-api
+      IDENTITY_JWT_KEY_ID: controlled-e2e-key
+      IDENTITY_JWT_PUBLIC_KEY: ${E2E_IDENTITY_JWT_PUBLIC_KEY}
+      JOURNAL_AI_CARE_BASE_URL: http://care:8080
+      JOURNAL_AI_CONTENT_BASE_URL: http://content-notification:3003
+      # Deliberately unavailable dependency, not a mocked entitlement decision.
+      # The real Journal worker must persist ENTITLEMENT_UNAVAILABLE safely.
+      JOURNAL_AI_CONSULTATION_BASE_URL: http://127.0.0.1:9
+      JOURNAL_AI_PROVIDER_MODE: DETERMINISTIC_FAKE
+      JOURNAL_AI_ANALYSIS_ENABLED: 'true'
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  journal-ai:
+    image: mentalbridge-mobile-journal-e2e
+    build: ./journal-ai-service
+    environment: *journal-environment
+    ports: ['3000:3000']
+    depends_on:
+      journal-migrate:
+        condition: service_completed_successfully
+      care:
+        condition: service_started

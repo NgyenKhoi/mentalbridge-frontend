@@ -1,4 +1,4 @@
-export type EligibilityOperation = 'subscribe' | 'send' | 'history'
+export type EligibilityOperation = 'subscribe' | 'send' | 'history' | 'check-in'
 export type EligibilityResult = 'eligible' | 'denied' | 'unavailable'
 
 export interface ConversationEligibility {

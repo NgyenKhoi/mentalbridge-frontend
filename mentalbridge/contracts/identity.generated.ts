@@ -4,6 +4,63 @@
  */
 
 export interface paths {
+    "/internal/v1/accounts/{accountId}/authorization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve whether an account is currently ACTIVE
+         * @description Current, non-cacheable authorization check for authenticated Care, Community, and Consultation callers. Unknown and every non-ACTIVE status return active false without exposing role, status, or account metadata.
+         */
+        get: operations["authorizeActiveAccount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/community-chat/account-authorizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve current active USER eligibility for Community chat
+         * @description Community-only read using its dedicated service credential, separate from notification/reminder credentials. At most 100 exact private account IDs. Returns only requested IDs currently ACTIVE with verified email and USER role; unknown, disabled, deleting, deleted, unverified and other roles are omitted identically. No email, name, role or status projection. No cached positive fallback or Idempotency-Key. This current read is not a durable authorization grant; Community must recheck each operation and enforce its local blocks/restrictions transactionally. Internal network/TLS only.
+         */
+        post: operations["authorizeCommunityChatAccounts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/accounts/{accountId}/verified-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resolve the current verified email for one exact USER owner */
+        get: operations["getVerifiedDeliveryAddress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/registrations": {
         parameters: {
             query?: never;
@@ -228,6 +285,175 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/platform-report-schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List at most 50 nondeleted ADMIN report schedules */
+        get: operations["listPlatformReportSchedules"];
+        put?: never;
+        /**
+         * Create a bounded recurring aggregate report schedule
+         * @description ADMIN-only in-app report history delivery. Weekly means Monday; monthly means day 1. Period covers the preceding 1–366 completed UTC days. No arbitrary address or URL is accepted.
+         */
+        post: operations["createPlatformReportSchedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/platform-report-schedules/{scheduleId}": {
+        parameters: {
+            query: {
+                expectedVersion: number;
+            };
+            header?: never;
+            path: {
+                scheduleId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace a schedule or pause/resume using its current version
+         * @description Recalculates the next future occurrence; missed occurrences are not replayed. Prior jobs and artifacts remain immutable.
+         */
+        put: operations["updatePlatformReportSchedule"];
+        post?: never;
+        /** Stop future occurrences while retaining report audit history */
+        delete: operations["deletePlatformReportSchedule"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/platform-reports/catalogue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List report types backed by an available authoritative source */
+        get: operations["listPlatformReportTypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/product-journey-metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read privacy-bounded aggregate product journey facts
+         * @description Returns privacy-bounded stage counts and descriptive cohort progress rates for the same half-open [from,to) window. Identity activation is limited to USER accounts registered in the window and verified before to; consultation progress is limited to appointments requested in the window and reaching the milestone before to. SPECIALIST and ADMIN accounts are excluded. Rates do not represent clinical effectiveness, recovery, or causation. Unavailable owner capabilities remain explicitly unavailable.
+         */
+        get: operations["getProductJourneyMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/platform-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Browse immutable platform report job history */
+        get: operations["browsePlatformReports"];
+        put?: never;
+        /** Queue an aggregate platform report */
+        post: operations["requestPlatformReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/platform-reports/{reportId}/retries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry a failed or stale report as a new immutable job */
+        post: operations["retryPlatformReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/platform-reports/{reportId}/artifact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download an unexpired completed aggregate artifact */
+        get: operations["downloadPlatformReportArtifact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/notification-delivery-contacts/{accountId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resolve an active verified account's email for the notification owner service */
+        get: operations["getNotificationDeliveryContact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/accounts/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read authoritative aggregate account counts and status for admin operations dashboard (excluding soft-deleted accounts) */
+        get: operations["getAccountsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/accounts/{accountId}": {
         parameters: {
             query?: never;
@@ -265,10 +491,312 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/audit-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Browse privacy-minimized administration audit events
+         * @description Returns only bounded operational metadata retained by Identity. Raw journal, assessment, chat, provider, credential, token, secret, and unnecessary health data are never included.
+         */
+        get: operations["browseAdministrationAuditEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/audit-events/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export the currently filtered administration audit events as CSV
+         * @description Uses the same authorization, retention window, ordering, and filter semantics as browse. Exports are limited to 5,000 rows and 5 MiB.
+         */
+        get: operations["exportAdministrationAuditEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/retention/policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List approved retention and deletion policies across platform owners
+         * @description Returns policy metadata, versions, owning services, execution status, and safe aggregate metrics.
+         */
+        get: operations["getRetentionPolicies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/retention/policies/{policyId}/sweep": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trigger authoritative retention sweep for a supported owner policy
+         * @description Purges expired artifacts (e.g. platform report export files) for supported owners (e.g. Identity). Fails closed for unsupported owners.
+         */
+        post: operations["triggerRetentionSweep"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/retention/deletions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Browse traceable user deletion requests and owner completion facts
+         * @description Minimized identifiers and per-owner completion facts. No cross-owner direct DB access.
+         */
+        get: operations["getDeletionRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/retention/deletions/{requestId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bounded retry of deletion coordination
+         * @description Retries deletion coordination. Rejects if active hold applies (409) or max retries exceeded (409).
+         */
+        post: operations["retryDeletion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/retention/deletions/{requestId}/holds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply legal, operational, or dispute hold to a deletion request
+         * @description Applies an Identity coordinator hold (LEGAL_HOLD, OPERATIONAL_HOLD, or DISPUTE_HOLD) blocking deletion coordination and retry attempts within Identity until released by admin. Does not assert or claim enforcement in external owner databases unless an authoritative cross-service contract exists.
+         */
+        post: operations["applyDeletionHold"];
+        /**
+         * Release legal, operational, or dispute hold from a deletion request
+         * @description Releases the Identity coordinator hold, permitting deletion coordination and retry attempts within Identity to resume. Does not mutate external owner facts or assert external enforcement.
+         */
+        delete: operations["releaseDeletionHold"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        PlatformReportScheduleRequest: {
+            /** @enum {string} */
+            reportType: "ACCOUNT_ACTIVITY";
+            /** @enum {string} */
+            cadence: "DAILY" | "WEEKLY" | "MONTHLY";
+            /** @example Asia/Ho_Chi_Minh */
+            timezone: string;
+            /** @example 08:00:00 */
+            localTime: string;
+            periodDays: number;
+            /** @enum {string} */
+            recipientGroup: "ADMIN";
+            /** @enum {string} */
+            deliveryTarget: "ADMIN_REPORT_HISTORY";
+            enabled: boolean;
+        };
+        PlatformReportSchedule: {
+            /** @enum {string} */
+            reportType: "ACCOUNT_ACTIVITY";
+            /** @enum {string} */
+            cadence: "DAILY" | "WEEKLY" | "MONTHLY";
+            /** @example Asia/Ho_Chi_Minh */
+            timezone: string;
+            /** @example 08:00:00 */
+            localTime: string;
+            periodDays: number;
+            /** @enum {string} */
+            recipientGroup: "ADMIN";
+            /** @enum {string} */
+            deliveryTarget: "ADMIN_REPORT_HISTORY";
+        } & {
+            /** Format: uuid */
+            scheduleId: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "PAUSED";
+            /** Format: date-time */
+            nextRunAt: string;
+            lastFailureCode: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+        };
+        ProductJourneyMetrics: {
+            /** @constant */
+            projectionVersion: "product-journey-metrics-v2";
+            window: {
+                /** Format: date-time */
+                from: string;
+                /** Format: date-time */
+                to: string;
+            };
+            /** Format: date-time */
+            asOf: string;
+            /** @constant */
+            interpretation: "DESCRIPTIVE_PRODUCT_ACTIVITY_NOT_CLINICAL_EFFECTIVENESS";
+            sources: components["schemas"]["ProductJourneySource"][];
+            stages: components["schemas"]["ProductJourneyStage"][];
+        };
+        ProductJourneySource: {
+            /** @enum {string} */
+            source: "IDENTITY" | "CARE" | "CONSULTATION";
+            sourceVersion?: string | null;
+            /** @enum {string} */
+            status: "AVAILABLE" | "UNAVAILABLE";
+            /** Format: date-time */
+            asOf?: string | null;
+            /** @enum {string|null} */
+            unavailableReason?: "DEPENDENCY_UNAVAILABLE" | null;
+        };
+        ProductJourneyStage: {
+            /** @enum {string} */
+            stage: "USER_ACCOUNTS_REGISTERED" | "USER_ACCOUNTS_ACTIVATED" | "COMPLETED_SCREENING_EPISODES" | "SUPPORT_GUIDES_GENERATED" | "SUPPORT_GUIDES_OPENED" | "PAID_SUPPORT_PLANS_ACTIVATED" | "CONSULTATIONS_REQUESTED" | "CONSULTATIONS_CONFIRMED" | "CONSULTATIONS_COMPLETED";
+            /** @enum {string} */
+            source: "IDENTITY" | "CARE" | "CONSULTATION";
+            /** @enum {string} */
+            status: "AVAILABLE" | "UNAVAILABLE";
+            /**
+             * Format: int64
+             * @description Aggregate stage count. For a rate-bearing stage, this is the numerator from the same explicit cohort as denominatorStage.
+             */
+            count?: number | null;
+            /** @description Descriptive cohort progress percentage. Null when the stage has no approved cohort denominator or the denominator count is zero. */
+            rate?: null | components["schemas"]["ProductJourneyRate"];
+            /** @enum {string|null} */
+            unavailableReason?: "SOURCE_UNAVAILABLE" | "AUTHORITATIVE_USAGE_FACT_UNAVAILABLE" | null;
+        };
+        ProductJourneyRate: {
+            /** @enum {string} */
+            denominatorStage: "USER_ACCOUNTS_REGISTERED" | "CONSULTATIONS_REQUESTED";
+            /** @description Numerator count divided by the named denominator-stage count, rounded to one decimal place. */
+            percentage: number;
+        };
+        /** @enum {string} */
+        PlatformReportTypeCode: "ACCOUNT_ACTIVITY";
+        /** @enum {string} */
+        PlatformReportStatus: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED" | "STALE";
+        PlatformReportType: {
+            reportType: components["schemas"]["PlatformReportTypeCode"];
+            label: string;
+            description: string;
+            scopeVersion: string;
+            maximumPeriodDays: number;
+        };
+        PlatformReportRequest: {
+            reportType: components["schemas"]["PlatformReportTypeCode"];
+            /** Format: date */
+            periodStart: string;
+            /** Format: date */
+            periodEnd: string;
+        };
+        PlatformReport: {
+            /** Format: uuid */
+            reportId: string;
+            reportType: components["schemas"]["PlatformReportTypeCode"];
+            scopeVersion: string;
+            /** Format: date */
+            periodStart: string;
+            /** Format: date */
+            periodEnd: string;
+            /** Format: uuid */
+            requestedBy: string;
+            /** Format: date-time */
+            requestedAt: string;
+            status: components["schemas"]["PlatformReportStatus"];
+            sourceVersions: {
+                [key: string]: string;
+            };
+            /** Format: uuid */
+            retryOf?: string | null;
+            /** Format: date-time */
+            startedAt?: string | null;
+            /** Format: date-time */
+            completedAt?: string | null;
+            /** Format: date-time */
+            failedAt?: string | null;
+            failureCode?: string | null;
+            downloadable: boolean;
+            fileName?: string | null;
+            mediaType?: string | null;
+            /** Format: int64 */
+            contentLength?: number | null;
+            contentSha256?: string | null;
+            /** Format: date-time */
+            retainedUntil?: string | null;
+        };
+        PlatformReportPage: {
+            items: components["schemas"]["PlatformReport"][];
+            nextCursor?: string | null;
+        };
+        VerifiedDeliveryAddress: {
+            /** Format: uuid */
+            accountId: string;
+            /** Format: email */
+            email: string;
+        };
         RegistrationRequest: {
             /** Format: email */
             email: string;
@@ -351,14 +879,79 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        NotificationDeliveryContact: {
+            /** Format: email */
+            email: string;
+        };
         AccountPage: {
             items: components["schemas"]["AccountDetail"][];
             /** @description Null means there is no next page */
             nextCursor?: string | null;
         };
         AccountStateChangeRequest: {
-            status: components["schemas"]["AccountStatus"];
-            reasonCode: string;
+            /**
+             * @description DISABLED suspends an account; ACTIVE restores a disabled account according to email-verification state.
+             * @enum {string}
+             */
+            status: "ACTIVE" | "DISABLED";
+            /**
+             * @description REVIEW_COMPLETED is reserved for restoration; the other values are suspension reasons.
+             * @enum {string}
+             */
+            reasonCode: "SAFETY_CONCERN" | "POLICY_VIOLATION" | "ACCOUNT_REVIEW_REQUIRED" | "REVIEW_COMPLETED";
+        };
+        /** @enum {string} */
+        AuditSourceService: "IDENTITY" | "CONSULTATION" | "CONTENT" | "COMMUNITY";
+        /** @enum {string} */
+        AuditDomain: "ACCOUNT_ADMINISTRATION" | "SPECIALIST_REVIEW" | "RESOURCE_MANAGEMENT" | "COMMUNITY_MODERATION";
+        /** @enum {string} */
+        AuditActorType: "ADMIN" | "SYSTEM";
+        /** @enum {string} */
+        AuditResult: "SUCCEEDED" | "DENIED" | "FAILED";
+        AdministrationAuditEvent: {
+            /** Format: uuid */
+            eventId: string;
+            /** Format: date-time */
+            occurredAt: string;
+            actorType: components["schemas"]["AuditActorType"];
+            /** @description Safe account identifier, actor tombstone, or the literal system actor. */
+            actorIdentifier: string;
+            action: string;
+            result: components["schemas"]["AuditResult"];
+            reasonCode?: string | null;
+            /** Format: uuid */
+            correlationId: string;
+            sourceService: components["schemas"]["AuditSourceService"];
+            domain: components["schemas"]["AuditDomain"];
+            targetIdentifier?: string | null;
+        };
+        AdministrationAuditEventPage: {
+            items: components["schemas"]["AdministrationAuditEvent"][];
+            nextCursor: string | null;
+            /** Format: date-time */
+            effectiveFrom: string;
+            /** Format: date-time */
+            effectiveTo: string;
+            /** Format: date-time */
+            retentionCutoff: string;
+        };
+        AccountsSummaryRoleBreakdown: {
+            users: number;
+            specialists: number;
+            admins: number;
+        };
+        AccountsSummary: {
+            /** @constant */
+            source: "IDENTITY";
+            /** Format: date-time */
+            asOf: string;
+            /** @description Total manageable accounts in the platform, excluding soft-deleted (purged) accounts. Matches the sum of status breakdown and the sum of role breakdown. */
+            totalAccounts: number;
+            activeAccounts: number;
+            pendingVerificationAccounts: number;
+            disabledAccounts: number;
+            deletionPendingAccounts: number;
+            byRole: components["schemas"]["AccountsSummaryRoleBreakdown"];
         };
         Problem: {
             /** Format: uri-reference */
@@ -378,6 +971,104 @@ export interface components {
             }[];
         } & {
             [key: string]: unknown;
+        };
+        RetentionPolicy: {
+            policyId: string;
+            name: string;
+            version: string;
+            /** @enum {string} */
+            ownerService: "IDENTITY" | "CARE" | "CONSULTATION" | "JOURNAL_AI" | "COMMUNITY" | "CONTENT";
+            /** @enum {string} */
+            status: "APPROVED" | "ENFORCED" | "PARTIALLY_SUPPORTED" | "UNAVAILABLE";
+            description: string;
+            retentionDays?: number | null;
+            jobName: string;
+            /**
+             * @description Latest authoritative execution outcome when one exists; otherwise the catalog capability state. FAILED reports the latest failed execution and does not by itself mean retries are exhausted.
+             * @enum {string}
+             */
+            jobStatus: "ACTIVE" | "IDLE" | "PARTIALLY_SUPPORTED" | "UNAVAILABLE" | "SUCCEEDED" | "FAILED" | "RUNNING" | "STALE";
+            /** @enum {string} */
+            jobStatusSource: "IDENTITY_POLICY_CATALOG" | "IDENTITY_EXECUTION_RECORD" | "NO_AUTHORITATIVE_SIGNAL";
+            automatedExecutionSupported: boolean;
+            /** @description Whether the policy owner exposes an authoritative owner-level manual Hold contract. Identity coordinator Hold remains available through deletion-request Hold endpoints and does not imply enforcement by an external owner. */
+            manualHoldSupported: boolean;
+            /** @description True only after three consecutive failed or stale executions exhaust automated retry and require manual intervention. */
+            manualEscalationRequired?: boolean;
+            requiresManualReview: boolean;
+            unsupportedCapabilityNotice?: string | null;
+            lastExecution?: components["schemas"]["RetentionExecutionRecord"] | null;
+        };
+        RetentionExecutionRecord: {
+            /** Format: uuid */
+            executionId: string;
+            policyId: string;
+            ownerService: string;
+            jobName: string;
+            jobStatus: string;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            completedAt?: string | null;
+            itemsEvaluated: number;
+            recordsPurged: number;
+            tombstonesCreated: number;
+            holdsHonored: number;
+            failureCode?: components["schemas"]["RetentionFailureCode"] | null;
+        };
+        DeletionOwnerFact: {
+            /** @enum {string} */
+            ownerService: "IDENTITY" | "CARE" | "CONSULTATION" | "JOURNAL_AI" | "COMMUNITY" | "CONTENT";
+            /** @enum {string} */
+            status: "PENDING" | "COMPLETED" | "HELD" | "FAILED" | "UNAVAILABLE";
+            /** Format: date-time */
+            completedAt?: string | null;
+            /** @description Identity-only opaque reference whose UUID suffix identifies the committed authoritative Identity audit event for the successful account-deletion attempt. External owners remain null until an approved authoritative evidence contract exists. */
+            evidenceReference?: string | null;
+            failureReason?: components["schemas"]["DeletionFailureReason"] | null;
+        };
+        /** @enum {string} */
+        RetentionFailureCode: "PRIOR_EXECUTION_STALE" | "SWEEP_EXECUTION_FAILED";
+        /** @enum {string} */
+        DeletionFailureReason: "ACCOUNT_NOT_FOUND";
+        /** @enum {string} */
+        DeletionFailureCode: "ACCOUNT_NOT_FOUND" | "RETRY_LIMIT_EXHAUSTED";
+        /** @enum {string} */
+        DeletionHoldReason: "STATUTORY_INQUIRY" | "PENDING_DISPUTE" | "ACTIVE_SAFETY_REVIEW" | "SCHEDULED_APPOINTMENT_ACTIVE" | "USER_CONTESTED" | "AUDIT_COMPLIANCE_HOLD";
+        DeletionRequest: {
+            /** Format: uuid */
+            requestId: string;
+            subjectReference: string;
+            accountStatus?: components["schemas"]["AccountStatus"] | null;
+            /** @enum {string} */
+            status: "PENDING" | "IN_PROGRESS" | "HELD" | "COMPLETED" | "FAILED";
+            /** @enum {string} */
+            holdType: "NONE" | "LEGAL_HOLD" | "OPERATIONAL_HOLD" | "DISPUTE_HOLD";
+            holdReason?: components["schemas"]["DeletionHoldReason"] | null;
+            retryCount: number;
+            maxRetries: number;
+            /** @enum {string} */
+            escalationState: "NONE" | "RETRY_EXHAUSTED" | "MANUAL_ESCALATION_REQUIRED";
+            failureCode?: components["schemas"]["DeletionFailureCode"] | null;
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            scheduledExecutionAt: string;
+            /** Format: date-time */
+            completedAt?: string | null;
+            /** Format: date-time */
+            lastAttemptAt?: string | null;
+            ownerFacts: components["schemas"]["DeletionOwnerFact"][];
+        };
+        DeletionRequestPage: {
+            items: components["schemas"]["DeletionRequest"][];
+            total: number;
+            nextCursor?: string | null;
+        };
+        ApplyHoldRequest: {
+            /** @enum {string} */
+            holdType: "LEGAL_HOLD" | "OPERATIONAL_HOLD" | "DISPUTE_HOLD";
+            holdReason: components["schemas"]["DeletionHoldReason"];
         };
     };
     responses: {
@@ -503,6 +1194,15 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description The bounded artifact retention window has ended */
+        GoneProblem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Idempotency key was previously used with a different request */
         IdempotencyConflictProblem: {
             headers: {
@@ -534,11 +1234,23 @@ export interface components {
     };
     parameters: {
         AccountId: string;
+        ReportId: string;
         /** @description Caller correlation identifier; the server generates one when omitted */
         CorrelationId: string;
         IdempotencyKey: string;
         /** @example "3" */
         IfMatch: string;
+        /** @description Inclusive UTC start. Defaults to 30 days before the effective end and cannot precede the 365-day retention boundary. */
+        AuditFrom: string;
+        /** @description Inclusive UTC end. Defaults to the current server time. A query window cannot exceed 90 days. */
+        AuditTo: string;
+        AuditSourceService: components["schemas"]["AuditSourceService"];
+        AuditDomain: components["schemas"]["AuditDomain"];
+        AuditActorType: components["schemas"]["AuditActorType"];
+        AuditAction: string;
+        AuditResult: components["schemas"]["AuditResult"];
+        /** @description Exact safe identifier returned by this API, either account UUID or tombstone hash. */
+        AuditTargetIdentifier: string;
     };
     requestBodies: never;
     headers: never;
@@ -546,6 +1258,91 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    authorizeActiveAccount: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-MentalBridge-Service-Id": "care-service" | "community-service" | "consultation-service";
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                accountId: components["parameters"]["AccountId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Minimized current account authorization result */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        active: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+        };
+    };
+    authorizeCommunityChatAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    accountIds: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description Current eligibility subset; unknown IDs reveal no account metadata */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        activeUserAccountIds: string[];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+        };
+    };
+    getVerifiedDeliveryAddress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Minimized current delivery address */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifiedDeliveryAddress"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
     registerAccount: {
         parameters: {
             query?: never;
@@ -875,6 +1672,364 @@ export interface operations {
             403: components["responses"]["ForbiddenProblem"];
         };
     };
+    listPlatformReportSchedules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest-created-first schedules */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformReportSchedule"][];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    createPlatformReportSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlatformReportScheduleRequest"];
+            };
+        };
+        responses: {
+            /** @description Schedule created; first occurrence strictly after creation */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformReportSchedule"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            409: components["responses"]["ConflictProblem"];
+        };
+    };
+    updatePlatformReportSchedule: {
+        parameters: {
+            query: {
+                expectedVersion: number;
+            };
+            header?: never;
+            path: {
+                scheduleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlatformReportScheduleRequest"];
+            };
+        };
+        responses: {
+            /** @description Schedule updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformReportSchedule"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            /** @description Schedule changed; reload before retrying */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deletePlatformReportSchedule: {
+        parameters: {
+            query: {
+                expectedVersion: number;
+            };
+            header?: never;
+            path: {
+                scheduleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Schedule deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            /** @description Schedule changed; reload before retrying */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listPlatformReportTypes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current supported report catalogue */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformReportType"][];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getProductJourneyMetrics: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aggregate platform journey projection for the explicit half-open window */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductJourneyMetrics"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    browsePlatformReports: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest-first report history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformReportPage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    requestPlatformReport: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlatformReportRequest"];
+            };
+        };
+        responses: {
+            /** @description Report job accepted or replayed */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformReport"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            409: components["responses"]["IdempotencyConflictProblem"];
+        };
+    };
+    retryPlatformReport: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                reportId: components["parameters"]["ReportId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Retry job accepted or replayed */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformReport"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["IdempotencyConflictProblem"];
+        };
+    };
+    downloadPlatformReportArtifact: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                reportId: components["parameters"]["ReportId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable report artifact with SHA-256 integrity and retention headers */
+            200: {
+                headers: {
+                    /** @description Attachment filename for the generated artifact */
+                    "Content-Disposition"?: string;
+                    /** @description Lowercase hexadecimal SHA-256 digest of the response body */
+                    "X-Content-SHA256"?: string;
+                    /** @description Instant after which the artifact is no longer downloadable */
+                    "X-Retained-Until"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            410: components["responses"]["GoneProblem"];
+        };
+    };
+    getNotificationDeliveryContact: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-MentalBridge-Service-Token": string;
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                accountId: components["parameters"]["AccountId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current delivery contact */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationDeliveryContact"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    getAccountsSummary: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative aggregate account summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountsSummary"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
     getAccountById: {
         parameters: {
             query?: never;
@@ -938,6 +2093,278 @@ export interface operations {
             404: components["responses"]["NotFoundProblem"];
             409: components["responses"]["ConflictProblem"];
             412: components["responses"]["VersionProblem"];
+        };
+    };
+    browseAdministrationAuditEvents: {
+        parameters: {
+            query?: {
+                /** @description Inclusive UTC start. Defaults to 30 days before the effective end and cannot precede the 365-day retention boundary. */
+                from?: components["parameters"]["AuditFrom"];
+                /** @description Inclusive UTC end. Defaults to the current server time. A query window cannot exceed 90 days. */
+                to?: components["parameters"]["AuditTo"];
+                sourceService?: components["parameters"]["AuditSourceService"];
+                domain?: components["parameters"]["AuditDomain"];
+                actorType?: components["parameters"]["AuditActorType"];
+                action?: components["parameters"]["AuditAction"];
+                result?: components["parameters"]["AuditResult"];
+                /** @description Exact safe identifier returned by this API, either account UUID or tombstone hash. */
+                targetIdentifier?: components["parameters"]["AuditTargetIdentifier"];
+                cursor?: string;
+                limit?: number;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded audit event page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdministrationAuditEventPage"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    exportAdministrationAuditEvents: {
+        parameters: {
+            query?: {
+                /** @description Inclusive UTC start. Defaults to 30 days before the effective end and cannot precede the 365-day retention boundary. */
+                from?: components["parameters"]["AuditFrom"];
+                /** @description Inclusive UTC end. Defaults to the current server time. A query window cannot exceed 90 days. */
+                to?: components["parameters"]["AuditTo"];
+                sourceService?: components["parameters"]["AuditSourceService"];
+                domain?: components["parameters"]["AuditDomain"];
+                actorType?: components["parameters"]["AuditActorType"];
+                action?: components["parameters"]["AuditAction"];
+                result?: components["parameters"]["AuditResult"];
+                /** @description Exact safe identifier returned by this API, either account UUID or tombstone hash. */
+                targetIdentifier?: components["parameters"]["AuditTargetIdentifier"];
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description UTF-8 CSV containing only privacy-minimized audit metadata */
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    getRetentionPolicies: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of approved retention policies */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetentionPolicy"][];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    triggerRetentionSweep: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                policyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Retention sweep execution result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetentionExecutionRecord"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            /** @description Capability unsupported by owner */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getDeletionRequests: {
+        parameters: {
+            query?: {
+                status?: "PENDING" | "IN_PROGRESS" | "HELD" | "COMPLETED" | "FAILED";
+                holdType?: "NONE" | "LEGAL_HOLD" | "OPERATIONAL_HOLD" | "DISPUTE_HOLD";
+                limit?: number;
+                page?: number;
+            };
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deletion requests page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionRequestPage"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+        };
+    };
+    retryDeletion: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated deletion request */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionRequest"];
+                };
+            };
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+            409: components["responses"]["ConflictProblem"];
+            /** @description Retry unsupported for external owners or invalid facts state */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    applyDeletionHold: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyHoldRequest"];
+            };
+        };
+        responses: {
+            /** @description Deletion request with hold applied */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionRequest"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
+        };
+    };
+    releaseDeletionHold: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Caller correlation identifier; the server generates one when omitted */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deletion request with hold released */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionRequest"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            401: components["responses"]["UnauthorizedProblem"];
+            403: components["responses"]["ForbiddenProblem"];
+            404: components["responses"]["NotFoundProblem"];
         };
     };
 }
