@@ -661,6 +661,41 @@ describe('SpecialistDiscovery', () => {
     ).toHaveAttribute('href', `/support-guides/${guideId}`)
   })
 
+  it('keeps approved profiles visible without slots and opens their detail without enabling booking', async () => {
+    const user = userEvent.setup()
+    const noSlots = {
+      ...item,
+      selectableSlots: [],
+      explanation: {
+        ...item.explanation,
+        hasSelectableSlot: false,
+        earliestSelectableStartAt: null,
+        codes: ['NO_SELECTABLE_SLOT'],
+      },
+    }
+    discoveryClient.list.mockResolvedValue({
+      ...page('PLUS'),
+      items: [noSlots],
+    })
+    discoveryClient.detail.mockResolvedValue(noSlots)
+    renderDiscovery()
+
+    expect(
+      await screen.findByRole('heading', { name: 'Chuyên gia An' }),
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Hồ sơ' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(
+      await within(dialog).findByRole('button', { name: 'Đặt lịch gần nhất' }),
+    ).toBeDisabled()
+    await user.click(within(dialog).getByRole('tab', { name: 'Lịch trống' }))
+    expect(
+      await within(dialog).findByText('Hiện chưa có lịch trống'),
+    ).toBeInTheDocument()
+    expect(within(dialog).queryByRole('radio')).not.toBeInTheDocument()
+    expect(appointmentClient.request).not.toHaveBeenCalled()
+  })
+
   it('renders empty discovery without inventing specialists or slots', async () => {
     discoveryClient.list.mockResolvedValue({
       ...page('PLUS'),
